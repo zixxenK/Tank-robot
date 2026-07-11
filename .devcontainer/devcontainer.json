@@ -1,0 +1,47 @@
+{
+  "name": "Rock64 Ranger — ROS 2 Jazzy + STM32",
+  "image": "osrf/ros:jazzy-desktop",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    }
+  },
+  "onCreateCommand": "bash .devcontainer/install-toolchain.sh",
+  "postCreateCommand": "pip install platformio && pio pkg install -g -t 'toolchain-gccarmnoneeabi'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "platformio.platformio-ide",
+        "ms-iot.vscode-ros",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "ms-python.python"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false,
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "remoteEnv": {
+    "ROS_DISTRO": "jazzy",
+    "ROS_DOMAIN_ID": "42",
+    "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
+    "ROBOT_NAMESPACE": "rock64_1"
+  },
+  "runArgs": [
+    "--privileged",
+    "--network=host",
+    "--volume=/dev:/dev"
+  ],
+  "mounts": [
+    "source=/dev,target=/dev,type=bind,consistency=cached"
+  ]
+}

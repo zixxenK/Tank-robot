@@ -1,0 +1,34 @@
+[Unit]
+Description=Rock64 Ranger — ROS2 Robot Startup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rock64
+Group=rock64
+
+# Load deployment configuration
+EnvironmentFile=/opt/rock64-robot/deployment/systemd/systemd_config.conf
+
+# Working directory (will be updated by apply_systemd.sh)
+WorkingDirectory=/opt/rock64-robot
+
+# Detect hardware before starting
+ExecStartPre=/bin/bash -c 'test -e ${SERIAL_PORT} || echo "WARNING: ${SERIAL_PORT} not present"'
+
+# Launch the robot
+ExecStart=/bin/bash /opt/rock64-robot/deployment/scripts/robot_start.sh
+
+Restart=on-failure
+RestartSec=10s
+TimeoutStartSec=60s
+TimeoutStopSec=30s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rock64-robot
+
+[Install]
+WantedBy=multi-user.target
