@@ -1,0 +1,28 @@
+# Rock64 Ranger — Deployment Configuration
+# Copy this file to systemd_config.conf and update values for your setup.
+# Generated/managed by deployment/scripts/rock64_setup.sh
+
+# ── Network ────────────────────────────────────────────────────────────────
+# IP address of the Rock64 SBC on your local network
+ROCK64_IP=192.168.1.159
+
+# ── Hardware ───────────────────────────────────────────────────────────────
+# Serial port for STM32 motor controller
+# udev rule creates symlink: /dev/rock64_stm32 → /dev/ttyACMx
+SERIAL_PORT=/dev/rock64_stm32
+
+# IP address of the ESP32-S3 camera node on station (client) WiFi
+CAMERA_IP_STATION=192.168.1.153
+
+# ── ROS2 ───────────────────────────────────────────────────────────────────
+# Set to: jazzy, humble, iron, or auto (auto-detects from Ubuntu version)
+ROS_DISTRO=auto
+
+# ROS2 domain ID — all nodes on the same domain can communicate
+ROS_DOMAIN_ID=42
+
+# Middleware implementation
+RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
+# Robot namespace (useful for multi-robot setups)
+ROBOT_NAMESPACE=rock64_1
