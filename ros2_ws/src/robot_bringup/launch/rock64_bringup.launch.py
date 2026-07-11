@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """rock64_bringup.launch.py — Hardware bringup launch file.
 
-Launches the Arduino serial bridge (STM32 motor control) and the
-ESP32 camera bridge into the ROS2 graph.
+Launches the STM32 serial bridge and the ESP32 camera bridge into the ROS2
+graph.
 """
 
 from launch import LaunchDescription
@@ -28,8 +28,8 @@ def generate_launch_description():
 
     serial_bridge_node = Node(
         package="robot_drivers",
-        executable="arduino_serial_bridge",
-        name="arduino_serial_bridge",
+        executable="stm32_serial_bridge",
+        name="stm32_serial_bridge",
         parameters=[
             {"serial_port": LaunchConfiguration("serial_port")},
             {"baud_rate": 115200},

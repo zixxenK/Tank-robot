@@ -1,13 +1,15 @@
 cmake_minimum_required(VERSION 3.16)
 
-# Cross-compilation guard - must be set before project()
-if(NOT CMAKE_CROSSCOMPILING)
+# Cross-compilation guard - the STM32 toolchain file must be supplied explicitly.
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   message(FATAL_ERROR
     "This project must be cross-compiled for STM32. "
     "Pass -DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake")
 endif()
 
 project(rock64_ranger_stm32 C CXX ASM)
+
+option(STM32_ENABLE_MICROROS "Link the optional micro-ROS static library" OFF)
 
 # ── MCU / Cortex-M4 flags ──────────────────────────────────────────────────
 set(MCU_FLAGS
@@ -24,22 +26,9 @@ file(GLOB_RECURSE FIRMWARE_SOURCES
   "Core/Startup/*.s"
 )
 
-# ── micro-ROS static library ───────────────────────────────────────────────
 set(MICROROS_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/micro_ros_lib")
 set(MICROROS_STATIC_LIB "${MICROROS_LIB_DIR}/libmicroros.a")
 set(MICROROS_INCLUDE_DIR "${MICROROS_LIB_DIR}/include")
-
-if(NOT EXISTS "${MICROROS_STATIC_LIB}")
-  message(WARNING
-    "libmicroros.a not found at ${MICROROS_STATIC_LIB}. "
-    "Run scripts/build_microros.sh to generate it.")
-endif()
-
-add_library(microros STATIC IMPORTED)
-set_target_properties(microros PROPERTIES
-  IMPORTED_LOCATION "${MICROROS_STATIC_LIB}"
-  INTERFACE_INCLUDE_DIRECTORIES "${MICROROS_INCLUDE_DIR}"
-)
 
 # ── Firmware executable ────────────────────────────────────────────────────
 add_executable(rock64_ranger_fw ${FIRMWARE_SOURCES})
@@ -47,8 +36,25 @@ add_executable(rock64_ranger_fw ${FIRMWARE_SOURCES})
 target_include_directories(rock64_ranger_fw PRIVATE
   Core/Inc
   Core/Inc/motors
-  ${MICROROS_INCLUDE_DIR}
 )
+
+if(STM32_ENABLE_MICROROS)
+  if(NOT EXISTS "${MICROROS_STATIC_LIB}")
+    message(FATAL_ERROR
+      "STM32_ENABLE_MICROROS=ON but ${MICROROS_STATIC_LIB} was not found. "
+      "Populate firmware/stm32_chassis/micro_ros_lib first.")
+  endif()
+
+  add_library(microros STATIC IMPORTED)
+  set_target_properties(microros PROPERTIES
+    IMPORTED_LOCATION "${MICROROS_STATIC_LIB}"
+    INTERFACE_INCLUDE_DIRECTORIES "${MICROROS_INCLUDE_DIR}"
+  )
+
+  target_include_directories(rock64_ranger_fw PRIVATE
+    ${MICROROS_INCLUDE_DIR}
+  )
+endif()
 
 target_compile_definitions(rock64_ranger_fw PRIVATE
   USE_HAL_DRIVER
@@ -75,8 +81,11 @@ target_link_options(rock64_ranger_fw PRIVATE
   -specs=nano.specs
 )
 
-# ── Link against micro-ROS ─────────────────────────────────────────────────
-target_link_libraries(rock64_ranger_fw PRIVATE microros m c nosys)
+target_link_libraries(rock64_ranger_fw PRIVATE m c nosys)
+
+if(STM32_ENABLE_MICROROS)
+  target_link_libraries(rock64_ranger_fw PRIVATE microros)
+endif()
 
 # ── Post-build: generate flash images ─────────────────────────────────────
 add_custom_command(TARGET rock64_ranger_fw POST_BUILD

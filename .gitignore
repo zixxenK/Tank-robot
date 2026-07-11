@@ -34,7 +34,7 @@ firmware/**/*.map
 firmware/stm32_chassis/build/
 firmware/stm32_chassis/cmake-build-*/
 
-# micro-ROS precompiled libraries (large binaries - managed separately)
+# Optional micro-ROS precompiled libraries (large binaries - managed separately)
 firmware/stm32_chassis/micro_ros_lib/libmicroros.a
 firmware/stm32_chassis/micro_ros_lib/include/
 

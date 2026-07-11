@@ -1,4 +1,5 @@
-; Place the libmicroros.a pre-compiled static library here.
+; Place the libmicroros.a pre-compiled static library here when the optional
+; micro-ROS firmware path is enabled.
 ;
 ; Build instructions:
 ;   cd firmware/stm32_chassis
