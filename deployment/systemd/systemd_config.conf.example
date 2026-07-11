@@ -15,7 +15,8 @@ SERIAL_PORT=/dev/rock64_stm32
 CAMERA_IP_STATION=192.168.1.153
 
 # ── ROS2 ───────────────────────────────────────────────────────────────────
-# Set to: jazzy, humble, iron, or auto (auto-detects from Ubuntu version)
+# Set to: jazzy, humble, or auto (auto-detects from Ubuntu version)
+# Ubuntu 24.04 -> Jazzy, Ubuntu 22.04 -> Humble
 ROS_DISTRO=auto
 
 # ROS2 domain ID — all nodes on the same domain can communicate

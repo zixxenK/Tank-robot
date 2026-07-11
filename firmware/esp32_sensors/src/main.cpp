@@ -5,7 +5,8 @@
  * on the local network for consumption by the Rock64 ROS2 bridge node.
  *
  * Board:  ESP32-S3-DevKitC-1 (CAMERA_MODEL_ESP32S3)
- * Flash:  esp32-camera library (lib_deps in platformio.ini)
+ * Framework: Arduino ESP32 (via PlatformIO)
+ * Camera Library: esp32-camera (lib_deps in platformio.ini)
  */
 
 #include <Arduino.h>
@@ -168,5 +169,7 @@ void setup() {
 }
 
 void loop() {
-    delay(10000);
+    // MJPEG streaming runs on separate FreeRTOS task started by esp_http_server
+    // No main loop processing needed
+    delay(100);
 }

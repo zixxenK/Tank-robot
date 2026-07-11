@@ -72,4 +72,3 @@ cp deployment/systemd/systemd_config.conf.example \
 |--------|-------------|
 | 24.x   | Jazzy       |
 | 22.x   | Humble      |
-| 20.x   | Iron        |

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # source_ros2_ws.sh — ROS2 workspace sourcing helper.
 #
-# Auto-detects the installed ROS2 distro (Jazzy, Humble, or Iron) and
+# Auto-detects the installed ROS2 distro (Jazzy or Humble) and
 # sources both the base ROS2 installation and the local ros2_ws overlay.
 #
 # Usage: source source_ros2_ws.sh
@@ -24,12 +24,12 @@ resolve_ros_distro() {
     return
   fi
   # Detect from Ubuntu version
+  # Ubuntu 24.04 -> Jazzy, Ubuntu 22.04 -> Humble
   local ubuntu_version
   ubuntu_version=$(lsb_release -rs 2>/dev/null || echo "0")
   case "${ubuntu_version}" in
     24.*)  echo "jazzy"  ;;
     22.*)  echo "humble" ;;
-    20.*)  echo "iron"   ;;
     *)     echo "jazzy"  ;;  # default to latest
   esac
 }

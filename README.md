@@ -15,17 +15,20 @@ integrating STM32, ESP32-S3, and Rock64 in a clean layered architecture.
 ## Repository Structure
 
 ```
-├── .devcontainer/       # ROS2 Jazzy + ARM toolchain dev environment
+├── .devcontainer/       # ROS2 Jazzy + ARM toolchain dev environment (Ubuntu 24.04)
 ├── firmware/
-│   ├── stm32_chassis/   # STM32F407 firmware scaffold (CMake)
+│   ├── stm32_chassis/   # STM32F407 firmware (CMake, ARM GCC)
 │   └── esp32_sensors/   # ESP32-S3 camera firmware (PlatformIO)
 ├── ros2_ws/src/
 │   ├── robot_bringup/   # Launch files & hardware configuration
 │   ├── robot_teleop/    # PS5 controller + keyboard teleop nodes
 │   └── robot_drivers/   # STM32 serial bridge + ESP32 camera bridge
 ├── deployment/          # systemd auto-start infrastructure
+├── scripts/             # Flashing and utility scripts
 └── docs/
-    └── system_topology.md  # Full architecture & Endgame structure
+    ├── system_topology.md           # Full architecture & Endgame structure
+    ├── communication_protocols.md   # All communication protocols
+    └── flashing_guide.md            # Complete flashing instructions
 ```
 
 ## Quick Start (DevContainer)
@@ -50,15 +53,56 @@ cd ros2_ws
 colcon build --symlink-install
 ```
 
+## Flashing
+
+See [docs/flashing_guide.md](docs/flashing_guide.md) for complete flashing instructions.
+
+```bash
+# Flash STM32
+./scripts/flash_stm32.sh --build
+
+# Flash ESP32
+cd firmware/esp32_sensors
+pio run -e esp32cam -t upload
+```
+
 ## Deployment on Rock64
 
 ```bash
 sudo bash deployment/scripts/rock64_setup.sh --ros-distro auto
 ```
 
-The ROS bringup currently talks to the STM32 over the custom UART bridge in
-`robot_drivers`; the optional micro-ROS static library hook in
-`firmware/stm32_chassis` is kept disabled until that firmware path exists.
+## Communication Protocols
 
-See [deployment/docs/deployment_guide.md](deployment/docs/deployment_guide.md)
-and [docs/system_topology.md](docs/system_topology.md) for full details.
+The project uses three communication protocols:
+
+1. **Rock64 ↔ STM32**: Custom UART protocol with heartbeat and safety watchdog
+2. **Rock64 ↔ ESP32**: HTTP MJPEG video stream
+3. **STM32 ↔ MPU6050**: I2C sensor protocol
+
+See [docs/communication_protocols.md](docs/communication_protocols.md) for detailed protocol specifications.
+
+## Documentation
+
+- [System Topology](docs/system_topology.md) - Architecture and directory structure
+- [Communication Protocols](docs/communication_protocols.md) - All protocol specifications
+- [Flashing Guide](docs/flashing_guide.md) - Complete flashing instructions
+- [Deployment Guide](deployment/docs/deployment_guide.md) - Rock64 deployment setup
+
+## Supported Platforms
+
+- **Development**: Ubuntu 24.04 (Jazzy) or Ubuntu 22.04 (Humble)
+- **Deployment**: Rock64 SBC (Ubuntu 24.04 recommended)
+- **STM32**: STM32F407VGTx
+- **ESP32**: ESP32-S3-DevKitC-1
+
+## Safety Features
+
+- Motor safety watchdog (200ms command timeout)
+- Heartbeat monitoring (500ms timeout)
+- Emergency stop on communication failure
+- Hardware watchdog on STM32
+
+## License
+
+MIT

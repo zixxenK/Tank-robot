@@ -2,7 +2,7 @@
 # rock64_setup.sh — Rock64 Ranger deployment setup & installation script.
 #
 # Usage:
-#   sudo bash rock64_setup.sh [--ros-distro jazzy|humble|iron|auto]
+#   sudo bash rock64_setup.sh [--ros-distro jazzy|auto]
 #                             [--serial-port /dev/ttyUSB0]
 #                             [--camera-ip 192.168.1.153]
 set -euo pipefail
@@ -42,7 +42,6 @@ resolve_target_ros_distro() {
   case "${ubuntu_version}" in
     24.*)  echo "jazzy"  ;;
     22.*)  echo "humble" ;;
-    20.*)  echo "iron"   ;;
     *)
       echo "[setup] WARNING: Unknown Ubuntu version ${ubuntu_version}, defaulting to jazzy" >&2
       echo "jazzy"
@@ -66,7 +65,11 @@ apt-get install -y --no-install-recommends \
   python3-opencv \
   python3-pygame \
   python3-evdev \
-  udev
+  udev \
+  gcc-arm-none-eabi \
+  cmake \
+  stlink-tools \
+  openocd
 
 # ── Create udev rule for STM32 serial port ────────────────────────────────
 echo "[setup] Installing udev rule for STM32 serial port..."

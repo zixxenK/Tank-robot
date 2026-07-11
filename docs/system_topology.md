@@ -37,7 +37,7 @@ the Rock64 Ranger project. All migration work should converge to this layout.
 ```
 /rock64-robot-project                    ← repo root
 ├── .devcontainer/
-│   ├── devcontainer.json                ← ROS2 Jazzy + STM32 dev environment
+│   ├── devcontainer.json                ← ROS2 Jazzy + STM32 dev environment (Ubuntu 24.04)
 │   └── install-toolchain.sh             ← ARM GCC + system deps installer
 │
 ├── firmware/                            # Bare-metal / Embedded code

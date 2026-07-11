@@ -20,9 +20,8 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "stm32_serial_bridge   = robot_drivers.stm32_serial_bridge:main",
-            "arduino_serial_bridge = robot_drivers.arduino_serial_bridge:main",
-            "esp32_camera_bridge   = robot_drivers.esp32_camera_bridge:main",
+            "stm32_serial_bridge = robot_drivers.stm32_serial_bridge:main",
+            "esp32_camera_bridge = robot_drivers.esp32_camera_bridge:main",
         ],
     },
 )

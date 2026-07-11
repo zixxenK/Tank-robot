@@ -9,7 +9,9 @@ endif()
 
 project(rock64_ranger_stm32 C CXX ASM)
 
-option(STM32_ENABLE_MICROROS "Link the optional micro-ROS static library" OFF)
+# Using plain-UART communication instead of micro-ROS for STM32
+# This simplifies the firmware and reduces memory requirements
+# If micro-ROS is needed in the future, enable STM32_ENABLE_MICROROS option
 
 # ── MCU / Cortex-M4 flags ──────────────────────────────────────────────────
 set(MCU_FLAGS
@@ -26,35 +28,12 @@ file(GLOB_RECURSE FIRMWARE_SOURCES
   "Core/Startup/*.s"
 )
 
-set(MICROROS_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/micro_ros_lib")
-set(MICROROS_STATIC_LIB "${MICROROS_LIB_DIR}/libmicroros.a")
-set(MICROROS_INCLUDE_DIR "${MICROROS_LIB_DIR}/include")
-
 # ── Firmware executable ────────────────────────────────────────────────────
 add_executable(rock64_ranger_fw ${FIRMWARE_SOURCES})
 
 target_include_directories(rock64_ranger_fw PRIVATE
   Core/Inc
-  Core/Inc/motors
 )
-
-if(STM32_ENABLE_MICROROS)
-  if(NOT EXISTS "${MICROROS_STATIC_LIB}")
-    message(FATAL_ERROR
-      "STM32_ENABLE_MICROROS=ON but ${MICROROS_STATIC_LIB} was not found. "
-      "Populate firmware/stm32_chassis/micro_ros_lib first.")
-  endif()
-
-  add_library(microros STATIC IMPORTED)
-  set_target_properties(microros PROPERTIES
-    IMPORTED_LOCATION "${MICROROS_STATIC_LIB}"
-    INTERFACE_INCLUDE_DIRECTORIES "${MICROROS_INCLUDE_DIR}"
-  )
-
-  target_include_directories(rock64_ranger_fw PRIVATE
-    ${MICROROS_INCLUDE_DIR}
-  )
-endif()
 
 target_compile_definitions(rock64_ranger_fw PRIVATE
   USE_HAL_DRIVER
@@ -82,10 +61,6 @@ target_link_options(rock64_ranger_fw PRIVATE
 )
 
 target_link_libraries(rock64_ranger_fw PRIVATE m c nosys)
-
-if(STM32_ENABLE_MICROROS)
-  target_link_libraries(rock64_ranger_fw PRIVATE microros)
-endif()
 
 # ── Post-build: generate flash images ─────────────────────────────────────
 add_custom_command(TARGET rock64_ranger_fw POST_BUILD
