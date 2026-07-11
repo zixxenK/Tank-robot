@@ -7,7 +7,7 @@ integrating STM32, ESP32-S3, and Rock64 in a clean layered architecture.
 
 | Component | Role |
 |-----------|------|
-| **STM32F407** | Real-time motor control + micro-ROS UART agent |
+| **STM32F407** | Real-time motor control over UART |
 | **ESP32-S3**  | Camera (OV2640), MJPEG HTTP stream over WiFi |
 | **Rock64 SBC**| ROS2 runtime, teleoperation, deployment host |
 | **Hiwonder Tank Chassis** | Differential-drive tracked platform |
@@ -17,7 +17,7 @@ integrating STM32, ESP32-S3, and Rock64 in a clean layered architecture.
 ```
 ├── .devcontainer/       # ROS2 Jazzy + ARM toolchain dev environment
 ├── firmware/
-│   ├── stm32_chassis/   # STM32F407 micro-ROS firmware (CMake)
+│   ├── stm32_chassis/   # STM32F407 firmware scaffold (CMake)
 │   └── esp32_sensors/   # ESP32-S3 camera firmware (PlatformIO)
 ├── ros2_ws/src/
 │   ├── robot_bringup/   # Launch files & hardware configuration
@@ -55,6 +55,10 @@ colcon build --symlink-install
 ```bash
 sudo bash deployment/scripts/rock64_setup.sh --ros-distro auto
 ```
+
+The ROS bringup currently talks to the STM32 over the custom UART bridge in
+`robot_drivers`; the optional micro-ROS static library hook in
+`firmware/stm32_chassis` is kept disabled until that firmware path exists.
 
 See [deployment/docs/deployment_guide.md](deployment/docs/deployment_guide.md)
 and [docs/system_topology.md](docs/system_topology.md) for full details.

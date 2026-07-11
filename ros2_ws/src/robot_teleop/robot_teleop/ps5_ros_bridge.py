@@ -3,7 +3,7 @@
 
 Reads joystick events from a DualSense controller (via /dev/input/jsX
 or the SDL2 evdev interface) and publishes geometry_msgs/Twist messages
-on /cmd_vel for the robot_drivers serial bridge to consume.
+on /cmd_vel for the STM32 serial bridge to consume.
 """
 
 import rclpy

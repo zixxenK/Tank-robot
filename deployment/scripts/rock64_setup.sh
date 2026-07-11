@@ -63,6 +63,9 @@ apt-get install -y --no-install-recommends \
   python3-rosdep \
   python3-pip \
   python3-serial \
+  python3-opencv \
+  python3-pygame \
+  python3-evdev \
   udev
 
 # ── Create udev rule for STM32 serial port ────────────────────────────────
