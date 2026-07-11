@@ -62,6 +62,9 @@ the Rock64 Ranger project. All migration work should converge to this layout.
 │       ├── robot_bringup/               # Launch files, URDFs, param YAMLs
 │       │   ├── launch/
 │       │   │   └── rock64_bringup.launch.py
+│       │   ├── config/
+│       │   │   └── rock64_hardware.yaml
+│       │   ├── urdf/
 │       │   ├── package.xml
 │       │   └── CMakeLists.txt
 │       │
@@ -90,6 +93,9 @@ the Rock64 Ranger project. All migration work should converge to this layout.
 │   │   └── source_ros2_ws.sh            # ROS2 env sourcing
 │   └── docs/
 │       └── deployment_guide.md
+│
+├── tools/                               # Optional non-ROS utilities
+│   └── ...
 │
 ├── docs/
 │   └── system_topology.md               ← this file

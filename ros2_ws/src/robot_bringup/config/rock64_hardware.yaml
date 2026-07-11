@@ -1,0 +1,9 @@
+/**:
+  ros__parameters:
+    serial_port: /dev/rock64_stm32
+    baud_rate: 115200
+    max_speed: 255
+
+    camera_ip: 192.168.1.153
+    stream_port: 81
+    stream_path: /stream

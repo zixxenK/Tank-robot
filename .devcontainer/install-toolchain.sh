@@ -16,6 +16,10 @@ apt-get install -y --no-install-recommends \
   openocd \
   gdb-multiarch \
   python3-pip \
+  python3-serial \
+  python3-opencv \
+  python3-pygame \
+  python3-evdev \
   python3-colcon-common-extensions \
   python3-rosdep \
   ros-jazzy-rmw-fastrtps-cpp
