@@ -1,0 +1,21 @@
+# ninja log v6
+60	313	8054442473377511	CMakeFiles/rock64_ranger_fw.dir/Core/Startup/startup_stm32f407vgtx.s.obj	f2cd65dc63da7f3b
+51	515	8054442473282342	CMakeFiles/rock64_ranger_fw.dir/Core/Src/stm32f4xx_hal_msp.c.obj	65527b561f5dd20
+156	567	8054442474335029	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c.obj	f8d932f6d833d001
+72	605	8054442473548043	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c.obj	299dc84f432106d7
+31	657	8054442473087435	CMakeFiles/rock64_ranger_fw.dir/Core/Src/main.c.obj	7faf2c024638aad3
+42	671	8054442473194823	CMakeFiles/rock64_ranger_fw.dir/Core/Src/mpu6050.c.obj	69f8e1f4a01e201a
+102	682	8054442473803631	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c.obj	2bdba502843dedbf
+115	694	8054442474039298	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c.obj	c3e0c5b5e637ec1a
+92	700	8054442473698387	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c.obj	ced7d49a612a9ad8
+301	701	8054442475777358	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c.obj	afc7fc4de3d2c6f1
+138	702	8054442474219699	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c.obj	fa9c99517fee6389
+278	782	8054442475571655	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c.obj	8c1f76fa7680c5fa
+424	792	8054442477010126	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c.obj	b88acd6e8087b34e
+291	793	8054442475682107	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c.obj	82e377c3bf8a7320
+658	884	8054442479351225	CMakeFiles/rock64_ranger_fw.dir/Drivers/CMSIS/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c.obj	d13c8d4d14d2f0b2
+166	901	8054442474736308	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.c.obj	abbb226c88ddfdf4
+568	960	8054442478448977	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c.obj	deb113b27a02eb37
+605	1027	8054442478824902	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c.obj	13799e09dea82a9a
+518	1115	8054442477953283	CMakeFiles/rock64_ranger_fw.dir/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c.obj	d08b37ae3f9aacad
+1116	1360	8054442483929697	rock64_ranger_fw	a8065ffd7cdfae46

@@ -25,6 +25,9 @@ deployment/
 
 ## First-Time Setup
 
+Prerequisite: Rock64 must run Ubuntu 24.04 (Jazzy) or 22.04 (Humble).
+Ubuntu 26.04/Armbian resolute is not supported by the packaged ROS2 install path.
+
 ```bash
 # 1. Clone the repo to the Rock64
 git clone https://github.com/zixxenK/Tank-robot /opt/rock64-robot

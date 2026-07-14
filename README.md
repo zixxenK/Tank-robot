@@ -41,6 +41,7 @@ integrating STM32, ESP32-S3, and Rock64 in a clean layered architecture.
 ```bash
 # STM32 firmware
 cd firmware/stm32_chassis
+./scripts/sync_stm32_drivers.sh
 cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake
 cmake --build build
 
@@ -53,6 +54,8 @@ cd ros2_ws
 colcon build --symlink-install
 ```
 
+Note: STM32 firmware is intentionally built only from local `firmware/stm32_chassis/Drivers/` content sourced from official ST repositories.
+
 ## Flashing
 
 See [docs/flashing_guide.md](docs/flashing_guide.md) for complete flashing instructions.
@@ -60,6 +63,9 @@ See [docs/flashing_guide.md](docs/flashing_guide.md) for complete flashing instr
 ```bash
 # Flash STM32
 ./scripts/flash_stm32.sh --build
+
+# Windows PowerShell
+powershell -ExecutionPolicy Bypass -File .\scripts\flash_stm32_windows.ps1 -Build -Verify
 
 # Flash ESP32
 cd firmware/esp32_sensors
@@ -81,6 +87,35 @@ The project uses three communication protocols:
 3. **STM32 ↔ MPU6050**: I2C sensor protocol
 
 See [docs/communication_protocols.md](docs/communication_protocols.md) for detailed protocol specifications.
+
+## ROS 2 Node Topology (Micro-ROS First)
+
+The recommended Jazzy topology is:
+
+1. Rock64 runs:
+    - `micro_ros_agent` (transport gateway)
+    - `ps5_ros_bridge` (DualSense to `/cmd_vel`)
+    - `cmd_vel_to_tracks` (publishes `/tracks/left_cmd` and `/tracks/right_cmd`)
+2. STM32 runs micro-ROS client:
+    - Subscribes to `/cmd_vel` and/or `/tracks/*`
+    - Publishes wheel/encoder and status telemetry
+3. ESP32 expansion hubs run micro-ROS clients:
+    - Publish IMU/power/sensor data
+    - Subscribe to auxiliary outputs (LEDs, effects, etc.)
+
+Launch all Rock64-side nodes:
+
+```bash
+cd ros2_ws
+source install/setup.bash
+ros2 launch robot_bringup rock64_bringup.launch.py
+```
+
+Migration mode (if STM32/ESP32 are still on legacy bridges):
+
+```bash
+ros2 launch robot_bringup rock64_bringup.launch.py use_legacy_bridges:=true
+```
 
 ## Documentation
 

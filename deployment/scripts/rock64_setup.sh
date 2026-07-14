@@ -52,6 +52,14 @@ resolve_target_ros_distro() {
 RESOLVED_DISTRO="$(resolve_target_ros_distro "${ROS_DISTRO_ARG}")"
 echo "[setup] Target ROS2 distro: ${RESOLVED_DISTRO}"
 
+UBUNTU_VERSION="$(lsb_release -rs 2>/dev/null || echo "0")"
+if [[ ! "${UBUNTU_VERSION}" =~ ^24\.|^22\. ]]; then
+  echo "[setup] ERROR: Ubuntu ${UBUNTU_VERSION} is not supported by this script." >&2
+  echo "[setup] Use Ubuntu 24.04 (ROS Jazzy) or 22.04 (ROS Humble) on Rock64." >&2
+  echo "[setup] Current board reports Armbian/Ubuntu ${UBUNTU_VERSION}." >&2
+  exit 2
+fi
+
 # ── Install system dependencies ───────────────────────────────────────────
 echo "[setup] Installing system dependencies..."
 apt-get update -qq

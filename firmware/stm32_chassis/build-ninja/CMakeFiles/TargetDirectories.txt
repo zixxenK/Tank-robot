@@ -1,0 +1,3 @@
+C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/rock64_ranger_fw.dir
+C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/edit_cache.dir
+C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/rebuild_cache.dir

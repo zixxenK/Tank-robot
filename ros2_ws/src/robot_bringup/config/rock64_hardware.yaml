@@ -1,8 +1,30 @@
 /**:
   ros__parameters:
+    # Teleop shaping
+    max_linear_speed: 0.6
+    max_angular_speed: 1.8
+    joy_device: /dev/input/js0
+    publish_rate_hz: 40.0
+    deadzone: 0.08
+    expo: 0.35
+
+    # Tracked chassis geometry
+    track_width_m: 0.194
+    max_track_speed_mps: 0.8
+    input_topic: /cmd_vel
+    left_topic: /tracks/left_cmd
+    right_topic: /tracks/right_cmd
+
+    # Legacy serial bridge (optional fallback)
     serial_port: /dev/rock64_stm32
     baud_rate: 115200
     max_speed: 255
+    command_rate_hz: 50.0
+    cmd_timeout: 0.25
+    linear_slew_rate: 3.0
+    angular_slew_rate: 6.0
+    heartbeat_timeout: 0.5
+    heartbeat_interval: 0.1
 
     camera_ip: 192.168.1.153
     stream_port: 81

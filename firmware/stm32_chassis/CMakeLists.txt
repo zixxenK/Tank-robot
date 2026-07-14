@@ -21,6 +21,44 @@ set(MCU_FLAGS
   -mfloat-abi=hard
 )
 
+# ── STM32CubeF4 Drivers root (local checkout, not fetched by CMake) ──────
+set(STM32_DRIVERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Drivers")
+set(STM32_HAL_DIR "${STM32_DRIVERS_DIR}/STM32F4xx_HAL_Driver")
+set(STM32_CMSIS_DIR "${STM32_DRIVERS_DIR}/CMSIS")
+
+if(NOT EXISTS "${STM32_HAL_DIR}/Src/stm32f4xx_hal.c")
+  message(FATAL_ERROR
+    "Missing STM32 HAL drivers. Populate firmware/stm32_chassis/Drivers first. "
+    "Use scripts/sync_stm32_drivers.sh to fetch STM32CubeF4 Drivers/. ")
+endif()
+
+if(NOT EXISTS "${STM32_CMSIS_DIR}/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c")
+  message(FATAL_ERROR
+    "Missing STM32 CMSIS device files in firmware/stm32_chassis/Drivers/CMSIS. "
+    "Sync STM32CubeF4 Drivers/CMSIS with scripts/sync_stm32_drivers.sh.")
+endif()
+
+set(HAL_SOURCES
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_cortex.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_dma.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_flash.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_flash_ex.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_gpio.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_i2c.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_pwr.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_pwr_ex.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_rcc.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_rcc_ex.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_tim.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_tim_ex.c
+  ${STM32_HAL_DIR}/Src/stm32f4xx_hal_uart.c
+)
+
+set(CMSIS_SOURCES
+  ${STM32_CMSIS_DIR}/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c
+)
+
 # ── Source files ───────────────────────────────────────────────────────────
 file(GLOB_RECURSE FIRMWARE_SOURCES
   "Core/Src/*.c"
@@ -29,10 +67,17 @@ file(GLOB_RECURSE FIRMWARE_SOURCES
 )
 
 # ── Firmware executable ────────────────────────────────────────────────────
-add_executable(rock64_ranger_fw ${FIRMWARE_SOURCES})
+add_executable(rock64_ranger_fw
+  ${FIRMWARE_SOURCES}
+  ${HAL_SOURCES}
+  ${CMSIS_SOURCES}
+)
 
 target_include_directories(rock64_ranger_fw PRIVATE
   Core/Inc
+  ${STM32_HAL_DIR}/Inc
+  ${STM32_CMSIS_DIR}/Device/ST/STM32F4xx/Include
+  ${STM32_CMSIS_DIR}/Include
 )
 
 target_compile_definitions(rock64_ranger_fw PRIVATE

@@ -4,7 +4,7 @@
 
 This document defines all communication protocols between the three hardware components:
 - **Rock64 SBC** (ROS2 host)
-- **STM32F407** (Motor controller)
+- **STM32F407** (Motor controller) https://wiki.hiwonder.com/projects/JetAcker/en/jetacker-jetson-nano/docs/1.Getting_Ready.html#stm32-source-code-instruction
 - **ESP32-S3** (Camera node)
 
 ---
@@ -166,6 +166,23 @@ rock64_bringup.launch.py
 3. Parse: accel X/Y/Z (6 bytes), temp (2 bytes), gyro X/Y/Z (6 bytes)
 
 **Implementation**: `MPU6050_ReadData()` in `mpu6050.c`
+
+### STM32F407 Peripheral Pin Map (Hiwonder Cross-Check)
+
+The firmware currently uses this MCU-level mapping and should be validated against the Hiwonder board wiki before final flashing:
+
+- `USART2_TX`: `PA2` (Rock64 bridge TX from STM32)
+- `USART2_RX`: `PA3` (Rock64 bridge RX into STM32)
+- `TIM3_CH1`: `PA6` (left motor PWM)
+- `TIM3_CH2`: `PA7` (right motor PWM)
+- `I2C1_SCL`: `PB6` (MPU6050 clock)
+- `I2C1_SDA`: `PB7` (MPU6050 data)
+
+RM0090-aligned assumptions used by firmware:
+
+- APB1 timer clock is doubled when APB1 prescaler is not 1.
+- PWM base: TIM3 at 1 MHz counter clock, ARR=999 (1 kHz PWM).
+- UART base: 115200, 8N1 on USART2.
 
 ---
 

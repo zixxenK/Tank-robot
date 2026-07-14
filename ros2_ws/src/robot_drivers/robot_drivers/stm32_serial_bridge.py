@@ -12,6 +12,7 @@ acknowledgment for safety.
 import serial
 import threading
 import time
+import math
 
 import rclpy
 from geometry_msgs.msg import Twist
@@ -19,7 +20,7 @@ from rclpy.node import Node
 
 
 class STM32SerialBridge(Node):
-    """Bridges /cmd_vel to an STM32 motor controller over UART with safety features."""
+    """Bridge /cmd_vel to STM32 UART with heartbeat and smoothing."""
 
     def __init__(self):
         super().__init__("stm32_serial_bridge")
@@ -29,12 +30,31 @@ class STM32SerialBridge(Node):
         self.declare_parameter("max_speed", 255)
         self.declare_parameter("heartbeat_timeout", 0.5)
         self.declare_parameter("heartbeat_interval", 0.1)
+        self.declare_parameter("command_rate_hz", 50.0)
+        self.declare_parameter("cmd_timeout", 0.25)
+        self.declare_parameter("linear_slew_rate", 3.0)
+        self.declare_parameter("angular_slew_rate", 6.0)
 
         port = self.get_parameter("serial_port").value
         baud = self.get_parameter("baud_rate").value
         self._max = self.get_parameter("max_speed").value
         self._heartbeat_timeout = self.get_parameter("heartbeat_timeout").value
-        self._heartbeat_interval = self.get_parameter("heartbeat_interval").value
+        self._heartbeat_interval = self.get_parameter(
+            "heartbeat_interval"
+        ).value
+        self._command_rate_hz = self.get_parameter("command_rate_hz").value
+        self._cmd_timeout = self.get_parameter("cmd_timeout").value
+        self._linear_slew_rate = self.get_parameter("linear_slew_rate").value
+        self._angular_slew_rate = self.get_parameter("angular_slew_rate").value
+
+        self._target_lin = 0.0
+        self._target_ang = 0.0
+        self._cmd_lin = 0.0
+        self._cmd_ang = 0.0
+        self._last_cmd_vel_time = time.time()
+        self._last_send_time = time.time()
+        self._last_sent_left = None
+        self._last_sent_right = None
 
         try:
             self._ser = serial.Serial(port, baud, timeout=0.1)
@@ -67,12 +87,17 @@ class STM32SerialBridge(Node):
             Twist, "/cmd_vel", self._cmd_vel_cb, 10
         )
 
+        period = 1.0 / max(self._command_rate_hz, 1.0)
+        self._command_timer = self.create_timer(period, self._drive_loop)
+
     def _serial_read_loop(self):
         """Background thread to read heartbeat and ack messages from STM32."""
         while rclpy.ok() and self._ser and self._ser.is_open:
             try:
                 if self._ser.in_waiting > 0:
-                    line = self._ser.readline().decode('utf-8', errors='ignore').strip()
+                    line = self._ser.readline().decode(
+                        "utf-8", errors="ignore"
+                    ).strip()
                     if line:
                         self._process_stm32_message(line)
                 else:
@@ -80,8 +105,10 @@ class STM32SerialBridge(Node):
             except serial.SerialException as exc:
                 self.get_logger().error(f"Serial read error: {exc}")
                 break
-            except Exception as exc:
-                self.get_logger().error(f"Unexpected error in read loop: {exc}")
+            except (OSError, UnicodeError, ValueError) as exc:
+                self.get_logger().error(
+                    f"Unexpected error in read loop: {exc}"
+                )
                 break
 
     def _process_stm32_message(self, message):
@@ -107,9 +134,13 @@ class STM32SerialBridge(Node):
         # Check heartbeat timeout
         current_time = time.time()
         with self._lock:
-            if (current_time - self._last_heartbeat_time) > self._heartbeat_timeout:
+            if (
+                current_time - self._last_heartbeat_time
+            ) > self._heartbeat_timeout:
                 if self._stm32_alive:
-                    self.get_logger().error("STM32 heartbeat timeout - motor commands disabled")
+                    self.get_logger().error(
+                        "STM32 heartbeat timeout - commands disabled"
+                    )
                     self._stm32_alive = False
 
         # Send heartbeat ping to STM32
@@ -119,36 +150,73 @@ class STM32SerialBridge(Node):
             self.get_logger().warn(f"Heartbeat send failed: {exc}")
 
     def _cmd_vel_cb(self, msg: Twist):
+        with self._lock:
+            self._target_lin = msg.linear.x
+            self._target_ang = msg.angular.z
+            self._last_cmd_vel_time = time.time()
+
+    def _slew(
+        self,
+        current: float,
+        target: float,
+        rate: float,
+        dt: float,
+    ) -> float:
+        max_step = max(rate, 0.0) * max(dt, 0.0)
+        delta = target - current
+        if abs(delta) <= max_step:
+            return target
+        return current + math.copysign(max_step, delta)
+
+    def _drive_loop(self):
         if self._ser is None or not self._ser.is_open:
             return
 
-        # Check if STM32 is alive before sending commands
+        now = time.time()
+        dt = now - self._last_send_time
+        self._last_send_time = now
+
         with self._lock:
-            if not self._stm32_alive:
-                self.get_logger().warn("STM32 not responding - motor command dropped")
-                return
+            alive = self._stm32_alive
+            stale = (now - self._last_cmd_vel_time) > self._cmd_timeout
+            target_lin = 0.0 if stale else self._target_lin
+            target_ang = 0.0 if stale else self._target_ang
 
-        lin = msg.linear.x
-        ang = msg.angular.z
+        if not alive:
+            return
 
-        left_vel = lin - ang
-        right_vel = lin + ang
+        self._cmd_lin = self._slew(
+            self._cmd_lin, target_lin, self._linear_slew_rate, dt
+        )
+        self._cmd_ang = self._slew(
+            self._cmd_ang, target_ang, self._angular_slew_rate, dt
+        )
 
-        left_speed = int(abs(left_vel) / 1.0 * self._max)
-        right_speed = int(abs(right_vel) / 1.0 * self._max)
+        left_vel = self._cmd_lin - self._cmd_ang
+        right_vel = self._cmd_lin + self._cmd_ang
+        max_mag = max(1.0, abs(left_vel), abs(right_vel))
+        left_vel /= max_mag
+        right_vel /= max_mag
 
+        left_speed = min(int(abs(left_vel) * self._max), self._max)
+        right_speed = min(int(abs(right_vel) * self._max), self._max)
         left_dir = 1 if left_vel >= 0 else 0
         right_dir = 1 if right_vel >= 0 else 0
 
-        left_speed = min(left_speed, self._max)
-        right_speed = min(right_speed, self._max)
+        if (
+            left_speed == self._last_sent_left
+            and right_speed == self._last_sent_right
+            and now - self._last_cmd_vel_time <= self._cmd_timeout
+        ):
+            return
 
         cmd = (f"<0,{left_dir},{left_speed}>"
                f"<1,{right_dir},{right_speed}>\n")
         try:
             self._ser.write(cmd.encode())
-            # Reset acknowledgment flag - will be set when ACK received
             self._command_acknowledged = False
+            self._last_sent_left = left_speed
+            self._last_sent_right = right_speed
         except serial.SerialException as exc:
             self.get_logger().warn(f"Serial write failed: {exc}")
 
@@ -162,22 +230,6 @@ class STM32SerialBridge(Node):
                 pass
             self._ser.close()
         super().destroy_node()
-
-
-def main(args=None):
-    rclpy.init(args=args)
-    node = STM32SerialBridge()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
-
-
-if __name__ == "__main__":
-    main()
 
 
 def main(args=None):

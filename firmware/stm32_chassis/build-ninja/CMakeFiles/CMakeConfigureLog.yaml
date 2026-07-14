@@ -1,0 +1,442 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineSystem.cmake:200 (message)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      The target system is: Generic -  - arm
+      The host system is: Windows - 10.0.26200 - AMD64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-gcc.exe 
+      Build flags: -mcpu=cortex-m4;-mthumb;-mfpu=fpv4-sp-d16;-mfloat-abi=hard
+      Id flags:  
+      
+      The output was:
+      1
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-exit.o): in function `exit':
+      exit.c:(.text.exit+0x14): undefined reference to `_exit'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-closer.o): in function `_close_r':
+      closer.c:(.text._close_r+0xc): undefined reference to `_close'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-lseekr.o): in function `_lseek_r':
+      lseekr.c:(.text._lseek_r+0x14): undefined reference to `_lseek'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-readr.o): in function `_read_r':
+      readr.c:(.text._read_r+0x14): undefined reference to `_read'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-writer.o): in function `_write_r':
+      writer.c:(.text._write_r+0x14): undefined reference to `_write'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-sbrkr.o): in function `_sbrk_r':
+      sbrkr.c:(.text._sbrk_r+0xc): undefined reference to `_sbrk'
+      collect2.exe: error: ld returned 1 exit status
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-gcc.exe 
+      Build flags: -mcpu=cortex-m4;-mthumb;-mfpu=fpv4-sp-d16;-mfloat-abi=hard
+      Id flags: -c 
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CMakeCCompilerId.o"
+      
+      The C compiler identification is GNU, found in:
+        C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/3.31.6-msvc6/CompilerIdC/CMakeCCompilerId.o
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-g++.exe 
+      Build flags: -mcpu=cortex-m4;-mthumb;-mfpu=fpv4-sp-d16;-mfloat-abi=hard
+      Id flags:  
+      
+      The output was:
+      1
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-exit.o): in function `exit':
+      exit.c:(.text.exit+0x14): undefined reference to `_exit'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-closer.o): in function `_close_r':
+      closer.c:(.text._close_r+0xc): undefined reference to `_close'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-lseekr.o): in function `_lseek_r':
+      lseekr.c:(.text._lseek_r+0x14): undefined reference to `_lseek'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-readr.o): in function `_read_r':
+      readr.c:(.text._read_r+0x14): undefined reference to `_read'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-writer.o): in function `_write_r':
+      writer.c:(.text._write_r+0x14): undefined reference to `_write'
+      c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/ld.exe: c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\\libc.a(libc_a-sbrkr.o): in function `_sbrk_r':
+      sbrkr.c:(.text._sbrk_r+0xc): undefined reference to `_sbrk'
+      collect2.exe: error: ld returned 1 exit status
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-g++.exe 
+      Build flags: -mcpu=cortex-m4;-mthumb;-mfpu=fpv4-sp-d16;-mfloat-abi=hard
+      Id flags: -c 
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.o"
+      
+      The CXX compiler identification is GNU, found in:
+        C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/3.31.6-msvc6/CompilerIdCXX/CMakeCXXCompilerId.o
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:1237 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineASMCompiler.cmake:135 (CMAKE_DETERMINE_COMPILER_ID_VENDOR)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Checking whether the ASM compiler is GNU using "--version" matched "(GNU assembler)|(GCC)|(Free Software Foundation)":
+      arm-none-eabi-gcc.exe (xPack GNU Arm Embedded GCC x86_64) 12.3.1 20230626
+      Copyright (C) 2022 Free Software Foundation, Inc.
+      This is free software; see the source for copying conditions.  There is NO
+      warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:74 (try_compile)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:10 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/CMakeScratch/TryCompile-mm9xo0"
+      binary: "C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/CMakeScratch/TryCompile-mm9xo0"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/CMakeScratch/TryCompile-mm9xo0'
+        
+        Run Build Command(s): C:/PROGRA~1/MICROS~4/2022/COMMUN~1/Common7/IDE/COMMON~1/MICROS~1/CMake/Ninja/ninja.exe -v cmTC_ad772
+        [1/2] C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-gcc.exe   -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard    -v -o CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj -c "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCCompilerABI.c"
+        Using built-in specs.
+        COLLECT_GCC=C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-gcc.exe
+        Target: arm-none-eabi
+        Configured with: /__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/sources/gcc/configure --prefix=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application --with-sysroot=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application/arm-none-eabi --with-native-system-header-dir=/include --infodir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/info --mandir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/man --htmldir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/html --pdfdir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/pdf --build=x86_64-pc-linux-gnu --host=x86_64-w64-mingw32 --target=arm-none-eabi --disable-libgomp --disable-libmudflap --disable-libquadmath --disable-libsanitizer --disable-libssp --disable-nls --disable-shared --disable-threads --disable-tls --enable-checking=release --enable-languages=c,c++,fortran --enable-mingw-wildcard --with-gmp=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install --with-newlib --with-pkgversion='xPack GNU Arm Embedded GCC x86_64' --with-gnu-as --with-gnu-ld --with-system-zlib --disable-libatomic --enable-multilib --with-multilib-list=aprofile,rmprofile
+        Thread model: single
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 12.3.1 20230626 (xPack GNU Arm Embedded GCC x86_64) 
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_ad772.dir/'
+         c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/arm-none-eabi/12.3.1/cc1.exe -quiet -v -imultilib thumb/v7e-m+fp/hard -iprefix c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/ -isysroot c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi -D__USES_INITFINI__ C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_ad772.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mlibarch=armv7e-m+fp -march=armv7e-m+fp -version -o C:\\Users\\ZIXXE\\AppData\\Local\\Temp\\cceHH4Du.s
+        GNU C17 (xPack GNU Arm Embedded GCC x86_64) version 12.3.1 20230626 (arm-none-eabi)
+        	compiled by GNU C version 13.2.0, GMP version 6.2.1, MPFR version 3.1.6, MPC version 1.0.3, isl version isl-0.15-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/include"
+        ignoring nonexistent directory "c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application/lib/gcc/arm-none-eabi/12.3.1/../../../../include"
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/include-fixed"
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include"
+        ignoring duplicate directory "c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/include
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/include-fixed
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include
+        End of search list.
+        GNU C17 (xPack GNU Arm Embedded GCC x86_64) version 12.3.1 20230626 (arm-none-eabi)
+        	compiled by GNU C version 13.2.0, GMP version 6.2.1, MPFR version 3.1.6, MPC version 1.0.3, isl version isl-0.15-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        Compiler executable checksum: 979b566ce7d2b59b180377f5ccebec5c
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_ad772.dir/'
+         c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv7e-m+fp -mfloat-abi=hard -mfpu=fpv4-sp-d16 -meabi=5 -o CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj C:\\Users\\ZIXXE\\AppData\\Local\\Temp\\cceHH4Du.s
+        GNU assembler version 2.40.0 (arm-none-eabi) using BFD version (xPack GNU Arm Embedded GCC x86_64) 2.40.0.20230627
+        COMPILER_PATH=c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/arm-none-eabi/12.3.1/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/
+        LIBRARY_PATH=c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/thumb/v7e-m+fp/hard/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../arm-none-eabi/lib/thumb/v7e-m+fp/hard/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../arm-none-eabi/lib/
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.'\x0d
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E rm -f libcmTC_ad772.a && C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-ar.exe qc libcmTC_ad772.a  CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj && C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-ranlib.exe libcmTC_ad772.a && cd ."
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:182 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Parsed C implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/include]
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/include-fixed]
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include]
+        end of search list found
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/include] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.3.1/include]
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/include-fixed] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.3.1/include-fixed]
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include]
+        implicit include dirs: [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.3.1/include;C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.3.1/include-fixed;C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:218 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
+        ignore line: [Change Dir: 'C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/CMakeScratch/TryCompile-mm9xo0']
+        ignore line: []
+        ignore line: [Run Build Command(s): C:/PROGRA~1/MICROS~4/2022/COMMUN~1/Common7/IDE/COMMON~1/MICROS~1/CMake/Ninja/ninja.exe -v cmTC_ad772]
+        ignore line: [[1/2] C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-gcc.exe   -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard    -v -o CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj -c "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCCompilerABI.c"]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-gcc.exe]
+        ignore line: [Target: arm-none-eabi]
+        ignore line: [Configured with: /__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/sources/gcc/configure --prefix=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application --with-sysroot=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application/arm-none-eabi --with-native-system-header-dir=/include --infodir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/info --mandir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/man --htmldir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/html --pdfdir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/pdf --build=x86_64-pc-linux-gnu --host=x86_64-w64-mingw32 --target=arm-none-eabi --disable-libgomp --disable-libmudflap --disable-libquadmath --disable-libsanitizer --disable-libssp --disable-nls --disable-shared --disable-threads --disable-tls --enable-checking=release --enable-languages=c,c++,fortran --enable-mingw-wildcard --with-gmp=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install --with-newlib --with-pkgversion='xPack GNU Arm Embedded GCC x86_64' --with-gnu-as --with-gnu-ld --with-system-zlib --disable-libatomic --enable-multilib --with-multilib-list=aprofile,rmprofile]
+        ignore line: [Thread model: single]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 12.3.1 20230626 (xPack GNU Arm Embedded GCC x86_64) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_ad772.dir/']
+        ignore line: [ c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/arm-none-eabi/12.3.1/cc1.exe -quiet -v -imultilib thumb/v7e-m+fp/hard -iprefix c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/ -isysroot c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi -D__USES_INITFINI__ C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_ad772.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mlibarch=armv7e-m+fp -march=armv7e-m+fp -version -o C:\\Users\\ZIXXE\\AppData\\Local\\Temp\\cceHH4Du.s]
+        ignore line: [GNU C17 (xPack GNU Arm Embedded GCC x86_64) version 12.3.1 20230626 (arm-none-eabi)]
+        ignore line: [	compiled by GNU C version 13.2.0  GMP version 6.2.1  MPFR version 3.1.6  MPC version 1.0.3  isl version isl-0.15-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/include"]
+        ignore line: [ignoring nonexistent directory "c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application/lib/gcc/arm-none-eabi/12.3.1/../../../../include"]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/include-fixed"]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include"]
+        ignore line: [ignoring duplicate directory "c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/include]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/include-fixed]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include]
+        ignore line: [End of search list.]
+        ignore line: [GNU C17 (xPack GNU Arm Embedded GCC x86_64) version 12.3.1 20230626 (arm-none-eabi)]
+        ignore line: [	compiled by GNU C version 13.2.0  GMP version 6.2.1  MPFR version 3.1.6  MPC version 1.0.3  isl version isl-0.15-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [Compiler executable checksum: 979b566ce7d2b59b180377f5ccebec5c]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_ad772.dir/']
+        ignore line: [ c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv7e-m+fp -mfloat-abi=hard -mfpu=fpv4-sp-d16 -meabi=5 -o CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj C:\\Users\\ZIXXE\\AppData\\Local\\Temp\\cceHH4Du.s]
+        ignore line: [GNU assembler version 2.40.0 (arm-none-eabi) using BFD version (xPack GNU Arm Embedded GCC x86_64) 2.40.0.20230627]
+        ignore line: [COMPILER_PATH=c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/arm-none-eabi/12.3.1/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/]
+        ignore line: [LIBRARY_PATH=c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/thumb/v7e-m+fp/hard/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../arm-none-eabi/lib/thumb/v7e-m+fp/hard/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../arm-none-eabi/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.'\x0d]
+        ignore line: [[2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E rm -f libcmTC_ad772.a && C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-ar.exe qc libcmTC_ad772.a  CMakeFiles/cmTC_ad772.dir/CMakeCCompilerABI.c.obj && C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-ranlib.exe libcmTC_ad772.a && cd ."]
+        ignore line: []
+        ignore line: []
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: []
+        implicit fwks: []
+      
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:74 (try_compile)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:10 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/CMakeScratch/TryCompile-hllapz"
+      binary: "C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/CMakeScratch/TryCompile-hllapz"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/CMakeScratch/TryCompile-hllapz'
+        
+        Run Build Command(s): C:/PROGRA~1/MICROS~4/2022/COMMUN~1/Common7/IDE/COMMON~1/MICROS~1/CMake/Ninja/ninja.exe -v cmTC_7f0c5
+        [1/2] C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-g++.exe   -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard    -v -o CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj -c "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp"
+        Using built-in specs.
+        COLLECT_GCC=C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-g++.exe
+        Target: arm-none-eabi
+        Configured with: /__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/sources/gcc/configure --prefix=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application --with-sysroot=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application/arm-none-eabi --with-native-system-header-dir=/include --infodir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/info --mandir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/man --htmldir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/html --pdfdir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/pdf --build=x86_64-pc-linux-gnu --host=x86_64-w64-mingw32 --target=arm-none-eabi --disable-libgomp --disable-libmudflap --disable-libquadmath --disable-libsanitizer --disable-libssp --disable-nls --disable-shared --disable-threads --disable-tls --enable-checking=release --enable-languages=c,c++,fortran --enable-mingw-wildcard --with-gmp=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install --with-newlib --with-pkgversion='xPack GNU Arm Embedded GCC x86_64' --with-gnu-as --with-gnu-ld --with-system-zlib --disable-libatomic --enable-multilib --with-multilib-list=aprofile,rmprofile
+        Thread model: single
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 12.3.1 20230626 (xPack GNU Arm Embedded GCC x86_64) 
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_7f0c5.dir/'
+         c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/arm-none-eabi/12.3.1/cc1plus.exe -quiet -v -imultilib thumb/v7e-m+fp/hard -iprefix c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/ -isysroot c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi -D__USES_INITFINI__ C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_7f0c5.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mlibarch=armv7e-m+fp -march=armv7e-m+fp -version -o C:\\Users\\ZIXXE\\AppData\\Local\\Temp\\cc6aXnB5.s
+        GNU C++17 (xPack GNU Arm Embedded GCC x86_64) version 12.3.1 20230626 (arm-none-eabi)
+        	compiled by GNU C version 13.2.0, GMP version 6.2.1, MPFR version 3.1.6, MPC version 1.0.3, isl version isl-0.15-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1"
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m+fp/hard"
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/backward"
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/include"
+        ignoring nonexistent directory "c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application/lib/gcc/arm-none-eabi/12.3.1/../../../../include"
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/include-fixed"
+        ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include"
+        ignoring duplicate directory "c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m+fp/hard
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/backward
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/include
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/include-fixed
+         c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include
+        End of search list.
+        GNU C++17 (xPack GNU Arm Embedded GCC x86_64) version 12.3.1 20230626 (arm-none-eabi)
+        	compiled by GNU C version 13.2.0, GMP version 6.2.1, MPFR version 3.1.6, MPC version 1.0.3, isl version isl-0.15-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        Compiler executable checksum: a7ce420070bd91a7511072949a134fbd
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_7f0c5.dir/'
+         c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv7e-m+fp -mfloat-abi=hard -mfpu=fpv4-sp-d16 -meabi=5 -o CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj C:\\Users\\ZIXXE\\AppData\\Local\\Temp\\cc6aXnB5.s
+        GNU assembler version 2.40.0 (arm-none-eabi) using BFD version (xPack GNU Arm Embedded GCC x86_64) 2.40.0.20230627
+        COMPILER_PATH=c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/arm-none-eabi/12.3.1/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/
+        LIBRARY_PATH=c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/thumb/v7e-m+fp/hard/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../arm-none-eabi/lib/thumb/v7e-m+fp/hard/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/;c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../arm-none-eabi/lib/
+        COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.'\x0d
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E rm -f libcmTC_7f0c5.a && C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-ar.exe qc libcmTC_7f0c5.a  CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj && C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-ranlib.exe libcmTC_7f0c5.a && cd ."
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:182 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Parsed CXX implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1]
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m+fp/hard]
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/backward]
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/include]
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/include-fixed]
+          add: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include]
+        end of search list found
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1]
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m+fp/hard] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m+fp/hard]
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/backward] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1/backward]
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/include] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.3.1/include]
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/include-fixed] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.3.1/include-fixed]
+        collapse include dir [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include] ==> [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include]
+        implicit include dirs: [C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1;C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m+fp/hard;C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1/backward;C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.3.1/include;C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/12.3.1/include-fixed;C:/Users/ZIXXE/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:218 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
+        ignore line: [Change Dir: 'C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-ninja/CMakeFiles/CMakeScratch/TryCompile-hllapz']
+        ignore line: []
+        ignore line: [Run Build Command(s): C:/PROGRA~1/MICROS~4/2022/COMMUN~1/Common7/IDE/COMMON~1/MICROS~1/CMake/Ninja/ninja.exe -v cmTC_7f0c5]
+        ignore line: [[1/2] C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-g++.exe   -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard    -v -o CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj -c "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp"]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-g++.exe]
+        ignore line: [Target: arm-none-eabi]
+        ignore line: [Configured with: /__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/sources/gcc/configure --prefix=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application --with-sysroot=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application/arm-none-eabi --with-native-system-header-dir=/include --infodir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/info --mandir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/man --htmldir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/html --pdfdir=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install/share/pdf --build=x86_64-pc-linux-gnu --host=x86_64-w64-mingw32 --target=arm-none-eabi --disable-libgomp --disable-libmudflap --disable-libquadmath --disable-libsanitizer --disable-libssp --disable-nls --disable-shared --disable-threads --disable-tls --enable-checking=release --enable-languages=c,c++,fortran --enable-mingw-wildcard --with-gmp=/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/x86_64-w64-mingw32/install --with-newlib --with-pkgversion='xPack GNU Arm Embedded GCC x86_64' --with-gnu-as --with-gnu-ld --with-system-zlib --disable-libatomic --enable-multilib --with-multilib-list=aprofile,rmprofile]
+        ignore line: [Thread model: single]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 12.3.1 20230626 (xPack GNU Arm Embedded GCC x86_64) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_7f0c5.dir/']
+        ignore line: [ c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/arm-none-eabi/12.3.1/cc1plus.exe -quiet -v -imultilib thumb/v7e-m+fp/hard -iprefix c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/ -isysroot c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi -D__USES_INITFINI__ C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_7f0c5.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mlibarch=armv7e-m+fp -march=armv7e-m+fp -version -o C:\\Users\\ZIXXE\\AppData\\Local\\Temp\\cc6aXnB5.s]
+        ignore line: [GNU C++17 (xPack GNU Arm Embedded GCC x86_64) version 12.3.1 20230626 (arm-none-eabi)]
+        ignore line: [	compiled by GNU C version 13.2.0  GMP version 6.2.1  MPFR version 3.1.6  MPC version 1.0.3  isl version isl-0.15-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1"]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m+fp/hard"]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/backward"]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/include"]
+        ignore line: [ignoring nonexistent directory "c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi/__w/arm-none-eabi-gcc-xpack/arm-none-eabi-gcc-xpack/build/win32-x64/application/lib/gcc/arm-none-eabi/12.3.1/../../../../include"]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/include-fixed"]
+        ignore line: [ignoring duplicate directory "c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/../../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include"]
+        ignore line: [ignoring duplicate directory "c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../arm-none-eabi/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m+fp/hard]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include/c++/12.3.1/backward]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/include]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/include-fixed]
+        ignore line: [ c:\\users\\zixxe\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/include]
+        ignore line: [End of search list.]
+        ignore line: [GNU C++17 (xPack GNU Arm Embedded GCC x86_64) version 12.3.1 20230626 (arm-none-eabi)]
+        ignore line: [	compiled by GNU C version 13.2.0  GMP version 6.2.1  MPFR version 3.1.6  MPC version 1.0.3  isl version isl-0.15-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [Compiler executable checksum: a7ce420070bd91a7511072949a134fbd]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_7f0c5.dir/']
+        ignore line: [ c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv7e-m+fp -mfloat-abi=hard -mfpu=fpv4-sp-d16 -meabi=5 -o CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj C:\\Users\\ZIXXE\\AppData\\Local\\Temp\\cc6aXnB5.s]
+        ignore line: [GNU assembler version 2.40.0 (arm-none-eabi) using BFD version (xPack GNU Arm Embedded GCC x86_64) 2.40.0.20230627]
+        ignore line: [COMPILER_PATH=c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/arm-none-eabi/12.3.1/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../libexec/gcc/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/bin/]
+        ignore line: [LIBRARY_PATH=c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/thumb/v7e-m+fp/hard/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../arm-none-eabi/lib/thumb/v7e-m+fp/hard/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/12.3.1/../../../../arm-none-eabi/lib/]
+        ignore line: [c:/users/zixxe/.platformio/packages/toolchain-gccarmnoneeabi/bin/../arm-none-eabi/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-mcpu=cortex-m4' '-mthumb' '-mfpu=fpv4-sp-d16' '-mfloat-abi=hard' '-v' '-o' 'CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-mlibarch=armv7e-m+fp' '-march=armv7e-m+fp' '-dumpdir' 'CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.'\x0d]
+        ignore line: [[2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E rm -f libcmTC_7f0c5.a && C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-ar.exe qc libcmTC_7f0c5.a  CMakeFiles/cmTC_7f0c5.dir/CMakeCXXCompilerABI.cpp.obj && C:\\Users\\ZIXXE\\.platformio\\packages\\toolchain-gccarmnoneeabi\\bin\\arm-none-eabi-ranlib.exe libcmTC_7f0c5.a && cd ."]
+        ignore line: []
+        ignore line: []
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: []
+        implicit fwks: []
+      
+      
+...

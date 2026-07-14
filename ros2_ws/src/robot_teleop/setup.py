@@ -22,6 +22,7 @@ setup(
         "console_scripts": [
             "ps5_ros_bridge    = robot_teleop.ps5_ros_bridge:main",
             "keyboard_teleop   = robot_teleop.keyboard_teleop:main",
+            "cmd_vel_to_tracks = robot_teleop.cmd_vel_to_tracks:main",
         ],
     },
 )

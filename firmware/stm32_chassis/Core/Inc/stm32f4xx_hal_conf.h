@@ -25,41 +25,15 @@
   * @brief This is the list of modules to be used in the HAL driver
   */
 #define HAL_MODULE_ENABLED
-#define HAL_ADC_MODULE_ENABLED
-#define HAL_CAN_MODULE_ENABLED
-#define HAL_CAN_LEGACY_MODULE_ENABLED
 #define HAL_CORTEX_MODULE_ENABLED
 #define HAL_DMA_MODULE_ENABLED
-#define HAL_ETH_MODULE_ENABLED
 #define HAL_FLASH_MODULE_ENABLED
 #define HAL_GPIO_MODULE_ENABLED
 #define HAL_I2C_MODULE_ENABLED
-#define HAL_I2S_MODULE_ENABLED
-#define HAL_IWDG_MODULE_ENABLED
 #define HAL_PWR_MODULE_ENABLED
 #define HAL_RCC_MODULE_ENABLED
-#define HAL_RTC_MODULE_ENABLED
-#define HAL_SD_MODULE_ENABLED
-#define HAL_SPI_MODULE_ENABLED
 #define HAL_TIM_MODULE_ENABLED
 #define HAL_UART_MODULE_ENABLED
-#define HAL_USART_MODULE_ENABLED
-#define HAL_IRDA_MODULE_ENABLED
-#define HAL_SMARTCARD_MODULE_ENABLED
-#define HAL_WWDG_MODULE_ENABLED
-#define HAL_PCD_MODULE_ENABLED
-#define HAL_HCD_MODULE_ENABLED
-#define HAL_DSI_MODULE_ENABLED
-#define HAL_QSPI_MODULE_ENABLED
-#define HAL_QSPI_MODULE_ENABLED
-#define HAL_CEC_MODULE_ENABLED
-#define HAL_FMPI2C_MODULE_ENABLED
-#define HAL_SPDIFRX_MODULE_ENABLED
-#define HAL_DFSDM_MODULE_ENABLED
-#define HAL_LPTIM_MODULE_ENABLED
-#define HAL_LTDC_MODULE_ENABLED
-#define HAL_DMA2D_MODULE_ENABLED
-#define HAL_SAI_MODULE_ENABLED
 
 /* ########################## HSE/HSI Values adaptation ##################### */
 /**
@@ -68,7 +42,7 @@
   *        (when HSE is used as system clock source, directly or through the PLL).
   */
 #if !defined  (HSE_VALUE)
-  #define HSE_VALUE    (25000000U) /*!< Value of the External oscillator in Hz */
+  #define HSE_VALUE    (8000000U) /*!< Value of the External oscillator in Hz */
 #endif /* HSE_VALUE */
 
 #if !defined  (HSE_STARTUP_TIMEOUT)
@@ -268,67 +242,12 @@
 
 #ifdef HAL_TIM_MODULE_ENABLED
  #include "stm32f4xx_hal_tim.h"
+#include "stm32f4xx_hal_tim_ex.h"
 #endif /* HAL_TIM_MODULE_ENABLED */
 
 #ifdef HAL_UART_MODULE_ENABLED
  #include "stm32f4xx_hal_uart.h"
 #endif /* HAL_UART_MODULE_ENABLED */
-
-#ifdef HAL_USART_MODULE_ENABLED
- #include "stm32f4xx_hal_usart.h"
-#endif /* HAL_USART_MODULE_ENABLED */
-
-#ifdef HAL_IRDA_MODULE_ENABLED
- #include "stm32f4xx_hal_irda.h"
-#endif /* HAL_IRDA_MODULE_ENABLED */
-
-#ifdef HAL_SMARTCARD_MODULE_ENABLED
- #include "stm32f4xx_hal_smartcard.h"
-#endif /* HAL_SMARTCARD_MODULE_ENABLED */
-
-#ifdef HAL_WWDG_MODULE_ENABLED
- #include "stm32f4xx_hal_wwdg.h"
-#endif /* HAL_WWDG_MODULE_ENABLED */
-
-#ifdef HAL_PCD_MODULE_ENABLED
- #include "stm32f4xx_hal_pcd.h"
-#endif /* HAL_PCD_MODULE_ENABLED */
-
-#ifdef HAL_HCD_MODULE_ENABLED
- #include "stm32f4xx_hal_hcd.h"
-#endif /* HAL_HCD_MODULE_ENABLED */
-
-#ifdef HAL_DSI_MODULE_ENABLED
- #include "stm32f4xx_hal_dsi.h"
-#endif /* HAL_DSI_MODULE_ENABLED */
-
-#ifdef HAL_QSPI_MODULE_ENABLED
- #include "stm32f4xx_hal_qspi.h"
-#endif /* HAL_QSPI_MODULE_ENABLED */
-
-#ifdef HAL_CEC_MODULE_ENABLED
- #include "stm32f4xx_hal_cec.h"
-#endif /* HAL_CEC_MODULE_ENABLED */
-
-#ifdef HAL_FMPI2C_MODULE_ENABLED
- #include "stm32f4xx_hal_fmpi2c.h"
-#endif /* HAL_FMPI2C_MODULE_ENABLED */
-
-#ifdef HAL_SPDIFRX_MODULE_ENABLED
- #include "stm32f4xx_hal_spdifrx.h"
-#endif /* HAL_SPDIFRX_MODULE_ENABLED */
-
-#ifdef HAL_DFSDM_MODULE_ENABLED
- #include "stm32f4xx_hal_dfsdm.h"
-#endif /* HAL_DFSDM_MODULE_ENABLED */
-
-#ifdef HAL_LPTIM_MODULE_ENABLED
- #include "stm32f4xx_hal_lptim.h"
-#endif /* HAL_LPTIM_MODULE_ENABLED */
-
-#ifdef HAL_MMC_MODULE_ENABLED
- #include "stm32f4xx_hal_mmc.h"
-#endif /* HAL_MMC_MODULE_ENABLED */
 
 /* Exported macro ------------------------------------------------------------*/
 #ifdef  USE_FULL_ASSERT

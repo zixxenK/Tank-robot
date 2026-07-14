@@ -17,8 +17,6 @@ set(CMAKE_C_FLAGS_INIT   "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=
 set(CMAKE_CXX_FLAGS_INIT "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard")
 set(CMAKE_ASM_FLAGS_INIT "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard")
 
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-specs=nosys.specs")
-
 # Prevent CMake from testing the cross-compiler
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 

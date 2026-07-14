@@ -24,13 +24,17 @@ class PS5RosBridge(Node):
         self.declare_parameter("max_angular_speed", 1.0)
         self.declare_parameter("joy_device",        "/dev/input/js0")
         self.declare_parameter("publish_rate_hz",   20.0)
+        self.declare_parameter("deadzone",          0.08)
+        self.declare_parameter("expo",              0.35)
 
         self._max_lin = self.get_parameter("max_linear_speed").value
         self._max_ang = self.get_parameter("max_angular_speed").value
         self._joy_dev = self.get_parameter("joy_device").value
-        rate_hz       = self.get_parameter("publish_rate_hz").value
+        rate_hz = self.get_parameter("publish_rate_hz").value
+        self._deadzone = self.get_parameter("deadzone").value
+        self._expo = self.get_parameter("expo").value
 
-        self._pub  = self.create_publisher(Twist, "/cmd_vel", 10)
+        self._pub = self.create_publisher(Twist, "/cmd_vel", 10)
         self._axes = [0.0] * 8
 
         self._joy_fd = self._open_joystick(self._joy_dev)
@@ -72,9 +76,22 @@ class PS5RosBridge(Node):
     def _publish_twist(self):
         self._read_joystick()
 
+        def shape_axis(v: float) -> float:
+            # Deadzone plus cubic blend gives finer low-speed stick control.
+            if abs(v) < self._deadzone:
+                return 0.0
+            scaled = (abs(v) - self._deadzone) / max(
+                1.0 - self._deadzone, 1e-6
+            )
+            shaped = (1.0 - self._expo) * scaled + self._expo * (scaled ** 3)
+            return shaped if v >= 0.0 else -shaped
+
+        lin_axis = shape_axis(-self._axes[self.LINEAR_AXIS])
+        ang_axis = shape_axis(-self._axes[self.ANGULAR_AXIS])
+
         msg = Twist()
-        msg.linear.x  = -self._axes[self.LINEAR_AXIS]  * self._max_lin
-        msg.angular.z = -self._axes[self.ANGULAR_AXIS] * self._max_ang
+        msg.linear.x = lin_axis * self._max_lin
+        msg.angular.z = ang_axis * self._max_ang
         self._pub.publish(msg)
 
     def destroy_node(self):
