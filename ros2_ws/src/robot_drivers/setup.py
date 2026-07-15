@@ -1,4 +1,6 @@
-from setuptools import find_packages, setup
+# pyright: reportMissingTypeStubs=false
+
+from setuptools import find_packages, setup  # type: ignore[import-untyped]
 
 package_name = "robot_drivers"
 
@@ -24,6 +26,7 @@ setup(
             "stm32_binary_bridge = robot_drivers.stm32_binary_bridge:main",
             "esp32_camera_bridge = robot_drivers.esp32_camera_bridge:main",
             "motor_bringup_test = robot_drivers.motor_bringup_test:main",
+            "stm32_selftest_cli = robot_drivers.stm32_selftest_cli:main",
         ],
     },
 )

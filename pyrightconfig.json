@@ -1,0 +1,9 @@
+{
+  "include": ["firmware", "ros2_ws", "scripts", "docs"],
+  "extraPaths": ["stubs"],
+  "exclude": ["**/build", "**/build-ninja", "**/__pycache__", "**/.venv", "**/install", "**/log", "ros2_ws/src/robot_teleop/robot_teleop/ps5_ros_bridge.py"],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false,
+  "reportMissingTypeStubs": false
+}

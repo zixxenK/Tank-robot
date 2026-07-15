@@ -1,4 +1,6 @@
-from setuptools import find_packages, setup
+# pyright: reportMissingTypeStubs=false
+
+from setuptools import find_packages, setup  # type: ignore[import-untyped]
 
 package_name = "robot_teleop"
 
@@ -23,6 +25,7 @@ setup(
             "ps5_ros_bridge    = robot_teleop.ps5_ros_bridge:main",
             "keyboard_teleop   = robot_teleop.keyboard_teleop:main",
             "cmd_vel_to_tracks = robot_teleop.cmd_vel_to_tracks:main",
+            "ps5_device_check  = robot_teleop.ps5_device_check:main",
         ],
     },
 )

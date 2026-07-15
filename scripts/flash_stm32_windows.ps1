@@ -1,7 +1,9 @@
 param(
   [switch]$Build,
   [switch]$Verify,
-  [switch]$Erase
+  [switch]$Erase,
+  [ValidateSet("swd", "dfu")]
+  [string]$Transport = "swd"
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,9 +18,10 @@ $cmakeExe = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE
 $ninjaExe = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe"
 $openocdExe = "C:\Users\ZIXXE\.platformio\packages\tool-openocd\bin\openocd.exe"
 $stFlashExe = "C:\Users\ZIXXE\.platformio\packages\tool-stm32duino\texane-stlink\st-flash.exe"
+$dfuUtilExe = "C:\Users\ZIXXE\.platformio\packages\tool-dfuutil\bin\dfu-util.exe"
 $openocdCfg = Join-Path $repoRoot "scripts/openocd_stm32f407.cfg"
 
-if (-not (Test-Path $openocdExe)) {
+if ($Transport -eq "swd" -and -not (Test-Path $openocdExe)) {
   throw "OpenOCD not found at $openocdExe"
 }
 
@@ -39,6 +42,32 @@ if ($Build) {
 
 if (-not (Test-Path $elfFile)) {
   throw "Firmware ELF not found at $elfFile. Run with -Build first."
+}
+
+$binFile = Join-Path $buildDir "rock64_ranger_fw.bin"
+
+if ($Transport -eq "dfu") {
+  if (-not (Test-Path $dfuUtilExe)) {
+    throw "dfu-util not found at $dfuUtilExe"
+  }
+  if (-not (Test-Path $binFile)) {
+    throw "BIN firmware not found at $binFile"
+  }
+
+  if ($Erase) {
+    Write-Warning "-Erase is ignored for DFU transport."
+  }
+  if ($Verify) {
+    Write-Warning "-Verify is not supported for DFU transport in this script."
+  }
+
+  & $dfuUtilExe -a 0 -s 0x08000000:leave -D $binFile
+  if ($LASTEXITCODE -ne 0) {
+    throw "dfu-util write failed with exit code $LASTEXITCODE"
+  }
+
+  Write-Host "Flash finished (USB DFU)." -ForegroundColor Green
+  exit 0
 }
 
 $programCmd = ('program "{0}"' -f $elfFile)
@@ -68,7 +97,6 @@ if (-not (Test-Path $stFlashExe)) {
   throw "st-flash fallback not found at $stFlashExe"
 }
 
-$binFile = Join-Path $buildDir "rock64_ranger_fw.bin"
 if (-not (Test-Path $binFile)) {
   throw "BIN firmware not found at $binFile"
 }

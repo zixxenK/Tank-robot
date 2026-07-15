@@ -55,6 +55,8 @@ static void MX_I2C1_Init(void);
 static void MX_TIM3_Init(void);
 static void update_motor_pwm(void);
 static void run_motor_self_test(void);
+static void send_self_test_status(uint8_t status_code);
+static void execute_self_test_with_ack(void);
 static void apply_binary_speed_pair(int16_t left_speed, int16_t right_speed);
 static void binary_command_handler(uint8_t function_code,
                                    const uint8_t *payload,
@@ -141,6 +143,31 @@ static void run_motor_self_test(void)
   HAL_Delay(MOTOR_SELF_TEST_STEP_MS);
   apply_binary_speed_pair(0, 0);
   HAL_Delay(MOTOR_SELF_TEST_PAUSE_MS);
+}
+
+static void send_self_test_status(uint8_t status_code)
+{
+  uint8_t payload[1u] = {status_code};
+  uint8_t frame[9u];
+  size_t frame_len = protocol_build_frame(PROTO_FUNC_SELF_TEST,
+                                          payload,
+                                          1u,
+                                          frame,
+                                          sizeof(frame));
+  if (frame_len > 0u)
+  {
+    HAL_UART_Transmit(&huart2, frame, (uint16_t)frame_len, 100u);
+  }
+}
+
+static void execute_self_test_with_ack(void)
+{
+  apply_binary_speed_pair(0, 0);
+  send_self_test_status(PROTO_TEST_STARTED);
+  run_motor_self_test();
+  apply_binary_speed_pair(0, 0);
+  send_self_test_status(PROTO_TEST_FINISHED);
+  motor_state.last_command_time = HAL_GetTick();
 }
 
 static void apply_binary_speed_pair(int16_t left_speed, int16_t right_speed)
@@ -285,10 +312,7 @@ static void binary_command_handler(uint8_t function_code,
 
   if (function_code == PROTO_FUNC_SELF_TEST && payload_len == 0u)
   {
-    /* Force a safe stop before running any movement sequence. */
-    apply_binary_speed_pair(0, 0);
-    run_motor_self_test();
-    motor_state.last_command_time = HAL_GetTick();
+    execute_self_test_with_ack();
     return;
   }
 
@@ -361,8 +385,7 @@ void process_uart_command(char *command)
 
   if (strncmp(command, "SELFTEST", 8) == 0)
   {
-    apply_binary_speed_pair(0, 0);
-    run_motor_self_test();
+    execute_self_test_with_ack();
     const char *ack_msg = "SELFTEST_OK\n";
     HAL_UART_Transmit(&huart2, (uint8_t*)ack_msg, strlen(ack_msg), 100);
     return;

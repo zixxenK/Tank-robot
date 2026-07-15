@@ -16,6 +16,7 @@ import rclpy
 import serial
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
+from std_msgs.msg import Bool
 from std_msgs.msg import Empty
 
 try:
@@ -45,6 +46,8 @@ FUNC_PWM_SERVO = 0x04
 FUNC_BUS_SERVO = 0x05
 FUNC_HEARTBEAT = 0xF0
 FUNC_SELF_TEST = 0xF1
+SELF_TEST_STATUS_STARTED = 0xA1
+SELF_TEST_STATUS_FINISHED = 0xA2
 FUNC_EMERGENCY_STOP = 0x11
 MOTOR_SUBCMD_SET_SPEED = 0x01
 PWM_SERVO_SUBCMD_SET_POSITION = 0x01
@@ -119,6 +122,7 @@ class STM32BinaryBridge(Node):
         self.declare_parameter("linear_slew_rate", 3.0)
         self.declare_parameter("angular_slew_rate", 6.0)
         self.declare_parameter("heartbeat_interval", 0.1)
+        self.declare_parameter("self_test_ack_timeout", 10.0)
 
         port = self.get_parameter("serial_port").value
         baud = self.get_parameter("baud_rate").value
@@ -133,6 +137,9 @@ class STM32BinaryBridge(Node):
         command_rate_hz = float(self.get_parameter("command_rate_hz").value)
         heartbeat_interval = float(
             self.get_parameter("heartbeat_interval").value
+        )
+        self._self_test_ack_timeout = float(
+            self.get_parameter("self_test_ack_timeout").value
         )
 
         self._target_lin = 0.0
@@ -165,6 +172,11 @@ class STM32BinaryBridge(Node):
             Empty,
             "/stm32/self_test",
             self._self_test_cb,
+            10,
+        )
+        self._self_test_result_pub = self.create_publisher(
+            Bool,
+            "/stm32/self_test_result",
             10,
         )
 
@@ -435,11 +447,102 @@ class STM32BinaryBridge(Node):
     def _send_heartbeat(self):
         self._send_frame(FUNC_HEARTBEAT)
 
+    def _read_frame(self, timeout_s: float):
+        if self._ser is None or not self._ser.is_open:
+            return None
+
+        deadline = time.monotonic() + max(timeout_s, 0.0)
+        prev_timeout = self._ser.timeout
+
+        try:
+            while time.monotonic() < deadline:
+                remaining = deadline - time.monotonic()
+                self._ser.timeout = max(0.01, min(0.1, remaining))
+
+                sync1 = self._ser.read(1)
+                if not sync1:
+                    continue
+                if sync1[0] != SYNC_1:
+                    continue
+
+                sync2 = self._ser.read(1)
+                if not sync2:
+                    continue
+                if sync2[0] != SYNC_2:
+                    continue
+
+                header = self._ser.read(2)
+                if len(header) != 2:
+                    continue
+
+                function_code = header[0]
+                payload_len = header[1]
+                payload = self._ser.read(payload_len)
+                if len(payload) != payload_len:
+                    continue
+
+                crc = self._ser.read(1)
+                if len(crc) != 1:
+                    continue
+
+                body = bytes([function_code, payload_len]) + payload
+                if crc8_ccitt(body) != crc[0]:
+                    continue
+
+                return function_code, payload
+        except serial.SerialException as exc:
+            self.get_logger().warn(f"Serial read failed: {exc}")
+            return None
+        finally:
+            self._ser.timeout = prev_timeout
+
+        return None
+
+    def _wait_for_self_test_status(self, status: int, deadline: float) -> bool:
+        while time.monotonic() < deadline:
+            frame = self._read_frame(deadline - time.monotonic())
+            if frame is None:
+                continue
+
+            function_code, payload = frame
+            if function_code != FUNC_SELF_TEST or len(payload) != 1:
+                continue
+
+            if payload[0] == status:
+                return True
+
+        return False
+
     def _self_test_cb(self, _msg: Empty):
         self.get_logger().warn(
             "Requesting firmware motor self-test. Keep robot lifted."
         )
         self._send_frame(FUNC_SELF_TEST)
+
+        deadline = time.monotonic() + max(self._self_test_ack_timeout, 0.1)
+        started = self._wait_for_self_test_status(
+            SELF_TEST_STATUS_STARTED,
+            deadline,
+        )
+        if not started:
+            self.get_logger().warn("Timed out waiting for self-test start ack")
+            self._self_test_result_pub.publish(Bool(data=False))
+            return
+
+        self.get_logger().info("Firmware self-test started")
+        finished = self._wait_for_self_test_status(
+            SELF_TEST_STATUS_FINISHED,
+            deadline,
+        )
+        if not finished:
+            self.get_logger().warn(
+                "Timed out waiting for self-test finish ack"
+            )
+            self._self_test_result_pub.publish(Bool(data=False))
+            return
+
+        self.get_logger().info("Firmware self-test finished")
+        self._self_test_result_pub.publish(Bool(data=True))
 
     def _drive_loop(self):
         if self._ser is None or not self._ser.is_open:
