@@ -12,6 +12,9 @@
   */
 
 #include "main.h"
+#include "microros_app.h"
+#include "protocol_def.h"
+#include "protocol_gateway.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
 #include <stdlib.h>
@@ -21,6 +24,7 @@
 UART_HandleTypeDef huart2;  // UART for ROS2 bridge communication
 I2C_HandleTypeDef hi2c1;    // I2C for MPU6050 IMU
 TIM_HandleTypeDef htim3;    // TIM3 PWM outputs for left/right motor speed
+extern DMA_HandleTypeDef hdma_usart2_rx;
 
 /* Motor control state */
 typedef struct {
@@ -50,6 +54,11 @@ static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM3_Init(void);
 static void update_motor_pwm(void);
+static void run_motor_self_test(void);
+static void apply_binary_speed_pair(int16_t left_speed, int16_t right_speed);
+static void binary_command_handler(uint8_t function_code,
+                                   const uint8_t *payload,
+                                   uint8_t payload_len);
 void motor_safety_check(void);
 void send_heartbeat(void);
 void process_uart_command(char *command);
@@ -90,29 +99,202 @@ int main(void)
   motor_state.heartbeat_enabled = 1;
   update_motor_pwm();
 
-  /* Start UART receive in interrupt mode */
-  HAL_UART_Receive_IT(&huart2, (uint8_t*)&uart_rx_buffer[uart_rx_index], 1);
+#if MOTOR_SELF_TEST_ENABLE
+  run_motor_self_test();
+#endif
 
-  /* Main application loop */
+  protocol_gateway_reset();
+  protocol_gateway_set_handler(binary_command_handler);
+
+  /* micro-ROS control task: support -> node -> subscriber -> executor */
+  StartDefaultTask(NULL);
+
   while (1)
   {
-    /* Process UART commands if ready */
-    if (uart_command_ready)
+    /* StartDefaultTask is expected to run forever. */
+  }
+}
+
+static void run_motor_self_test(void)
+{
+  const int16_t test_duty = (int16_t)MOTOR_SELF_TEST_DUTY;
+
+  apply_binary_speed_pair(0, 0);
+  HAL_Delay(MOTOR_SELF_TEST_PAUSE_MS);
+
+  apply_binary_speed_pair(test_duty, 0);
+  HAL_Delay(MOTOR_SELF_TEST_STEP_MS);
+  apply_binary_speed_pair(0, 0);
+  HAL_Delay(MOTOR_SELF_TEST_PAUSE_MS);
+
+  apply_binary_speed_pair(-test_duty, 0);
+  HAL_Delay(MOTOR_SELF_TEST_STEP_MS);
+  apply_binary_speed_pair(0, 0);
+  HAL_Delay(MOTOR_SELF_TEST_PAUSE_MS);
+
+  apply_binary_speed_pair(0, test_duty);
+  HAL_Delay(MOTOR_SELF_TEST_STEP_MS);
+  apply_binary_speed_pair(0, 0);
+  HAL_Delay(MOTOR_SELF_TEST_PAUSE_MS);
+
+  apply_binary_speed_pair(0, -test_duty);
+  HAL_Delay(MOTOR_SELF_TEST_STEP_MS);
+  apply_binary_speed_pair(0, 0);
+  HAL_Delay(MOTOR_SELF_TEST_PAUSE_MS);
+}
+
+static void apply_binary_speed_pair(int16_t left_speed, int16_t right_speed)
+{
+  if (left_speed > (int16_t)MOTOR_PWM_MAX_DUTY)
+  {
+    left_speed = (int16_t)MOTOR_PWM_MAX_DUTY;
+  }
+  if (left_speed < -(int16_t)MOTOR_PWM_MAX_DUTY)
+  {
+    left_speed = -(int16_t)MOTOR_PWM_MAX_DUTY;
+  }
+
+  if (right_speed > (int16_t)MOTOR_PWM_MAX_DUTY)
+  {
+    right_speed = (int16_t)MOTOR_PWM_MAX_DUTY;
+  }
+  if (right_speed < -(int16_t)MOTOR_PWM_MAX_DUTY)
+  {
+    right_speed = -(int16_t)MOTOR_PWM_MAX_DUTY;
+  }
+
+  motor_state.left_motor_speed = left_speed;
+  motor_state.right_motor_speed = right_speed;
+  motor_state.last_command_time = HAL_GetTick();
+  motor_state.emergency_stop = 0;
+  update_motor_pwm();
+}
+
+static void binary_command_handler(uint8_t function_code,
+                                   const uint8_t *payload,
+                                   uint8_t payload_len)
+{
+  if (function_code == PROTO_FUNC_LED && payload_len == 7u)
+  {
+    motor_state.last_command_time = HAL_GetTick();
+    return;
+  }
+
+  if (function_code == PROTO_FUNC_BUZZER && payload_len == 8u)
+  {
+    motor_state.last_command_time = HAL_GetTick();
+    return;
+  }
+
+  if ((function_code == PROTO_FUNC_PWM_SERVO ||
+       function_code == PROTO_FUNC_BUS_SERVO) &&
+      payload_len >= 1u)
+  {
+    motor_state.last_command_time = HAL_GetTick();
+    return;
+  }
+
+  if (function_code == PROTO_FUNC_MOTOR && payload_len >= 2u)
+  {
+    uint8_t subcmd = payload[0];
+    uint8_t count = payload[1];
+    int16_t left_speed = motor_state.left_motor_speed;
+    int16_t right_speed = motor_state.right_motor_speed;
+    uint8_t max_entries = (uint8_t)((payload_len - 2u) / 5u);
+
+    if (subcmd == PROTO_MOTOR_SUBCMD_SET_SPEED)
     {
-      uart_command_ready = 0;
-      process_uart_command((char*)uart_rx_buffer);
-      uart_rx_index = 0;
-      HAL_UART_Receive_IT(&huart2, (uint8_t*)&uart_rx_buffer[uart_rx_index], 1);
+      if (count > max_entries)
+      {
+        count = max_entries;
+      }
+
+      for (uint8_t i = 0u; i < count; ++i)
+      {
+        uint16_t base = (uint16_t)(2u + (i * 5u));
+        uint8_t motor_id = payload[base];
+        float motor_rps = 0.0f;
+        float clamped_rps;
+
+        memcpy(&motor_rps, &payload[base + 1u], sizeof(float));
+        clamped_rps = motor_rps;
+        if (clamped_rps > 1.0f)
+        {
+          clamped_rps = 1.0f;
+        }
+        if (clamped_rps < -1.0f)
+        {
+          clamped_rps = -1.0f;
+        }
+
+        if (motor_id == 0u)
+        {
+          left_speed = (int16_t)(clamped_rps * (float)MOTOR_PWM_MAX_DUTY);
+        }
+        else if (motor_id == 1u)
+        {
+          right_speed = (int16_t)(clamped_rps * (float)MOTOR_PWM_MAX_DUTY);
+        }
+      }
+
+      apply_binary_speed_pair(left_speed, right_speed);
+    }
+    return;
+  }
+
+  if (function_code == PROTO_FUNC_MOTOR_SET_BOTH && payload_len == 4u)
+  {
+    int16_t left_speed = (int16_t)((uint16_t)payload[0] |
+      ((uint16_t)payload[1] << 8));
+    int16_t right_speed = (int16_t)((uint16_t)payload[2] |
+      ((uint16_t)payload[3] << 8));
+    apply_binary_speed_pair(left_speed, right_speed);
+    return;
+  }
+
+  if (function_code == PROTO_FUNC_MOTOR_SET_SINGLE && payload_len == 4u)
+  {
+    uint8_t motor_id = payload[0];
+    uint8_t direction = payload[1] != 0u ? 1u : 0u;
+    uint16_t speed_u16 = (uint16_t)payload[2] | ((uint16_t)payload[3] << 8);
+    int16_t signed_speed = (int16_t)speed_u16;
+    if (direction == 0u)
+    {
+      signed_speed = (int16_t)(-signed_speed);
     }
 
-    /* Motor safety watchdog - stop motors if no commands received */
-    motor_safety_check();
+    if (motor_id == 0u)
+    {
+      apply_binary_speed_pair(signed_speed, motor_state.right_motor_speed);
+    }
+    else if (motor_id == 1u)
+    {
+      apply_binary_speed_pair(motor_state.left_motor_speed, signed_speed);
+    }
+    return;
+  }
 
-    /* Send heartbeat to ROS2 bridge */
-    send_heartbeat();
+  if (function_code == PROTO_FUNC_EMERGENCY_STOP)
+  {
+    motor_state.left_motor_speed = 0;
+    motor_state.right_motor_speed = 0;
+    motor_state.emergency_stop = 1;
+    update_motor_pwm();
+    return;
+  }
 
-    /* Small delay to prevent CPU hogging */
-    HAL_Delay(10);
+  if (function_code == PROTO_FUNC_SELF_TEST && payload_len == 0u)
+  {
+    /* Force a safe stop before running any movement sequence. */
+    apply_binary_speed_pair(0, 0);
+    run_motor_self_test();
+    motor_state.last_command_time = HAL_GetTick();
+    return;
+  }
+
+  if (function_code == PROTO_FUNC_HEARTBEAT)
+  {
+    motor_state.last_command_time = HAL_GetTick();
   }
 }
 
@@ -151,9 +333,16 @@ void send_heartbeat(void)
   {
     last_heartbeat = current_time;
 
-    /* Send heartbeat packet via UART */
-    const char *heartbeat_msg = "HB\n";
-    HAL_UART_Transmit(&huart2, (uint8_t*)heartbeat_msg, strlen(heartbeat_msg), 100);
+    uint8_t frame[8u];
+    size_t frame_len = protocol_build_frame(PROTO_FUNC_HEARTBEAT,
+                                            NULL,
+                                            0u,
+                                            frame,
+                                            sizeof(frame));
+    if (frame_len > 0u)
+    {
+      HAL_UART_Transmit(&huart2, frame, (uint16_t)frame_len, 100);
+    }
   }
 }
 
@@ -167,6 +356,15 @@ void process_uart_command(char *command)
   {
     const char *hb_msg = "HB\n";
     HAL_UART_Transmit(&huart2, (uint8_t*)hb_msg, strlen(hb_msg), 100);
+    return;
+  }
+
+  if (strncmp(command, "SELFTEST", 8) == 0)
+  {
+    apply_binary_speed_pair(0, 0);
+    run_motor_self_test();
+    const char *ack_msg = "SELFTEST_OK\n";
+    HAL_UART_Transmit(&huart2, (uint8_t*)ack_msg, strlen(ack_msg), 100);
     return;
   }
 
@@ -239,6 +437,40 @@ static void update_motor_pwm(void)
     (left_abs * MOTOR_PWM_ARR) / MOTOR_PWM_MAX_DUTY);
   __HAL_TIM_SET_COMPARE(&htim3, MOTOR_RIGHT_PWM_CHANNEL,
     (right_abs * MOTOR_PWM_ARR) / MOTOR_PWM_MAX_DUTY);
+
+#if MOTOR_DIRECTION_GPIO_ENABLE
+  if (motor_state.left_motor_speed > 0)
+  {
+    HAL_GPIO_WritePin(MOTOR_LEFT_FWD_PORT, MOTOR_LEFT_FWD_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(MOTOR_LEFT_REV_PORT, MOTOR_LEFT_REV_PIN, GPIO_PIN_RESET);
+  }
+  else if (motor_state.left_motor_speed < 0)
+  {
+    HAL_GPIO_WritePin(MOTOR_LEFT_FWD_PORT, MOTOR_LEFT_FWD_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR_LEFT_REV_PORT, MOTOR_LEFT_REV_PIN, GPIO_PIN_SET);
+  }
+  else
+  {
+    HAL_GPIO_WritePin(MOTOR_LEFT_FWD_PORT, MOTOR_LEFT_FWD_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR_LEFT_REV_PORT, MOTOR_LEFT_REV_PIN, GPIO_PIN_RESET);
+  }
+
+  if (motor_state.right_motor_speed > 0)
+  {
+    HAL_GPIO_WritePin(MOTOR_RIGHT_FWD_PORT, MOTOR_RIGHT_FWD_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(MOTOR_RIGHT_REV_PORT, MOTOR_RIGHT_REV_PIN, GPIO_PIN_RESET);
+  }
+  else if (motor_state.right_motor_speed < 0)
+  {
+    HAL_GPIO_WritePin(MOTOR_RIGHT_FWD_PORT, MOTOR_RIGHT_FWD_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR_RIGHT_REV_PORT, MOTOR_RIGHT_REV_PIN, GPIO_PIN_SET);
+  }
+  else
+  {
+    HAL_GPIO_WritePin(MOTOR_RIGHT_FWD_PORT, MOTOR_RIGHT_FWD_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR_RIGHT_REV_PORT, MOTOR_RIGHT_REV_PIN, GPIO_PIN_RESET);
+  }
+#endif
 }
 
 /**
@@ -422,6 +654,30 @@ static void MX_TIM3_Init(void)
 static void MX_GPIO_Init(void)
 {
   /* GPIO setup for USART2/I2C1/TIM3 PWM is in HAL MSP callbacks. */
+#if MOTOR_DIRECTION_GPIO_ENABLE
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  GPIO_InitStruct.Pin = MOTOR_LEFT_FWD_PIN | MOTOR_LEFT_REV_PIN |
+                        MOTOR_RIGHT_FWD_PIN;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = MOTOR_RIGHT_REV_PIN;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  HAL_GPIO_WritePin(MOTOR_LEFT_FWD_PORT, MOTOR_LEFT_FWD_PIN, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MOTOR_LEFT_REV_PORT, MOTOR_LEFT_REV_PIN, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MOTOR_RIGHT_FWD_PORT, MOTOR_RIGHT_FWD_PIN, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MOTOR_RIGHT_REV_PORT, MOTOR_RIGHT_REV_PIN, GPIO_PIN_RESET);
+#endif
 }
 
 /**
@@ -446,6 +702,15 @@ void Error_Handler(void)
 void USART2_IRQHandler(void)
 {
   HAL_UART_IRQHandler(&huart2);
+}
+
+/**
+  * @brief DMA1 Stream5 IRQ Handler for USART2 RX DMA
+  * @retval None
+  */
+void DMA1_Stream5_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&hdma_usart2_rx);
 }
 
 #ifdef  USE_FULL_ASSERT

@@ -14,6 +14,7 @@
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>cv_bridge</depend>
+  <depend>ros_robot_controller_msgs</depend>
 
   <exec_depend>python3-serial</exec_depend>
   <exec_depend>python3-opencv</exec_depend>

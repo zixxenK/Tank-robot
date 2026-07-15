@@ -1,0 +1,3 @@
+C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/tools/build-host/CMakeFiles/test_parser.dir
+C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/tools/build-host/CMakeFiles/ALL_BUILD.dir
+C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/tools/build-host/CMakeFiles/ZERO_CHECK.dir

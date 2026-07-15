@@ -9,9 +9,7 @@ endif()
 
 project(rock64_ranger_stm32 C CXX ASM)
 
-# Using plain-UART communication instead of micro-ROS for STM32
-# This simplifies the firmware and reduces memory requirements
-# If micro-ROS is needed in the future, enable STM32_ENABLE_MICROROS option
+option(STM32_ENABLE_MICROROS "Enable micro-ROS control path" ON)
 
 # ── MCU / Cortex-M4 flags ──────────────────────────────────────────────────
 set(MCU_FLAGS
@@ -25,6 +23,8 @@ set(MCU_FLAGS
 set(STM32_DRIVERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Drivers")
 set(STM32_HAL_DIR "${STM32_DRIVERS_DIR}/STM32F4xx_HAL_Driver")
 set(STM32_CMSIS_DIR "${STM32_DRIVERS_DIR}/CMSIS")
+set(MICROROS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/micro_ros_lib")
+set(MICROROS_LIB "${MICROROS_DIR}/libmicroros.a")
 
 if(NOT EXISTS "${STM32_HAL_DIR}/Src/stm32f4xx_hal.c")
   message(FATAL_ERROR
@@ -80,6 +80,23 @@ target_include_directories(rock64_ranger_fw PRIVATE
   ${STM32_CMSIS_DIR}/Include
 )
 
+if(STM32_ENABLE_MICROROS)
+  if(NOT EXISTS "${MICROROS_LIB}")
+    message(FATAL_ERROR
+      "STM32_ENABLE_MICROROS is ON but ${MICROROS_LIB} is missing. "
+      "Run the micro-ROS static-library build and place libmicroros.a in "
+      "firmware/stm32_chassis/micro_ros_lib/.")
+  endif()
+
+  target_include_directories(rock64_ranger_fw PRIVATE
+    ${MICROROS_DIR}/include
+  )
+
+  target_compile_definitions(rock64_ranger_fw PRIVATE
+    STM32_ENABLE_MICROROS
+  )
+endif()
+
 target_compile_definitions(rock64_ranger_fw PRIVATE
   USE_HAL_DRIVER
   STM32F407xx
@@ -105,7 +122,11 @@ target_link_options(rock64_ranger_fw PRIVATE
   -specs=nano.specs
 )
 
-target_link_libraries(rock64_ranger_fw PRIVATE m c nosys)
+if(STM32_ENABLE_MICROROS)
+  target_link_libraries(rock64_ranger_fw PRIVATE ${MICROROS_LIB} m c nosys)
+else()
+  target_link_libraries(rock64_ranger_fw PRIVATE m c nosys)
+endif()
 
 # ── Post-build: generate flash images ─────────────────────────────────────
 add_custom_command(TARGET rock64_ranger_fw POST_BUILD

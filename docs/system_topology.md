@@ -10,9 +10,9 @@ the Rock64 Ranger project. All migration work should converge to this layout.
 
 | Component | Role |
 |-----------|------|
-| **STM32F407** | Real-time motor control, encoder feedback, UART motor endpoint |
-| **ESP32-S3**  | Camera (OV2640/OV5640), MJPEG HTTP server, WiFi bridge |
-| **Rock64**    | Linux SBC, ROS2 runtime, high-level control, deployment host |
+| **STM32F407** | Real-time motor control, encoder feedback, micro-ROS client |
+| **ESP32-S3**  | Camera (OV2640/OV5640), MJPEG HTTP server, WiFi micro-ROS client |
+| **Rock64**    | Linux SBC, ROS2 runtime, micro-ROS agent, teleop, deployment host |
 | **Hiwonder Tank Chassis** | Differential-drive tracked platform |
 
 ## Communication Architecture
@@ -22,14 +22,14 @@ the Rock64 Ranger project. All migration work should converge to this layout.
                             │
                     /cmd_vel│ (geometry_msgs/Twist)
                             │
-                     [robot_drivers]
+                     [micro_ros_agent]
                        │         │
-            Custom UART serial   HTTP MJPEG
+                 micro-ROS     micro-ROS
                        │         │
                   [STM32F407]  [ESP32-S3]
-                  Motor L/R    Camera stream
-                                    │
-                        /camera/image_raw
+               Motor/encoders  Camera, telemetry
+                       │             │
+              /imu/data, /status   /camera/image_raw
 ```
 
 ## Endgame Directory Structure (Target)
@@ -44,7 +44,7 @@ the Rock64 Ranger project. All migration work should converge to this layout.
 │   ├── stm32_chassis/                   # STM32F407 firmware scaffold
 │   │   ├── Core/
 │   │   │   ├── Inc/                     # HAL + motor driver headers
-│   │   │   ├── Src/                     # HAL + motor driver sources
+│   │   │   ├── Src/                     # HAL + micro-ROS + transport sources
 │   │   │   └── STM32F407VGTx_FLASH.ld  # Linker script
 │   │   ├── micro_ros_lib/
 │   │   │   └── libmicroros.a            # Optional micro-ROS static lib (gitignored)
@@ -77,8 +77,9 @@ the Rock64 Ranger project. All migration work should converge to this layout.
 │       │
 │       └── robot_drivers/               # Hardware bridge nodes (NEW)
 │           ├── robot_drivers/
-│           │   ├── stm32_serial_bridge.py
-│           │   └── esp32_camera_bridge.py
+│           │   ├── stm32_serial_bridge.py   # Legacy fallback bridge
+│           │   ├── esp32_camera_bridge.py
+│           │   └── cmd_vel_to_tracks.py     # Optional track mapper utility
 │           ├── setup.py
 │           └── package.xml
 │
@@ -127,8 +128,8 @@ Build outputs must **never** appear at the repository root:
 
 ## Current STM32 Transport Decision
 
-The checked-in ROS 2 stack currently uses the Python UART bridge in
-`robot_drivers/stm32_serial_bridge.py` to send motor commands from `/cmd_vel`
-to the STM32. The `firmware/stm32_chassis/micro_ros_lib/` directory and CMake
-hook are retained only as an optional future integration point; they are not
-part of the default bringup path today.
+The checked-in firmware now uses a micro-ROS client on the STM32F407.
+`/cmd_vel` is consumed directly by the STM32 task in
+`firmware/stm32_chassis/Core/Src/microros_app.c`, the transport glue lives in
+`firmware/stm32_chassis/Core/Src/cubemx_transport.c`, and `micro_ros_agent`
+runs on the Rock64.

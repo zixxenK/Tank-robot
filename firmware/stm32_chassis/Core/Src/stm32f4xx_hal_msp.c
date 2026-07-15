@@ -7,6 +7,8 @@
 
 #include "main.h"
 
+DMA_HandleTypeDef hdma_usart2_rx;
+
 extern I2C_HandleTypeDef hi2c1;
 extern UART_HandleTypeDef huart2;
 extern TIM_HandleTypeDef htim3;
@@ -54,6 +56,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *uartHandle)
   {
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_USART2_CLK_ENABLE();
+    __HAL_RCC_DMA1_CLK_ENABLE();
 
     GPIO_InitStruct.Pin = ROCK64_UART_TX_PIN | ROCK64_UART_RX_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -62,8 +65,32 @@ void HAL_UART_MspInit(UART_HandleTypeDef *uartHandle)
     GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+    hdma_usart2_rx.Instance = DMA1_Stream5;
+    hdma_usart2_rx.Init.Channel = DMA_CHANNEL_4;
+    hdma_usart2_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_usart2_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_usart2_rx.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_usart2_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_usart2_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_usart2_rx.Init.Mode = DMA_NORMAL;
+    hdma_usart2_rx.Init.Priority = DMA_PRIORITY_HIGH;
+    hdma_usart2_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    hdma_usart2_rx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
+    hdma_usart2_rx.Init.MemBurst = DMA_MBURST_SINGLE;
+    hdma_usart2_rx.Init.PeriphBurst = DMA_PBURST_SINGLE;
+
+    if (HAL_DMA_Init(&hdma_usart2_rx) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(uartHandle, hdmarx, hdma_usart2_rx);
+
     HAL_NVIC_SetPriority(USART2_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(USART2_IRQn);
+
+    HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 1, 1);
+    HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
   }
 }
 
@@ -73,7 +100,9 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef *uartHandle)
   {
     __HAL_RCC_USART2_CLK_DISABLE();
     HAL_GPIO_DeInit(GPIOA, ROCK64_UART_TX_PIN | ROCK64_UART_RX_PIN);
+    HAL_DMA_DeInit(uartHandle->hdmarx);
     HAL_NVIC_DisableIRQ(USART2_IRQn);
+    HAL_NVIC_DisableIRQ(DMA1_Stream5_IRQn);
   }
 }
 

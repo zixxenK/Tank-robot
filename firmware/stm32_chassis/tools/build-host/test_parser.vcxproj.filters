@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Projects\Tank-Robot\Tank-robot\firmware\stm32_chassis\tools\test_parser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\Tank-Robot\Tank-robot\firmware\stm32_chassis\Core\Src\protocol_gateway.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\Tank-Robot\Tank-robot\firmware\stm32_chassis\Core\Src\protocol_def.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Projects\Tank-Robot\Tank-robot\firmware\stm32_chassis\tools\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{11C79B1C-134D-3551-A684-6269562CFD9F}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

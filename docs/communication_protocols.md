@@ -9,59 +9,52 @@ This document defines all communication protocols between the three hardware com
 
 ---
 
-## 1. Rock64 ↔ STM32 UART Protocol
+## 1. Rock64 ↔ STM32 micro-ROS Transport
 
 ### Physical Layer
-- **Interface**: USB-UART (ST-Link V2 or USB-UART adapter)
+- **Interface**: USB-UART2 transport used by micro-ROS agent and STM32 client
 - **Baud Rate**: 115200
 - **Data Format**: 8N1 (8 data bits, no parity, 1 stop bit)
 - **Device**: `/dev/rock64_stm32` (udev symlink)
 
-### Command Protocol (Rock64 → STM32)
+### Control Protocol (Rock64 → STM32)
 
-**Format**: `<motor_id,direction,speed>\n`
+**Format**: `geometry_msgs/Twist` on `/cmd_vel`
 
-- `motor_id`: 0 (left motor) or 1 (right motor)
-- `direction`: 0 (reverse) or 1 (forward)
-- `speed`: 0-255 (PWM duty cycle)
+The STM32 micro-ROS node converts `/cmd_vel` into left/right track setpoints
+using differential-drive kinematics and applies a local safety watchdog.
 
 **Example**:
+```text
+linear.x = 0.2 m/s
+angular.z = 0.0 rad/s
 ```
-<0,1,200><1,1,200>\n
-```
-Both motors forward at 78% duty cycle.
+This becomes equal left/right track commands on the STM32.
 
 **Emergency Stop**:
+```text
+command timeout or agent loss
 ```
-<0,0,0><1,0,0>\n
-```
+The STM32 task stops both motors locally.
 
-### Response Protocol (STM32 → Rock64)
+### Status Protocol (STM32 → Rock64)
 
-**Heartbeat**: `HB\n`
-- Sent every 100ms from STM32
-- Indicates firmware is alive and running
+Telemetry is published as ROS topics rather than ASCII replies.
 
-**Command Acknowledgment**: `ACK\n`
-- Sent after successfully processing motor command
-- Confirms command was received and applied
-
-**Error Messages**: `ERR:<error_code>\n`
-- `ERR:TIMEOUT` - Command timeout
-- `ERR:I2C` - I2C sensor communication failure
-- `ERR:OVERCURRENT` - Motor overcurrent detected
+- `/stm32/status` for controller state
+- `/battery/state` for future power telemetry
+- `/imu/data` for local sensor payloads when enabled
 
 ### Safety Protocol
 
-**Heartbeat Monitoring**:
-- Rock64 sends `PING\n` every 100ms
-- Rock64 expects `HB\n` response within 500ms
-- If heartbeat timeout, Rock64 disables motor commands
-- STM32 automatically stops motors if no commands received for 200ms
+**Watchdog Rules**:
+- Rock64 publishes motion commands through micro-ROS
+- STM32 automatically stops motors if no `/cmd_vel` update is received for 300ms
+- Rock64-side teleop must use a deadman switch or equivalent emergency stop
 
 **Implementation**:
-- STM32: `motor_safety_check()` in `main.c`
-- Rock64: `STM32SerialBridge._send_heartbeat()` and `_serial_read_loop()`
+- STM32: `StartDefaultTask()` and `motor_watchdog()` in `Core/Src/microros_app.c`
+- Rock64: `ps5_ros_bridge` in `robot_teleop`
 
 ---
 
@@ -123,15 +116,14 @@ Content-Length: <size>
 
 ```
 rock64_bringup.launch.py
-├── stm32_serial_bridge (node)
+├── micro_ros_agent (process)
+├── ps5_ros_bridge (node)
+│   └── Publishes: /cmd_vel
+├── stm32 micro-ROS client
 │   └── Subscribes: /cmd_vel
-│   └── Publishes: (none, UART output)
-├── esp32_camera_bridge (node)
-│   └── Subscribes: (none, HTTP input)
-│   └── Publishes: /camera/image_raw
-└── (optional) teleop nodes
-    └── Subscribes: /joy
-    └── Publishes: /cmd_vel
+│   └── Publishes: status / sensor topics
+└── esp32 micro-ROS client (optional / fallback)
+    └── Publishes: /camera/image_raw and telemetry topics
 ```
 
 ### QoS Configuration
@@ -175,6 +167,10 @@ The firmware currently uses this MCU-level mapping and should be validated again
 - `USART2_RX`: `PA3` (Rock64 bridge RX into STM32)
 - `TIM3_CH1`: `PA6` (left motor PWM)
 - `TIM3_CH2`: `PA7` (right motor PWM)
+- `M1_F`: `PA0` (left motor forward logic)
+- `M1_B`: `PA1` (left motor reverse logic)
+- `M2_F`: `PA15` (right motor forward logic)
+- `M2_B`: `PB3` (right motor reverse logic)
 - `I2C1_SCL`: `PB6` (MPU6050 clock)
 - `I2C1_SDA`: `PB7` (MPU6050 data)
 
