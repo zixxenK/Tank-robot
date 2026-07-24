@@ -26,6 +26,6 @@
     heartbeat_timeout: 0.5
     heartbeat_interval: 0.1
 
-    camera_ip: 192.168.1.153
+    camera_ip: 192.168.1.125
     stream_port: 81
     stream_path: /stream

@@ -30,9 +30,29 @@ firmware/**/*.bin
 firmware/**/*.elf
 firmware/**/*.map
 
-# STM32 CMake build
+# STM32 CMake build — all named build directories
 firmware/stm32_chassis/build/
+firmware/stm32_chassis/build-*/
 firmware/stm32_chassis/cmake-build-*/
+
+# Archived STM32 firmware tree: keep generated artifacts out of git
+firmware/stm32_chassis_backupoldoutdated/build/
+firmware/stm32_chassis_backupoldoutdated/build-*/
+firmware/stm32_chassis_backupoldoutdated/cmake-build-*/
+firmware/stm32_chassis_backupoldoutdated/build-arm-gcc-ninja/
+firmware/stm32_chassis_backupoldoutdated/build-arm-gcc-ninja-nomicroros/
+firmware/stm32_chassis_backupoldoutdated/build-phase0/
+firmware/stm32_chassis_backupoldoutdated/build-windows-ninja/
+firmware/stm32_chassis_backupoldoutdated/.cache/
+firmware/stm32_chassis_backupoldoutdated/tools/build-host/
+firmware/stm32_chassis_backupoldoutdated/micro_ros_lib/libmicroros.a
+firmware/stm32_chassis_backupoldoutdated/micro_ros_lib/include/
+
+# Host-side toolchain parser test build
+firmware/stm32_chassis/tools/build-host/
+
+# micro-ROS build cache (populated by scripts/build_microros.sh)
+firmware/stm32_chassis/.cache/
 
 # Optional micro-ROS precompiled libraries (large binaries - managed separately)
 firmware/stm32_chassis/micro_ros_lib/libmicroros.a

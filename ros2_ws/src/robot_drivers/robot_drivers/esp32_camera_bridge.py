@@ -5,13 +5,16 @@ Connects to the ESP32-S3 camera's MJPEG HTTP stream, decodes each JPEG
 frame, and publishes it as a sensor_msgs/Image on /camera/image_raw.
 """
 
-import urllib.request
 import threading
+import time
+import urllib.request
 
+import cv2
+import numpy as np
+from cv_bridge import CvBridge
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from std_msgs.msg import Header
 
 
 class ESP32CameraBridge(Node):
@@ -20,7 +23,7 @@ class ESP32CameraBridge(Node):
     def __init__(self):
         super().__init__("esp32_camera_bridge")
 
-        self.declare_parameter("camera_ip",   "192.168.1.153")
+        self.declare_parameter("camera_ip",   "192.168.1.125")
         self.declare_parameter("stream_port", 81)
         self.declare_parameter("stream_path", "/stream")
 
@@ -31,6 +34,7 @@ class ESP32CameraBridge(Node):
         self._url = f"http://{ip}:{port}{path}"
         self._pub = self.create_publisher(Image, "/camera/image_raw", 10)
         self._running = True
+        self._bridge = CvBridge()
 
         self._thread = threading.Thread(target=self._stream_loop,
                                         daemon=True)
@@ -72,20 +76,18 @@ class ESP32CameraBridge(Node):
                     self.get_logger().warn(
                         f"Camera stream error: {exc} — retrying in 2s"
                     )
-                    import time
                     time.sleep(2.0)
 
     def _publish_frame(self, jpeg_bytes: bytes):
-        msg = Image()
-        msg.header = Header()
-        msg.header.stamp    = self.get_clock().now().to_msg()
+        frame = cv2.imdecode(np.frombuffer(jpeg_bytes, dtype=np.uint8),
+                             cv2.IMREAD_COLOR)
+        if frame is None:
+            self.get_logger().warn("Dropped invalid JPEG frame from ESP32")
+            return
+
+        msg = self._bridge.cv2_to_imgmsg(frame, encoding="bgr8")
+        msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "camera_link"
-        msg.encoding        = "jpeg"
-        msg.data            = list(jpeg_bytes)
-        msg.step            = 0
-        # Width/height unknown without decoding; set to 0
-        msg.width           = 0
-        msg.height          = 0
         self._pub.publish(msg)
 
     def destroy_node(self):

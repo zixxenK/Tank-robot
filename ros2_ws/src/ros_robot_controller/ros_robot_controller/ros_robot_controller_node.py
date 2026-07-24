@@ -11,7 +11,7 @@ from std_msgs.msg import UInt16
 from sensor_msgs.msg import Imu, Joy
 from ros_robot_controller.ros_robot_controller_sdk import Board
 from ros_robot_controller_msgs.srv import GetBusServoState, GetPWMServoState
-from ros_robot_controller_msgs.msg import ButtonState, BuzzerState, LedState, MotorsState, BusServoState, SetBusServoState, SetPWMServoState, Sbus
+from ros_robot_controller_msgs.msg import ButtonState, BuzzerState, LedState, MotorsState, BusServoState, PWMServoState, SetBusServoState, SetPWMServoState, Sbus
 
 class RosRobotController(Node):
     gravity = 9.80665

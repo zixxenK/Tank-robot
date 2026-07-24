@@ -89,25 +89,25 @@
 /* Note: Following vector table addresses must be defined in line with linker
          configuration. */
 /*!< Uncomment the following line if you need to relocate the vector table
-     anywhere in Flash or SRAM, else it will be located at the base address
-     of the Flash. */
+     anywhere in Flash or Sram, else the vector table is kept at the automatic
+     remap of boot address selected */
 /* #define USER_VECT_TAB_ADDRESS */
 
 #if defined(USER_VECT_TAB_ADDRESS)
 /*!< Uncomment the following line if you need to relocate your vector Table
-     in SRAM else user remap will be done in Flash. */
+     in Sram else user remap will be done in Flash. */
 /* #define VECT_TAB_SRAM */
 #if defined(VECT_TAB_SRAM)
 #define VECT_TAB_BASE_ADDRESS   SRAM_BASE       /*!< Vector Table base address field.
                                                      This value must be a multiple of 0x200. */
+#define VECT_TAB_OFFSET         0x00000000U     /*!< Vector Table base offset field.
+                                                     This value must be a multiple of 0x200. */
 #else
 #define VECT_TAB_BASE_ADDRESS   FLASH_BASE      /*!< Vector Table base address field.
                                                      This value must be a multiple of 0x200. */
-#endif /* VECT_TAB_SRAM */
-#if !defined(VECT_TAB_OFFSET)
-#define VECT_TAB_OFFSET         0x00000000U     /*!< Vector Table offset field.
+#define VECT_TAB_OFFSET         0x00000000U     /*!< Vector Table base offset field.
                                                      This value must be a multiple of 0x200. */
-#endif /* VECT_TAB_OFFSET */
+#endif /* VECT_TAB_SRAM */
 #endif /* USER_VECT_TAB_ADDRESS */
 /******************************************************************************/
 
@@ -177,9 +177,7 @@ void SystemInit(void)
 
   /* Configure the Vector Table location -------------------------------------*/
 #if defined(USER_VECT_TAB_ADDRESS)
-  SCB->VTOR = VECT_TAB_BASE_ADDRESS | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal Flash or SRAM */
-#else
-  SCB->VTOR = FLASH_BASE; /* Default Vector Table Location at the base address of Internal Flash */
+  SCB->VTOR = VECT_TAB_BASE_ADDRESS | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM */
 #endif /* USER_VECT_TAB_ADDRESS */
 }
 
@@ -221,7 +219,7 @@ void SystemInit(void)
   */
 void SystemCoreClockUpdate(void)
 {
-  uint32_t tmp, pllvco, pllp, pllsource, pllm;
+  uint32_t tmp = 0, pllvco = 0, pllp = 2, pllsource = 0, pllm = 2;
   
   /* Get SYSCLK source -------------------------------------------------------*/
   tmp = RCC->CFGR & RCC_CFGR_SWS;

@@ -1,5 +1,3 @@
-# deployment/docs/deployment_guide.md
-
 # Rock64 Ranger — Deployment Guide
 
 ## Overview
@@ -9,7 +7,7 @@ enables hands-free robot startup via systemd on the Rock64 SBC.
 
 ## Directory Structure
 
-```
+```text
 deployment/
 ├── systemd/
 │   ├── rock64-robot.service        # systemd unit file
@@ -25,8 +23,8 @@ deployment/
 
 ## First-Time Setup
 
-Prerequisite: Rock64 must run Ubuntu 24.04 (Jazzy) or 22.04 (Humble).
-Ubuntu 26.04/Armbian resolute is not supported by the packaged ROS2 install path.
+Prerequisite: Rock64 must run Ubuntu 22.04 (Humble).
+Ubuntu 24.04/26.04 and other variants are not supported by this repository policy.
 
 ```bash
 # 1. Clone the repo to the Rock64
@@ -37,8 +35,16 @@ cd /opt/rock64-robot
 sudo bash deployment/scripts/rock64_setup.sh \
   --ros-distro auto \
   --serial-port /dev/rock64_stm32 \
-  --camera-ip 192.168.1.153
+  --camera-ip 192.168.1.125
 ```
+
+Workspace resolution used by deployment scripts:
+
+1. If `HOST_WS_PATH` is set, use that path.
+2. Else if `host_ws/src` exists, use `host_ws`.
+3. Else fallback to `ros2_ws`.
+
+This allows non-breaking migration from `ros2_ws` to `host_ws`.
 
 ## Re-installing the Service Only
 
@@ -61,6 +67,7 @@ journalctl -u rock64-robot.service -f
 ## Configuration
 
 Copy and edit the template:
+
 ```bash
 cp deployment/systemd/systemd_config.conf.example \
    deployment/systemd/systemd_config.conf
@@ -73,5 +80,4 @@ cp deployment/systemd/systemd_config.conf.example \
 
 | Ubuntu | ROS2 Distro |
 |--------|-------------|
-| 24.x   | Jazzy       |
 | 22.x   | Humble      |

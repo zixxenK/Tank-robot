@@ -106,7 +106,7 @@ Content-Length: <size>
 
 - Node: esp32_camera_bridge in robot_drivers
 - Topic: /camera/image_raw (sensor_msgs/Image)
-- URL parameter: camera_ip (default: 192.168.1.153)
+- URL parameter: camera_ip (default: 192.168.1.125)
 
 ## 3. ROS 2 Internal Communication
 

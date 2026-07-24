@@ -1,0 +1,1 @@
+﻿{"cmake.sourceDirectory":"${workspaceFolder}/Tank-robot/firmware/stm32_chassis","cmake.preferredGenerators":["Ninja"],"cmake.configureArgs":["-DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake"],"cmake.cmakePath":"C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe"}

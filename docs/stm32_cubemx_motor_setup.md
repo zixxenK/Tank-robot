@@ -21,8 +21,8 @@ Configure the STM32F407VETx to support:
 - `PA1` as `M1_B` gpio output
 - `PA15` as `M2_F` gpio output
 - `PB3` as `M2_B` gpio output
-- `I2C1` on `PB6`/`PB7` for the MPU6050 path 
-- `PA13`/`PA14` as SWD debug pins 
+- `I2C1` on `PB6`/`PB7` for the MPU6050 path
+- `PA13`/`PA14` as SWD debug pins
 
 Current firmware meaning:
 
@@ -255,11 +255,7 @@ ros2 launch robot_bringup rock64_bringup.launch.py use_micro_ros:=true run_motor
 
 ### What it does
 
-- Publishes a low-speed one-shot sequence to `/cmd_vel`:
-   - left forward
-   - left reverse
-   - right forward
-   - right reverse
+- Publishes a low-speed one-shot sequence to `/cmd_vel`: left forward, left reverse, right forward, right reverse.
 - Inserts stop phases between each move.
 - Automatically exits after completion.
 
@@ -268,3 +264,89 @@ ros2 launch robot_bringup rock64_bringup.launch.py use_micro_ros:=true run_motor
 1. Keep tracks lifted from the bench.
 2. Keep test speed conservative for first run.
 3. Verify E-stop path before placing robot on ground.
+
+## 18. Phased Bring-up Execution Checklist (Windows, ST-LINK v2J48S7)
+
+This section is the implementation entry point for the phase plan.
+
+### Phase 0: Toolchain Gate
+
+Run from `C:\Projects\Tank-Robot` PowerShell:
+
+```powershell
+arm-none-eabi-gcc --version
+openocd --version
+```
+
+Expected:
+
+- ARM GNU Toolchain `14.2.Rel1` or newer
+- OpenOCD `0.12.x` or newer
+
+Configure a no-micro-ROS baseline build first:
+
+```powershell
+$cmake = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+& $cmake -S C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis `
+   -B C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-phase0 `
+   -G Ninja `
+   '-DCMAKE_MAKE_PROGRAM=C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe' `
+   '-DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake' `
+   '-DSTM32_ENABLE_MICROROS=OFF'
+
+& $cmake --build C:/Projects/Tank-Robot/Tank-robot/firmware/stm32_chassis/build-phase0 -j4
+```
+
+### Phase 1: MCU Identification via CubeProgrammer
+
+1. Connect ST-LINK to SWD (`SWDIO`, `SWCLK`, `NRST`, `GND`, `3V3`).
+2. Open STM32CubeProgrammer and attach with `ST-LINK` + `SWD`.
+3. Record:
+    - Device ID (F405/F407 family signature)
+    - Flash size register
+    - 96-bit unique ID words
+4. Save screenshot evidence before moving forward.
+
+### Phase 2: Minimal Config Confirmation
+
+Use this project file:
+
+- `firmware/stm32_chassis/stm32_chassis.ioc`
+
+Keep enabled for baseline:
+
+- SYS debug serial wire
+- Clock source + PLL
+- USART2
+- TIM3 PWM CH1/CH2
+- Motor direction GPIOs
+- Optional I2C1 only if IMU validation is in scope
+
+### Phase 3: Blink-only Smoke Test
+
+Firmware now includes a blink-only gate.
+
+File:
+
+- `firmware/stm32_chassis/Core/Inc/main.h`
+
+Set for blink mode:
+
+- `BRINGUP_MODE_BLINK_ONLY` to `1u`
+- `BRINGUP_BLINK_PERIOD_MS` as needed (default `500u`)
+
+Then rebuild and flash:
+
+```powershell
+.\Tank-robot\scripts\flash_stm32_windows.ps1 -Build -Verify
+```
+
+Pass criteria:
+
+- LED pin toggles continuously at configured period.
+- No motor movement occurs in blink mode.
+
+After pass:
+
+- Set `BRINGUP_MODE_BLINK_ONLY` back to `0u`.
+- Continue to motor signal mapping and self-test phases.

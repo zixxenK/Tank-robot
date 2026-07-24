@@ -14,6 +14,10 @@
 #include "esp_camera.h"
 #include "esp_http_server.h"
 
+#if __has_include("secrets.h")
+#  include "secrets.h"
+#endif
+
 // ── WiFi credentials ─────────────────────────────────────────────────────
 // Set via build_flags or a local secrets.h (not committed).
 #ifndef WIFI_SSID
@@ -42,6 +46,27 @@
 #define PCLK_GPIO_NUM  13
 
 static httpd_handle_t stream_httpd = nullptr;
+
+static bool connect_wifi(uint32_t timeout_ms) {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+    const uint32_t start_ms = millis();
+    Serial.print("[wifi] Connecting");
+    while (WiFi.status() != WL_CONNECTED) {
+        if ((millis() - start_ms) >= timeout_ms) {
+            Serial.println();
+            Serial.println("[wifi] Connect timeout");
+            return false;
+        }
+        delay(500);
+        Serial.print(".");
+    }
+
+    Serial.printf("\n[wifi] Connected — IP: %s\n",
+                  WiFi.localIP().toString().c_str());
+    return true;
+}
 
 // ── MJPEG stream handler ──────────────────────────────────────────────────
 static esp_err_t stream_handler(httpd_req_t *req) {
@@ -86,7 +111,7 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 
 // ── Camera initialisation ─────────────────────────────────────────────────
 static bool camera_init() {
-    camera_config_t config;
+    camera_config_t config = {};
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer   = LEDC_TIMER_0;
     config.pin_d0       = Y2_GPIO_NUM;
@@ -139,6 +164,8 @@ static void start_stream_server() {
         httpd_register_uri_handler(stream_httpd, &stream_uri);
         Serial.printf("[http] Stream server started on port %d\n",
                       config.server_port);
+    } else {
+        Serial.println("[http] Failed to start stream server");
     }
 }
 
@@ -147,16 +174,10 @@ void setup() {
     Serial.begin(115200);
     Serial.println("[boot] ESP32-S3 Camera Node starting...");
 
-    // WiFi initialisation
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    Serial.print("[wifi] Connecting");
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
+    while (!connect_wifi(15000)) {
+        Serial.println("[wifi] Retrying in 5s...");
+        delay(5000);
     }
-    Serial.printf("\n[wifi] Connected — IP: %s\n",
-                  WiFi.localIP().toString().c_str());
 
     if (!camera_init()) {
         Serial.println("[boot] Camera init failed — halting");
@@ -164,12 +185,20 @@ void setup() {
     }
 
     start_stream_server();
-    Serial.println("[boot] Ready. Stream: http://" +
-                   WiFi.localIP().toString() + ":81/stream");
+    Serial.printf("[boot] Ready. Stream: http://%s:81/stream\n",
+                  WiFi.localIP().toString().c_str());
 }
 
 void loop() {
-    // MJPEG streaming runs on separate FreeRTOS task started by esp_http_server
-    // No main loop processing needed
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("[wifi] Disconnected — reconnecting");
+        while (!connect_wifi(15000)) {
+            Serial.println("[wifi] Retrying in 5s...");
+            delay(5000);
+        }
+        Serial.println("[wifi] Reconnected");
+    }
+
+    // MJPEG streaming runs on a separate FreeRTOS task started by esp_http_server.
     delay(100);
 }

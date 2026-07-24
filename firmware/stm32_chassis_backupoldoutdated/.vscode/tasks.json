@@ -1,0 +1,65 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "STM32: Configure Debug (micro-ROS OFF)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}/Tank-robot/firmware/stm32_chassis",
+        "-B",
+        "${workspaceFolder}/build",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake",
+        "-DSTM32_ENABLE_MICROROS=OFF"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "STM32: Configure Debug (micro-ROS ON)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}/Tank-robot/firmware/stm32_chassis",
+        "-B",
+        "${workspaceFolder}/build",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake",
+        "-DSTM32_ENABLE_MICROROS=ON"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "STM32: Build",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build",
+        "-j4"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "STM32: Flash With OpenOCD",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/Tank-robot/scripts/flash_stm32_windows.ps1"
+      ],
+      "dependsOn": [
+        "STM32: Build"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

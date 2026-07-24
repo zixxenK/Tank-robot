@@ -2,21 +2,36 @@
 # rock64_setup.sh — Rock64 Ranger deployment setup & installation script.
 #
 # Usage:
-#   sudo bash rock64_setup.sh [--ros-distro jazzy|auto]
+#   sudo bash rock64_setup.sh [--ros-distro humble|auto]
 #                             [--serial-port /dev/ttyUSB0]
-#                             [--camera-ip 192.168.1.153]
+#                             [--camera-ip 192.168.1.125]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-ROS2_WS="${REPO_ROOT}/ros2_ws"
 DEPLOY_DIR="${REPO_ROOT}/deployment"
+
+resolve_host_ws() {
+  if [[ -n "${HOST_WS_PATH:-}" ]]; then
+    echo "${HOST_WS_PATH}"
+    return
+  fi
+
+  if [[ -d "${REPO_ROOT}/host_ws/src" ]]; then
+    echo "${REPO_ROOT}/host_ws"
+    return
+  fi
+
+  echo "${REPO_ROOT}/ros2_ws"
+}
+
+ROS2_WS="$(resolve_host_ws)"
 
 # ── Defaults ──────────────────────────────────────────────────────────────
 ROS_DISTRO_ARG="auto"
 SERIAL_PORT="/dev/rock64_stm32"
-CAMERA_IP="192.168.1.153"
-ROCK64_IP="192.168.1.159"
+CAMERA_IP="192.168.1.125"
+ROCK64_IP="192.168.1.139"
 
 # ── Parse command-line args ───────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -33,38 +48,54 @@ done
 resolve_target_ros_distro() {
   local requested="$1"
   if [[ "${requested}" != "auto" ]]; then
+    if [[ "${requested}" != "humble" ]]; then
+      echo "[setup] ERROR: Only ROS2 'humble' is supported by this setup script policy." >&2
+      return 1
+    fi
     echo "${requested}"
     return
   fi
   # Detect Ubuntu version and map to ROS2 distro
+  # Auto mode is intentionally Humble-only.
   local ubuntu_version
   ubuntu_version=$(lsb_release -rs 2>/dev/null || echo "0")
   case "${ubuntu_version}" in
-    24.*)  echo "jazzy"  ;;
     22.*)  echo "humble" ;;
     *)
-      echo "[setup] WARNING: Unknown Ubuntu version ${ubuntu_version}, defaulting to jazzy" >&2
-      echo "jazzy"
+      echo "[setup] ERROR: Auto ROS distro resolution only supports Ubuntu 22.04 (Humble)." >&2
+      return 1
       ;;
   esac
 }
 
 RESOLVED_DISTRO="$(resolve_target_ros_distro "${ROS_DISTRO_ARG}")"
 echo "[setup] Target ROS2 distro: ${RESOLVED_DISTRO}"
+echo "[setup] Host workspace     : ${ROS2_WS}"
 
 UBUNTU_VERSION="$(lsb_release -rs 2>/dev/null || echo "0")"
-if [[ ! "${UBUNTU_VERSION}" =~ ^24\.|^22\. ]]; then
+if [[ ! "${UBUNTU_VERSION}" =~ ^22\. ]]; then
   echo "[setup] ERROR: Ubuntu ${UBUNTU_VERSION} is not supported by this script." >&2
-  echo "[setup] Use Ubuntu 24.04 (ROS Jazzy) or 22.04 (ROS Humble) on Rock64." >&2
+  echo "[setup] Use Ubuntu 22.04 (ROS Humble) on Rock64 for this repository policy." >&2
   echo "[setup] Current board reports Armbian/Ubuntu ${UBUNTU_VERSION}." >&2
   exit 2
 fi
 
 # ── Install system dependencies ───────────────────────────────────────────
 echo "[setup] Installing system dependencies..."
+
+MICROROS_AGENT_PKG="ros-${RESOLVED_DISTRO}-micro-ros-agent"
+if apt-cache show "${MICROROS_AGENT_PKG}" >/dev/null 2>&1; then
+  echo "[setup] Found optional package: ${MICROROS_AGENT_PKG}"
+else
+  echo "[setup] WARNING: ${MICROROS_AGENT_PKG} not available for this architecture/repo; skipping package install."
+  MICROROS_AGENT_PKG=""
+fi
+
 apt-get update -qq
 apt-get install -y --no-install-recommends \
   "ros-${RESOLVED_DISTRO}-desktop" \
+  ${MICROROS_AGENT_PKG:+"${MICROROS_AGENT_PKG}"} \
+  "ros-${RESOLVED_DISTRO}-cv-bridge" \
   "ros-${RESOLVED_DISTRO}-rmw-fastrtps-cpp" \
   python3-colcon-common-extensions \
   python3-rosdep \
@@ -78,6 +109,18 @@ apt-get install -y --no-install-recommends \
   cmake \
   stlink-tools \
   openocd
+
+if [[ -z "${MICROROS_AGENT_PKG}" ]]; then
+  echo "[setup] Adding micro_ros_agent source fallback into workspace..."
+  mkdir -p "${ROS2_WS}/src"
+  if [[ ! -d "${ROS2_WS}/src/micro_ros_agent/.git" ]]; then
+    git clone --depth 1 -b "${RESOLVED_DISTRO}" \
+      https://github.com/micro-ROS/micro-ROS-Agent.git \
+      "${ROS2_WS}/src/micro_ros_agent"
+  else
+    echo "[setup] micro_ros_agent source already present — skipping clone."
+  fi
+fi
 
 # ── Create udev rule for STM32 serial port ────────────────────────────────
 echo "[setup] Installing udev rule for STM32 serial port..."
@@ -106,6 +149,7 @@ ROS_DISTRO=${RESOLVED_DISTRO}
 ROS_DOMAIN_ID=42
 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ROBOT_NAMESPACE=rock64_1
+HOST_WS_PATH=${ROS2_WS}
 EOF
 
 # ── Build ROS2 workspace ───────────────────────────────────────────────────

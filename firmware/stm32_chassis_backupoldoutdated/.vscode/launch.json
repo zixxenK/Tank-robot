@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "STM32F407: Live Debug (ST-Link/OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/Tank-robot",
+            "servertype": "openocd",
+            "configFiles": [
+                "${workspaceFolder}/Tank-robot/scripts/openocd_stm32f407.cfg"
+            ],
+            "executable": "${workspaceFolder}/build/rock64_ranger_fw.elf",
+            "device": "STM32F407VG",
+            "runToEntryPoint": "main",
+            "preLaunchTask": "STM32: Flash With OpenOCD"
+        }
+    ]
+}

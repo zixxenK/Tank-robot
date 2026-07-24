@@ -1,15 +1,30 @@
 #!/usr/bin/env bash
 # source_ros2_ws.sh — ROS2 workspace sourcing helper.
 #
-# Auto-detects the installed ROS2 distro (Jazzy or Humble) and
-# sources both the base ROS2 installation and the local ros2_ws overlay.
+# Auto-detects the installed ROS2 distro (Humble-first policy) and
+# sources both the base ROS2 installation and the active host workspace overlay.
 #
 # Usage: source source_ros2_ws.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-ROS2_WS="${REPO_ROOT}/ros2_ws"
+
+resolve_host_ws() {
+  if [[ -n "${HOST_WS_PATH:-}" ]]; then
+    echo "${HOST_WS_PATH}"
+    return
+  fi
+
+  if [[ -d "${REPO_ROOT}/host_ws/src" ]]; then
+    echo "${REPO_ROOT}/host_ws"
+    return
+  fi
+
+  echo "${REPO_ROOT}/ros2_ws"
+}
+
+ROS2_WS="$(resolve_host_ws)"
 
 # ── Auto-detect ROS distro ────────────────────────────────────────────────
 resolve_ros_distro() {
@@ -24,13 +39,16 @@ resolve_ros_distro() {
     return
   fi
   # Detect from Ubuntu version
-  # Ubuntu 24.04 -> Jazzy, Ubuntu 22.04 -> Humble
+  # Ubuntu 22.04 -> Humble
   local ubuntu_version
   ubuntu_version=$(lsb_release -rs 2>/dev/null || echo "0")
   case "${ubuntu_version}" in
-    24.*)  echo "jazzy"  ;;
     22.*)  echo "humble" ;;
-    *)     echo "jazzy"  ;;  # default to latest
+    *)
+      echo "[source_ros2_ws] ERROR: Auto ROS distro resolution only supports Ubuntu 22.04 (Humble)." >&2
+      echo "[source_ros2_ws] Set ROS_DISTRO_OVERRIDE explicitly if you intentionally use another distro." >&2
+      return 1
+      ;;
   esac
 }
 
@@ -45,6 +63,7 @@ fi
 # shellcheck source=/dev/null
 source "${ROS_BASE}/setup.bash"
 echo "[source_ros2_ws] Sourced ROS2 ${DISTRO} from ${ROS_BASE}"
+echo "[source_ros2_ws] Active host workspace: ${ROS2_WS}"
 
 # Source the workspace overlay if it has been built
 INSTALL_SETUP="${ROS2_WS}/install/setup.bash"
@@ -58,3 +77,4 @@ else
 fi
 
 export ROS_DISTRO="${DISTRO}"
+export HOST_WS_PATH="${ROS2_WS}"

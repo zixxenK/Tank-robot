@@ -56,9 +56,16 @@ cd ../..
 ### Manual Flashing (OpenOCD)
 ```bash
 cd firmware/stm32_chassis
-openocd -f ../scripts/openocd_stm32f407.cfg \
+openocd -f ../../scripts/openocd_stm32f407.cfg \
   -c "program build/rock64_ranger_fw.elf verify reset exit"
 ```
+
+### Live Debug (VS Code + ST-Link)
+1. Install extensions: `ms-vscode.cmake-tools` and `marus25.cortex-debug`
+2. Configure and build from VS Code tasks in `firmware/stm32_chassis/.vscode/tasks.json`
+3. Start debug config: `STM32F407: Live Debug (ST-Link/OpenOCD)`
+
+This repository no longer uses PlatformIO for STM32 flashing/debugging.
 
 ### Troubleshooting
 - **ST-Link not detected**: Check USB permissions, try `sudo`

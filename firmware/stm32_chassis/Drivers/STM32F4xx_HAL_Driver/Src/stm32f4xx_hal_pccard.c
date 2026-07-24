@@ -163,8 +163,7 @@
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_PCCARD_Init(PCCARD_HandleTypeDef *hpccard, FMC_NAND_PCC_TimingTypeDef *ComSpaceTiming,
-                                  FMC_NAND_PCC_TimingTypeDef *AttSpaceTiming,
-                                  FMC_NAND_PCC_TimingTypeDef *IOSpaceTiming)
+                                  FMC_NAND_PCC_TimingTypeDef *AttSpaceTiming, FMC_NAND_PCC_TimingTypeDef *IOSpaceTiming)
 {
   /* Check the PCCARD controller state */
   if (hpccard == NULL)
@@ -188,7 +187,7 @@ HAL_StatusTypeDef HAL_PCCARD_Init(PCCARD_HandleTypeDef *hpccard, FMC_NAND_PCC_Ti
 #else
     /* Initialize the low level hardware (MSP) */
     HAL_PCCARD_MspInit(hpccard);
-#endif /* USE_HAL_PCCARD_REGISTER_CALLBACKS */
+#endif
   }
 
   /* Initialize the PCCARD state */
@@ -235,7 +234,7 @@ HAL_StatusTypeDef  HAL_PCCARD_DeInit(PCCARD_HandleTypeDef *hpccard)
 #else
   /* De-Initialize the low level hardware (MSP) */
   HAL_PCCARD_MspDeInit(hpccard);
-#endif /* USE_HAL_PCCARD_REGISTER_CALLBACKS */
+#endif
 
   /* Configure the PCCARD registers with their reset values */
   FMC_PCCARD_DeInit(hpccard->Instance);
@@ -308,9 +307,8 @@ __weak void HAL_PCCARD_MspDeInit(PCCARD_HandleTypeDef *hpccard)
   */
 HAL_StatusTypeDef HAL_PCCARD_Read_ID(PCCARD_HandleTypeDef *hpccard, uint8_t CompactFlash_ID[], uint8_t *pStatus)
 {
-  uint32_t timeout = 0U;
-  uint32_t index = 0U;
-  uint8_t status = 0U;
+  uint32_t timeout = PCCARD_TIMEOUT_READ_ID, index = 0U;
+  uint8_t status = 0;
 
   /* Process Locked */
   __HAL_LOCK(hpccard);
@@ -320,9 +318,6 @@ HAL_StatusTypeDef HAL_PCCARD_Read_ID(PCCARD_HandleTypeDef *hpccard, uint8_t Comp
   {
     return HAL_BUSY;
   }
-
-  /* Initialize timeout value */
-  timeout = PCCARD_TIMEOUT_READ_ID;
 
   /* Update the PCCARD controller state */
   hpccard->State = HAL_PCCARD_STATE_BUSY;
@@ -376,9 +371,8 @@ HAL_StatusTypeDef HAL_PCCARD_Read_ID(PCCARD_HandleTypeDef *hpccard, uint8_t Comp
 HAL_StatusTypeDef HAL_PCCARD_Read_Sector(PCCARD_HandleTypeDef *hpccard, uint16_t *pBuffer, uint16_t SectorAddress,
                                          uint8_t *pStatus)
 {
-  uint32_t timeout = 0U;
-  uint32_t index = 0U;
-  uint8_t status = 0U;
+  uint32_t timeout = PCCARD_TIMEOUT_READ_WRITE_SECTOR, index = 0U;
+  uint8_t status = 0;
 
   /* Process Locked */
   __HAL_LOCK(hpccard);
@@ -388,9 +382,6 @@ HAL_StatusTypeDef HAL_PCCARD_Read_Sector(PCCARD_HandleTypeDef *hpccard, uint16_t
   {
     return HAL_BUSY;
   }
-
-  /* Initialize timeout value */
-  timeout = PCCARD_TIMEOUT_READ_WRITE_SECTOR;
 
   /* Update the PCCARD controller state */
   hpccard->State = HAL_PCCARD_STATE_BUSY;
@@ -457,9 +448,8 @@ HAL_StatusTypeDef HAL_PCCARD_Read_Sector(PCCARD_HandleTypeDef *hpccard, uint16_t
 HAL_StatusTypeDef HAL_PCCARD_Write_Sector(PCCARD_HandleTypeDef *hpccard, uint16_t *pBuffer, uint16_t SectorAddress,
                                           uint8_t *pStatus)
 {
-  uint32_t timeout = 0U;
-  uint32_t index = 0U;
-  uint8_t status = 0U;
+  uint32_t timeout = PCCARD_TIMEOUT_READ_WRITE_SECTOR, index = 0U;
+  uint8_t status = 0;
 
   /* Process Locked */
   __HAL_LOCK(hpccard);
@@ -469,9 +459,6 @@ HAL_StatusTypeDef HAL_PCCARD_Write_Sector(PCCARD_HandleTypeDef *hpccard, uint16_
   {
     return HAL_BUSY;
   }
-
-  /* Initialize timeout value */
-  timeout = PCCARD_TIMEOUT_READ_WRITE_SECTOR;
 
   /* Update the PCCARD controller state */
   hpccard->State = HAL_PCCARD_STATE_BUSY;
@@ -535,7 +522,7 @@ HAL_StatusTypeDef HAL_PCCARD_Write_Sector(PCCARD_HandleTypeDef *hpccard, uint16_
 HAL_StatusTypeDef  HAL_PCCARD_Erase_Sector(PCCARD_HandleTypeDef *hpccard, uint16_t SectorAddress, uint8_t *pStatus)
 {
   uint32_t timeout = PCCARD_TIMEOUT_ERASE_SECTOR;
-  uint8_t status = 0U;
+  uint8_t status = 0;
 
   /* Process Locked */
   __HAL_LOCK(hpccard);
@@ -637,7 +624,7 @@ void HAL_PCCARD_IRQHandler(PCCARD_HandleTypeDef *hpccard)
     hpccard->ItCallback(hpccard);
 #else
     HAL_PCCARD_ITCallback(hpccard);
-#endif /* USE_HAL_PCCARD_REGISTER_CALLBACKS */
+#endif
 
     /* Clear PCCARD interrupt Rising edge pending bit */
     __FMC_PCCARD_CLEAR_FLAG(hpccard->Instance, FMC_FLAG_RISING_EDGE);
@@ -651,7 +638,7 @@ void HAL_PCCARD_IRQHandler(PCCARD_HandleTypeDef *hpccard)
     hpccard->ItCallback(hpccard);
 #else
     HAL_PCCARD_ITCallback(hpccard);
-#endif /* USE_HAL_PCCARD_REGISTER_CALLBACKS */
+#endif
 
     /* Clear PCCARD interrupt Level pending bit */
     __FMC_PCCARD_CLEAR_FLAG(hpccard->Instance, FMC_FLAG_LEVEL);
@@ -665,7 +652,7 @@ void HAL_PCCARD_IRQHandler(PCCARD_HandleTypeDef *hpccard)
     hpccard->ItCallback(hpccard);
 #else
     HAL_PCCARD_ITCallback(hpccard);
-#endif /* USE_HAL_PCCARD_REGISTER_CALLBACKS */
+#endif
 
     /* Clear PCCARD interrupt Falling edge pending bit */
     __FMC_PCCARD_CLEAR_FLAG(hpccard->Instance, FMC_FLAG_FALLING_EDGE);
@@ -679,7 +666,7 @@ void HAL_PCCARD_IRQHandler(PCCARD_HandleTypeDef *hpccard)
     hpccard->ItCallback(hpccard);
 #else
     HAL_PCCARD_ITCallback(hpccard);
-#endif /* USE_HAL_PCCARD_REGISTER_CALLBACKS */
+#endif
 
     /* Clear PCCARD interrupt FIFO empty pending bit */
     __FMC_PCCARD_CLEAR_FLAG(hpccard->Instance, FMC_FLAG_FEMPT);
@@ -836,7 +823,7 @@ HAL_StatusTypeDef HAL_PCCARD_UnRegisterCallback(PCCARD_HandleTypeDef *hpccard, H
   __HAL_UNLOCK(hpccard);
   return status;
 }
-#endif /* USE_HAL_PCCARD_REGISTER_CALLBACKS */
+#endif
 
 /**
   * @}
@@ -879,8 +866,7 @@ HAL_PCCARD_StateTypeDef HAL_PCCARD_GetState(PCCARD_HandleTypeDef *hpccard)
   */
 HAL_PCCARD_StatusTypeDef HAL_PCCARD_GetStatus(PCCARD_HandleTypeDef *hpccard)
 {
-  uint32_t timeout = PCCARD_TIMEOUT_STATUS;
-  uint32_t status_pccard = 0U;
+  uint32_t timeout = PCCARD_TIMEOUT_STATUS, status_pccard = 0U;
 
   /* Check the PCCARD controller state */
   if (hpccard->State == HAL_PCCARD_STATE_BUSY)
@@ -916,8 +902,7 @@ HAL_PCCARD_StatusTypeDef HAL_PCCARD_GetStatus(PCCARD_HandleTypeDef *hpccard)
   */
 HAL_PCCARD_StatusTypeDef HAL_PCCARD_ReadStatus(PCCARD_HandleTypeDef *hpccard)
 {
-  uint8_t data = 0U;
-  uint8_t status_pccard = PCCARD_BUSY;
+  uint8_t data = 0U, status_pccard = PCCARD_BUSY;
 
   /* Check the PCCARD controller state */
   if (hpccard->State == HAL_PCCARD_STATE_BUSY)

@@ -85,10 +85,16 @@ def generate_launch_description():
         description="Serial port for STM32 motor controller",
     )
 
+    host_workspace_arg = DeclareLaunchArgument(
+        "host_workspace",
+        default_value=EnvironmentVariable("HOST_WS_PATH", default_value=""),
+        description="Host ROS2 workspace path (informational for migration)",
+    )
+
     camera_ip_arg = DeclareLaunchArgument(
         "camera_ip",
         default_value=EnvironmentVariable("CAMERA_IP_STATION",
-                                          default_value="192.168.1.153"),
+                                          default_value="192.168.1.125"),
         description="IP address of the ESP32 camera node",
     )
 
@@ -190,6 +196,7 @@ def generate_launch_description():
         micro_ros_dev_arg,
         micro_ros_baud_arg,
         serial_port_arg,
+        host_workspace_arg,
         camera_ip_arg,
         hardware_config_arg,
         micro_ros_agent_process,

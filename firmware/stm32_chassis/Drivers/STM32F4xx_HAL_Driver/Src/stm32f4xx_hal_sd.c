@@ -380,13 +380,7 @@ HAL_StatusTypeDef HAL_SD_Init(SD_HandleTypeDef *hsd)
   {
     return HAL_ERROR;
   }
-  
-  /* Configure the bus wide with the specified value in the SD_HandleTypeDef */
-  if(HAL_SD_ConfigWideBusOperation(hsd, hsd->Init.BusWide) != HAL_OK)
-  {
-    return HAL_ERROR;
-  }
-  
+
   /* Initialize the error code */
   hsd->ErrorCode = HAL_SD_ERROR_NONE;
 
@@ -409,6 +403,7 @@ HAL_StatusTypeDef HAL_SD_Init(SD_HandleTypeDef *hsd)
 HAL_StatusTypeDef HAL_SD_InitCard(SD_HandleTypeDef *hsd)
 {
   uint32_t errorstate;
+  HAL_StatusTypeDef status;
   SD_InitTypeDef Init;
   
   /* Default SDIO peripheral configuration for SD card initialization */
@@ -420,7 +415,11 @@ HAL_StatusTypeDef HAL_SD_InitCard(SD_HandleTypeDef *hsd)
   Init.ClockDiv            = SDIO_INIT_CLK_DIV;
 
   /* Initialize SDIO peripheral interface with default configuration */
-  SDIO_Init(hsd->Instance, Init);
+  status = SDIO_Init(hsd->Instance, Init);
+  if(status != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
 
   /* Disable SDIO Clock */
   __HAL_SD_DISABLE(hsd);
@@ -697,11 +696,7 @@ HAL_StatusTypeDef HAL_SD_ReadBlocks(SD_HandleTypeDef *hsd, uint8_t *pData, uint3
     }
 
     /* Get error state */
-#if defined(SDIO_STA_STBITERR)
-    if(__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_DTIMEOUT) || (__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_STBITERR)))
-#else /* SDIO_STA_STBITERR not defined */
     if(__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_DTIMEOUT))
-#endif /* SDIO_STA_STBITERR */
     {
       /* Clear all the static flags */
       __HAL_SD_CLEAR_FLAG(hsd, SDIO_STATIC_FLAGS);
@@ -916,11 +911,7 @@ HAL_StatusTypeDef HAL_SD_WriteBlocks(SD_HandleTypeDef *hsd, uint8_t *pData, uint
     }
 
     /* Get error state */
-#if defined(SDIO_STA_STBITERR)
-    if(__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_DTIMEOUT) || (__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_STBITERR)))
-#else /* SDIO_STA_STBITERR not defined */
     if(__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_DTIMEOUT))
-#endif /* SDIO_STA_STBITERR */		
     {
       /* Clear all the static flags */
       __HAL_SD_CLEAR_FLAG(hsd, SDIO_STATIC_FLAGS);
@@ -2754,6 +2745,9 @@ static uint32_t SD_InitCard(SD_HandleTypeDef *hsd)
     return errorstate;
   }
 
+  /* Configure SDIO peripheral interface */
+  (void)SDIO_Init(hsd->Instance, hsd->Init);
+
   /* All cards are initialized */
   return HAL_SD_ERROR_NONE;
 }
@@ -2927,17 +2921,13 @@ static uint32_t SD_SendSDStatus(SD_HandleTypeDef *hsd, uint32_t *pSDstatus)
       }
     }
 
-    if((HAL_GetTick() - tickstart) >=  SDMMC_SWDATATIMEOUT)
+    if((HAL_GetTick() - tickstart) >=  SDMMC_DATATIMEOUT)
     {
       return HAL_SD_ERROR_TIMEOUT;
     }
   }
 
-#if defined(SDIO_STA_STBITERR)
-  if(__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_DTIMEOUT) || (__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_STBITERR)))
-#else /* SDIO_STA_STBITERR not defined */
   if(__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_DTIMEOUT))
-#endif /* SDIO_STA_STBITERR */
   {
     return HAL_SD_ERROR_DATA_TIMEOUT;
   }
@@ -2959,7 +2949,7 @@ static uint32_t SD_SendSDStatus(SD_HandleTypeDef *hsd, uint32_t *pSDstatus)
     *pData = SDIO_ReadFIFO(hsd->Instance);
     pData++;
 
-    if((HAL_GetTick() - tickstart) >=  SDMMC_SWDATATIMEOUT)
+    if((HAL_GetTick() - tickstart) >=  SDMMC_DATATIMEOUT)
     {
       return HAL_SD_ERROR_TIMEOUT;
     }
@@ -3151,17 +3141,13 @@ static uint32_t SD_FindSCR(SD_HandleTypeDef *hsd, uint32_t *pSCR)
       break;
     }
 
-    if((HAL_GetTick() - tickstart) >=  SDMMC_SWDATATIMEOUT)
+    if((HAL_GetTick() - tickstart) >=  SDMMC_DATATIMEOUT)
     {
       return HAL_SD_ERROR_TIMEOUT;
     }
   }
 
-#if defined(SDIO_STA_STBITERR)
-  if(__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_DTIMEOUT) || (__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_STBITERR)))
-#else /* SDIO_STA_STBITERR not defined */
   if(__HAL_SD_GET_FLAG(hsd, SDIO_FLAG_DTIMEOUT))
-#endif /* SDIO_STA_STBITERR */
   {
     __HAL_SD_CLEAR_FLAG(hsd, SDIO_FLAG_DTIMEOUT);
 
