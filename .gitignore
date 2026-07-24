@@ -47,6 +47,10 @@ firmware/stm32_chassis_backupoldoutdated/.cache/
 firmware/stm32_chassis_backupoldoutdated/tools/build-host/
 firmware/stm32_chassis_backupoldoutdated/micro_ros_lib/libmicroros.a
 firmware/stm32_chassis_backupoldoutdated/micro_ros_lib/include/
+firmware/stm32_chassis_backupoldoutdated/micro_ros_lib/.inspect/
+
+# Archived vendor driver/docs dump is not part of active firmware sources
+firmware/stm32_chassis_backupoldoutdated/Drivers/
 
 # Host-side toolchain parser test build
 firmware/stm32_chassis/tools/build-host/
@@ -78,3 +82,6 @@ deployment/.env
 
 # Logs
 *.log
+
+# Local tool binaries
+tools/*.exe
