@@ -152,7 +152,7 @@ class STM32SerialBridge(Node):
             encoder_right = self._encoder_right_ticks
             encoder_samples = self._encoder_samples
 
-        self._alive_pub.publish(Bool(alive))
+        self._alive_pub.publish(Bool(data=alive))
 
         status = DiagnosticStatus()
         status.name = "stm32_serial_bridge"
