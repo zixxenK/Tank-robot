@@ -106,6 +106,8 @@ apt-get install -y --no-install-recommends \
   python3-evdev \
   udev \
   gcc-arm-none-eabi \
+  libnewlib-arm-none-eabi \
+  libstdc++-arm-none-eabi-newlib \
   cmake \
   stlink-tools \
   openocd
