@@ -115,6 +115,8 @@ apt-get install -y --no-install-recommends \
   python3-opencv \
   python3-pygame \
   python3-evdev \
+  bluez \
+  joystick \
   udev \
   gcc-arm-none-eabi \
   libnewlib-arm-none-eabi \
@@ -156,6 +158,7 @@ ROCK64_IP=${ROCK64_IP}
 # Hardware
 SERIAL_PORT=${SERIAL_PORT}
 CAMERA_IP_STATION=${CAMERA_IP}
+USE_CAMERA_BRIDGE=false
 
 # ROS
 ROS_DISTRO=${RESOLVED_DISTRO}

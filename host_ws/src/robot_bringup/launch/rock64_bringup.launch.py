@@ -121,6 +121,14 @@ def generate_launch_description():
         description="IP address of the ESP32 camera node",
     )
 
+    use_camera_bridge_arg = DeclareLaunchArgument(
+        "use_camera_bridge",
+        default_value=EnvironmentVariable(
+            "USE_CAMERA_BRIDGE", default_value="false"
+        ),
+        description="Enable ESP32 camera bridge",
+    )
+
     hardware_config_arg = DeclareLaunchArgument(
         "hardware_config",
         default_value=PathJoinSubstitution([
@@ -241,7 +249,9 @@ def generate_launch_description():
             LaunchConfiguration("use_micro_ros"),
             "' == 'true') or ('",
             LaunchConfiguration("allow_mixed_bridges"),
-            "' == 'true'))",
+            "' == 'true')) and ('",
+            LaunchConfiguration("use_camera_bridge"),
+            "' == 'true')",
         )),
         parameters=[
             LaunchConfiguration("hardware_config"),
@@ -263,6 +273,7 @@ def generate_launch_description():
         serial_port_arg,
         host_workspace_arg,
         camera_ip_arg,
+        use_camera_bridge_arg,
         hardware_config_arg,
         preflight_gate,
         micro_ros_agent_process,

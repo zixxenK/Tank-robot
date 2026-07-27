@@ -47,7 +47,8 @@ fi
 
 # Validate camera reachability (best-effort)
 CAMERA_IP="${CAMERA_IP_STATION:-192.168.1.125}"
-if ! ping -c1 -W2 "${CAMERA_IP}" &>/dev/null; then
+USE_CAMERA_BRIDGE="${USE_CAMERA_BRIDGE:-false}"
+if [[ "${USE_CAMERA_BRIDGE}" == "true" ]] && ! ping -c1 -W2 "${CAMERA_IP}" &>/dev/null; then
   echo "[robot_start] WARNING: Camera at ${CAMERA_IP} not reachable."
   echo "[robot_start] Camera bridge will start but may retry."
 fi
@@ -61,4 +62,5 @@ echo "[robot_start] Launching hardware bringup..."
 exec ros2 launch robot_bringup rock64_bringup.launch.py \
   host_workspace:="$(resolve_host_ws)" \
   serial_port:="${SERIAL_PORT}" \
-  camera_ip:="${CAMERA_IP}"
+  camera_ip:="${CAMERA_IP}" \
+  use_camera_bridge:="${USE_CAMERA_BRIDGE}"
