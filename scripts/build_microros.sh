@@ -68,6 +68,14 @@ add_colcon_ignore_if_exists() {
     fi
 }
 
+remove_colcon_ignore_if_exists() {
+    local dir="$1"
+    if [[ -f "${dir}/COLCON_IGNORE" ]]; then
+        rm -f "${dir}/COLCON_IGNORE"
+        echo "      Restored required package path: ${dir}"
+    fi
+}
+
 sync_colcon_meta_into_mcu_ws() {
     local mcu_ws_meta="${UROS_WS}/firmware/mcu_ws/colcon.meta"
     mkdir -p "$(dirname "${mcu_ws_meta}")"
@@ -264,8 +272,10 @@ fi
 if [[ "${MICROROS_PRUNE_OPTIONAL_PACKAGES}" == "1" ]]; then
     echo "[3.5/5] Pruning optional ROS2 packages not required for STM32 static lib..."
     add_colcon_ignore_if_exists "${UROS_WS}/firmware/mcu_ws/ros2/ros2_tracing"
-    add_colcon_ignore_if_exists "${UROS_WS}/firmware/mcu_ws/ros2/test_interface_files"
     add_colcon_ignore_if_exists "${UROS_WS}/firmware/mcu_ws/ros2/rosidl_dynamic_typesupport"
+
+    # test_msgs depends on test_interface_files; keep it enabled to avoid configure failures.
+    remove_colcon_ignore_if_exists "${UROS_WS}/firmware/mcu_ws/ros2/test_interface_files"
 fi
 
 # ── Step 4: Write the STM32F407 cross-compilation toolchain file ──────────
