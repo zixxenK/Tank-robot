@@ -155,9 +155,35 @@ fi
 echo "  arm-none-eabi-gcc : $(arm-none-eabi-gcc --version | head -1)"
 
 ARM_STRING_H_PATH="$(arm-none-eabi-gcc -print-file-name=include/string.h 2>/dev/null || true)"
-if [[ -z "${ARM_STRING_H_PATH}" || "${ARM_STRING_H_PATH}" == "include/string.h" || ! -f "${ARM_STRING_H_PATH}" ]]; then
-    echo "ERROR: ARM C runtime headers are missing (string.h not found for arm-none-eabi)." >&2
-    echo "  Install with: sudo apt-get install libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib" >&2
+ARM_NEWLIB_CANDIDATE_1="/usr/arm-none-eabi/include/string.h"
+ARM_NEWLIB_CANDIDATE_2="/usr/lib/arm-none-eabi/newlib/include/string.h"
+ARM_NEWLIB_CANDIDATE_3="/usr/include/newlib/string.h"
+
+HAS_ARM_STRING_H=0
+if [[ -n "${ARM_STRING_H_PATH}" && "${ARM_STRING_H_PATH}" != "include/string.h" && -f "${ARM_STRING_H_PATH}" ]]; then
+    HAS_ARM_STRING_H=1
+elif [[ -f "${ARM_NEWLIB_CANDIDATE_1}" || -f "${ARM_NEWLIB_CANDIDATE_2}" || -f "${ARM_NEWLIB_CANDIDATE_3}" ]]; then
+    HAS_ARM_STRING_H=1
+fi
+
+# Final check: verify the compiler can preprocess and compile a C file using <string.h>.
+if [[ "${HAS_ARM_STRING_H}" -eq 0 ]]; then
+    TMP_CHECK_DIR="$(mktemp -d)"
+    cat > "${TMP_CHECK_DIR}/newlib_probe.c" <<'NEWLIB_PROBE_EOF'
+#include <string.h>
+int main(void) { return 0; }
+NEWLIB_PROBE_EOF
+
+    if arm-none-eabi-gcc -x c -c "${TMP_CHECK_DIR}/newlib_probe.c" -o "${TMP_CHECK_DIR}/newlib_probe.o" >/dev/null 2>&1; then
+        HAS_ARM_STRING_H=1
+    fi
+    rm -rf "${TMP_CHECK_DIR}"
+fi
+
+if [[ "${HAS_ARM_STRING_H}" -ne 1 ]]; then
+    echo "ERROR: ARM C runtime headers are not usable by arm-none-eabi-gcc (<string.h> not found)." >&2
+    echo "  Try: sudo apt-get install --reinstall gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib" >&2
+    echo "  If still failing on Armbian, also install: sudo apt-get install libnewlib-dev" >&2
     exit 1
 fi
 
