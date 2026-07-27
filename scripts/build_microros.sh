@@ -68,6 +68,82 @@ add_colcon_ignore_if_exists() {
     fi
 }
 
+sync_colcon_meta_into_mcu_ws() {
+    local mcu_ws_meta="${UROS_WS}/firmware/mcu_ws/colcon.meta"
+    mkdir -p "$(dirname "${mcu_ws_meta}")"
+    cp "${COLCON_META}" "${mcu_ws_meta}"
+    echo "      Synced STM32 colcon.meta -> ${mcu_ws_meta}"
+}
+
+ensure_colcon_meta() {
+    if [[ -f "${COLCON_META}" ]]; then
+        return
+    fi
+
+    echo "[build_microros] No custom colcon.meta found at ${COLCON_META}."
+    echo "[build_microros] Writing STM32-safe fallback colcon.meta (rcutils CLOCK_MONOTONIC workaround)."
+    mkdir -p "${MICRO_ROS_LIB_DIR}"
+
+    cat > "${COLCON_META}" <<'COLCON_META_EOF'
+{
+    "names": {
+        "tracetools": {
+            "cmake-args": [
+                "-DTRACETOOLS_DISABLED=ON",
+                "-DTRACETOOLS_STATUS_CHECKING_TOOL=OFF"
+            ]
+        },
+        "rosidl_typesupport": {
+            "cmake-args": [
+                "-DROSIDL_TYPESUPPORT_SINGLE_TYPESUPPORT=ON"
+            ]
+        },
+        "rcl": {
+            "cmake-args": [
+                "-DBUILD_TESTING=OFF",
+                "-DRCL_MICROROS=ON"
+            ]
+        },
+        "rcutils": {
+            "cmake-args": [
+                "-DENABLE_TESTING=OFF",
+                "-DRCUTILS_NO_FILESYSTEM=ON",
+                "-DRCUTILS_NO_THREAD_SUPPORT=ON",
+                "-DRCUTILS_NO_64_ATOMIC=ON",
+                "-DRCUTILS_AVOID_DYNAMIC_ALLOCATION=ON",
+                "-DCMAKE_C_FLAGS=-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -fdata-sections -ffunction-sections -fno-exceptions -O2 -DNDEBUG -D_POSIX_C_SOURCE=200809L -DCLOCK_MONOTONIC=CLOCK_REALTIME -DCLOCK_MONOTONIC_RAW=CLOCK_REALTIME"
+            ]
+        },
+        "rmw_microxrcedds": {
+            "cmake-args": [
+                "-DRMW_UXRCE_MAX_NODES=1",
+                "-DRMW_UXRCE_MAX_PUBLISHERS=0",
+                "-DRMW_UXRCE_MAX_SUBSCRIPTIONS=1",
+                "-DRMW_UXRCE_MAX_SERVICES=0",
+                "-DRMW_UXRCE_MAX_CLIENTS=0",
+                "-DRMW_UXRCE_MAX_HISTORY=4",
+                "-DRMW_UXRCE_TRANSPORT=custom",
+                "-DCMAKE_C_FLAGS=-Wno-pedantic"
+            ]
+        },
+        "microxrcedds_client": {
+            "cmake-args": [
+                "-DUCLIENT_PIC=OFF",
+                "-DUCLIENT_PROFILE_DISCOVERY=OFF",
+                "-DUCLIENT_PROFILE_UDP=OFF",
+                "-DUCLIENT_PROFILE_TCP=OFF",
+                "-DUCLIENT_PROFILE_SERIAL=OFF",
+                "-DUCLIENT_PROFILE_CUSTOM_TRANSPORT=ON",
+                "-DUCLIENT_PROFILE_STREAM_FRAMING=ON",
+                "-DUCLIENT_MAX_SESSION_CONNECTION_ATTEMPTS=4294967295U",
+                "-DCMAKE_C_FLAGS=-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -fdata-sections -ffunction-sections -fno-exceptions -O2 -DNDEBUG -D_POSIX_C_SOURCE=200809L -Wno-implicit-function-declaration -Wno-sign-conversion"
+            ]
+        }
+    }
+}
+COLCON_META_EOF
+}
+
 # ── Preflight checks ───────────────────────────────────────────────────────
 echo "[build_microros] Checking prerequisites..."
 
@@ -77,6 +153,13 @@ if ! command -v arm-none-eabi-gcc &>/dev/null; then
     exit 1
 fi
 echo "  arm-none-eabi-gcc : $(arm-none-eabi-gcc --version | head -1)"
+
+ARM_STRING_H_PATH="$(arm-none-eabi-gcc -print-file-name=include/string.h 2>/dev/null || true)"
+if [[ -z "${ARM_STRING_H_PATH}" || "${ARM_STRING_H_PATH}" == "include/string.h" || ! -f "${ARM_STRING_H_PATH}" ]]; then
+    echo "ERROR: ARM C runtime headers are missing (string.h not found for arm-none-eabi)." >&2
+    echo "  Install with: sudo apt-get install libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib" >&2
+    exit 1
+fi
 
 if ! command -v cmake &>/dev/null; then
     echo "ERROR: cmake not found — install via apt-get." >&2; exit 1
@@ -113,6 +196,7 @@ if [[ ! -f "${ROS_SETUP}" ]]; then
     exit 1
 fi
 source_nounset_safe "${ROS_SETUP}"
+ensure_colcon_meta
 echo "  ROS 2 distro      : ${ROS_DISTRO}"
 echo "  Build workspace   : ${UROS_WS}"
 echo ""
@@ -199,6 +283,10 @@ TOOLCHAIN_EOF
 
 # ── Step 5: Build the static library ──────────────────────────────────────
 echo "[5/5] Building micro-ROS static library (this takes several minutes)..."
+
+# Some micro_ros_setup versions still consume firmware/mcu_ws/colcon.meta by default.
+# Keep that path synchronized so rcutils and RMW options are always applied.
+sync_colcon_meta_into_mcu_ws
 
 # generate_lib expects positional args: <toolchain_file> [colcon_meta_file]
 if [[ -f "${COLCON_META}" ]]; then
