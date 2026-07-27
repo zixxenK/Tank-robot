@@ -35,6 +35,9 @@ from preflight_check import preflight_or_raise
 
 
 def generate_launch_description():
+    def _bool_expr(*parts):
+        return PythonExpression(parts)
+
     use_micro_ros_arg = DeclareLaunchArgument(
         "use_micro_ros",
         default_value="false",
@@ -152,11 +155,13 @@ def generate_launch_description():
         package="robot_drivers",
         executable="motor_bringup_test",
         name="motor_bringup_test",
-        condition=IfCondition(PythonExpression([
+        condition=IfCondition(_bool_expr(
+            "'",
             LaunchConfiguration("use_micro_ros"),
-            " and ",
+            "' == 'true' and '",
             LaunchConfiguration("run_motor_bringup_test"),
-        ])),
+            "' == 'true'",
+        )),
         output="screen",
     )
 
@@ -166,13 +171,15 @@ def generate_launch_description():
             "true; legacy bridges are suppressed unless "
             "allow_mixed_bridges:=true"
         ),
-        condition=IfCondition(PythonExpression([
+        condition=IfCondition(_bool_expr(
+            "'",
             LaunchConfiguration("use_micro_ros"),
-            " and ",
+            "' == 'true' and '",
             LaunchConfiguration("use_legacy_bridges"),
-            " and not ",
+            "' == 'true' and not ('",
             LaunchConfiguration("allow_mixed_bridges"),
-        ])),
+            "' == 'true')",
+        )),
     )
 
     preflight_gate = OpaqueFunction(function=preflight_or_raise)
@@ -181,15 +188,17 @@ def generate_launch_description():
         package="robot_drivers",
         executable="stm32_serial_bridge",
         name="stm32_serial_bridge",
-        condition=IfCondition(PythonExpression([
+        condition=IfCondition(_bool_expr(
+            "'",
             LaunchConfiguration("use_legacy_bridges"),
-            " and (not ",
+            "' == 'true' and (not ('",
             LaunchConfiguration("use_micro_ros"),
-            " or ",
+            "' == 'true') or ('",
             LaunchConfiguration("allow_mixed_bridges"),
-            ") and not ",
+            "' == 'true')) and not ('",
             LaunchConfiguration("use_binary_bridge"),
-        ])),
+            "' == 'true')",
+        )),
         parameters=[
             LaunchConfiguration("hardware_config"),
             {"serial_port": LaunchConfiguration("serial_port")},
@@ -202,15 +211,17 @@ def generate_launch_description():
         package="robot_drivers",
         executable="stm32_binary_bridge",
         name="stm32_binary_bridge",
-        condition=IfCondition(PythonExpression([
+        condition=IfCondition(_bool_expr(
+            "'",
             LaunchConfiguration("use_legacy_bridges"),
-            " and (not ",
+            "' == 'true' and (not ('",
             LaunchConfiguration("use_micro_ros"),
-            " or ",
+            "' == 'true') or ('",
             LaunchConfiguration("allow_mixed_bridges"),
-            ") and ",
+            "' == 'true')) and ('",
             LaunchConfiguration("use_binary_bridge"),
-        ])),
+            "' == 'true')",
+        )),
         parameters=[
             LaunchConfiguration("hardware_config"),
             {"serial_port": LaunchConfiguration("serial_port")},
@@ -223,14 +234,15 @@ def generate_launch_description():
         package="robot_drivers",
         executable="esp32_camera_bridge",
         name="esp32_camera_bridge",
-        condition=IfCondition(PythonExpression([
+        condition=IfCondition(_bool_expr(
+            "'",
             LaunchConfiguration("use_legacy_bridges"),
-            " and (not ",
+            "' == 'true' and (not ('",
             LaunchConfiguration("use_micro_ros"),
-            " or ",
+            "' == 'true') or ('",
             LaunchConfiguration("allow_mixed_bridges"),
-            ")",
-        ])),
+            "' == 'true'))",
+        )),
         parameters=[
             LaunchConfiguration("hardware_config"),
             {"camera_ip": LaunchConfiguration("camera_ip")},
