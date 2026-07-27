@@ -10,6 +10,7 @@ includes the corresponding micro-ROS control path.
 """
 
 import os
+import shutil
 import sys
 
 from launch import LaunchDescription
@@ -37,6 +38,12 @@ from preflight_check import preflight_or_raise
 def generate_launch_description():
     def _bool_expr(*parts):
         return PythonExpression(parts)
+
+    micro_ros_cmd = (
+        ["micro_ros_agent"]
+        if shutil.which("micro_ros_agent")
+        else ["ros2", "run", "micro_ros_agent", "micro_ros_agent"]
+    )
 
     use_micro_ros_arg = DeclareLaunchArgument(
         "use_micro_ros",
@@ -146,8 +153,7 @@ def generate_launch_description():
     )
 
     micro_ros_agent_process = ExecuteProcess(
-        cmd=[
-            "micro_ros_agent",
+        cmd=micro_ros_cmd + [
             LaunchConfiguration("micro_ros_transport"),
             "--dev",
             LaunchConfiguration("micro_ros_dev"),
