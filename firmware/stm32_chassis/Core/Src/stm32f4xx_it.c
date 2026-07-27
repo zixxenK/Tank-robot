@@ -505,6 +505,7 @@ void TIM7_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM7_IRQn 0 */
     extern EncoderMotorObjectTypeDef *motors[4];
+    static uint8_t enc_print_div = 0;
     if(__HAL_TIM_GET_FLAG(&htim7, TIM_FLAG_UPDATE) != RESET) {
         __HAL_TIM_CLEAR_FLAG(&htim7, TIM_FLAG_UPDATE);
 		encoder_update(motors[0], 0.01, __HAL_TIM_GET_COUNTER(&htim5));
@@ -514,6 +515,12 @@ void TIM7_IRQHandler(void)
 		for(int i = 0; i < 4; ++i) {
 			encoder_motor_control(motors[i], 0.01);
 		}
+        if (++enc_print_div >= 5U) {
+            enc_print_div = 0;
+            printf("ENC:%ld,%ld\\r\\n",
+                   (long)motors[0]->counter,
+                   (long)motors[1]->counter);
+        }
     }
   /* USER CODE END TIM7_IRQn 0 */
   /* USER CODE BEGIN TIM7_IRQn 1 */

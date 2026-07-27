@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# pyright: reportMissingImports=false, reportMissingModuleSource=false
+# pyright: reportMissingTypeStubs=false
+# pylint: disable=import-error,no-member,assignment-from-no-return
 """stm32_serial_bridge.py — /cmd_vel → STM32 serial motor command bridge.
 
 Subscribes to /cmd_vel (geometry_msgs/Twist), converts linear and angular
@@ -14,9 +17,14 @@ import threading
 import time
 import math
 
+from diagnostic_msgs.msg import DiagnosticArray
+from diagnostic_msgs.msg import DiagnosticStatus
+from diagnostic_msgs.msg import KeyValue
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
+from std_msgs.msg import Bool
+from std_msgs.msg import Int32MultiArray
 
 
 class STM32SerialBridge(Node):
@@ -30,22 +38,31 @@ class STM32SerialBridge(Node):
         self.declare_parameter("max_speed", 255)
         self.declare_parameter("heartbeat_timeout", 0.5)
         self.declare_parameter("heartbeat_interval", 0.1)
+        self.declare_parameter("diagnostics_period", 0.5)
+        self.declare_parameter("encoder_timeout", 1.0)
         self.declare_parameter("command_rate_hz", 50.0)
         self.declare_parameter("cmd_timeout", 0.25)
         self.declare_parameter("linear_slew_rate", 3.0)
         self.declare_parameter("angular_slew_rate", 6.0)
+        self.declare_parameter("encoder_topic", "/stm32/encoder_ticks")
 
         port = self.get_parameter("serial_port").value
         baud = self.get_parameter("baud_rate").value
+        self._serial_port = port
         self._max = self.get_parameter("max_speed").value
         self._heartbeat_timeout = self.get_parameter("heartbeat_timeout").value
         self._heartbeat_interval = self.get_parameter(
             "heartbeat_interval"
         ).value
+        self._diagnostics_period = self.get_parameter(
+            "diagnostics_period"
+        ).value
+        self._encoder_timeout = self.get_parameter("encoder_timeout").value
         self._command_rate_hz = self.get_parameter("command_rate_hz").value
         self._cmd_timeout = self.get_parameter("cmd_timeout").value
         self._linear_slew_rate = self.get_parameter("linear_slew_rate").value
         self._angular_slew_rate = self.get_parameter("angular_slew_rate").value
+        self._encoder_topic = self.get_parameter("encoder_topic").value
 
         self._target_lin = 0.0
         self._target_ang = 0.0
@@ -55,6 +72,10 @@ class STM32SerialBridge(Node):
         self._last_send_time = time.time()
         self._last_sent_left = None
         self._last_sent_right = None
+        self._encoder_left_ticks = 0
+        self._encoder_right_ticks = 0
+        self._last_encoder_time = 0.0
+        self._encoder_samples = 0
 
         try:
             self._ser = serial.Serial(port, baud, timeout=0.1)
@@ -86,13 +107,108 @@ class STM32SerialBridge(Node):
         self._sub = self.create_subscription(
             Twist, "/cmd_vel", self._cmd_vel_cb, 10
         )
+        self._alive_pub = self.create_publisher(
+            Bool, "/stm32/bridge_alive", 10
+        )
+        self._encoder_pub = self.create_publisher(
+            Int32MultiArray, self._encoder_topic, 10
+        )
+        self._diagnostics_pub = self.create_publisher(
+            DiagnosticArray, "/stm32/diagnostics", 10
+        )
 
         period = 1.0 / max(self._command_rate_hz, 1.0)
         self._command_timer = self.create_timer(period, self._drive_loop)
+        self._diagnostics_timer = self.create_timer(
+            max(float(self._diagnostics_period), 0.1),
+            self._publish_diagnostics,
+        )
+
+    def _publish_diagnostics(self):
+        now = time.time()
+        alive = False
+        serial_open = False
+        heartbeat_age = 0.0
+        encoder_age = -1.0
+        encoder_fresh = False
+        encoder_left = 0
+        encoder_right = 0
+        encoder_samples = 0
+        with self._lock:
+            serial_open = bool(self._ser and self._ser.is_open)
+            alive = bool(
+                self._stm32_alive
+                and self._ser
+                and self._ser.is_open
+            )
+            heartbeat_age = now - self._last_heartbeat_time
+            if self._last_encoder_time > 0.0:
+                encoder_age = now - self._last_encoder_time
+            encoder_fresh = (
+                self._last_encoder_time > 0.0
+                and encoder_age <= float(self._encoder_timeout)
+            )
+            encoder_left = self._encoder_left_ticks
+            encoder_right = self._encoder_right_ticks
+            encoder_samples = self._encoder_samples
+
+        self._alive_pub.publish(Bool(alive))
+
+        status = DiagnosticStatus()
+        status.name = "stm32_serial_bridge"
+        status.hardware_id = self._serial_port
+        if not serial_open:
+            status.level = DiagnosticStatus.ERROR
+            status.message = "serial_closed"
+        elif not alive:
+            status.level = DiagnosticStatus.ERROR
+            status.message = "heartbeat_timeout"
+        elif encoder_samples > 0 and not encoder_fresh:
+            status.level = DiagnosticStatus.WARN
+            status.message = "encoder_stale"
+        else:
+            status.level = DiagnosticStatus.OK
+            status.message = "ok"
+
+        status.values = [
+            KeyValue(key="bridge_alive", value=str(alive).lower()),
+            KeyValue(key="serial_open", value=str(serial_open).lower()),
+            KeyValue(key="heartbeat_age_s", value=f"{heartbeat_age:.3f}"),
+            KeyValue(key="encoder_age_s", value=f"{encoder_age:.3f}"),
+            KeyValue(key="encoder_fresh", value=str(encoder_fresh).lower()),
+            KeyValue(key="encoder_left_ticks", value=str(encoder_left)),
+            KeyValue(key="encoder_right_ticks", value=str(encoder_right)),
+            KeyValue(key="encoder_samples", value=str(encoder_samples)),
+        ]
+
+        diag_msg = DiagnosticArray()
+        diag_msg.header.stamp = self.get_clock().now().to_msg()
+        diag_msg.status = [status]
+        self._diagnostics_pub.publish(diag_msg)
+
+    def _parse_encoder_message(self, message: str):
+        """Parse ENC telemetry frames like ENC:123,456 or ENC,123,456."""
+        if not message.startswith("ENC"):
+            return None
+
+        payload = message[3:].lstrip(" :,")
+        if not payload:
+            return None
+
+        normalized = payload.replace(";", ",").replace(" ", ",")
+        tokens = [item for item in normalized.split(",") if item]
+        if len(tokens) < 2:
+            return None
+
+        try:
+            return int(tokens[0]), int(tokens[1])
+        except ValueError:
+            return None
 
     def _serial_read_loop(self):
         """Background thread to read heartbeat and ack messages from STM32."""
-        while rclpy.ok() and self._ser and self._ser.is_open:
+        keep_running = getattr(rclpy, "ok", lambda: True)
+        while keep_running() and self._ser and self._ser.is_open:
             try:
                 if self._ser.in_waiting > 0:
                     line = self._ser.readline().decode(
@@ -113,6 +229,20 @@ class STM32SerialBridge(Node):
 
     def _process_stm32_message(self, message):
         """Process incoming messages from STM32."""
+        encoder_pair = self._parse_encoder_message(message)
+        if encoder_pair is not None:
+            left_ticks, right_ticks = encoder_pair
+            with self._lock:
+                self._encoder_left_ticks = left_ticks
+                self._encoder_right_ticks = right_ticks
+                self._last_encoder_time = time.time()
+                self._encoder_samples += 1
+
+            self._encoder_pub.publish(
+                Int32MultiArray(data=[left_ticks, right_ticks])
+            )
+            return
+
         with self._lock:
             if message == "HB":  # Heartbeat from STM32
                 self._last_heartbeat_time = time.time()
@@ -233,7 +363,8 @@ class STM32SerialBridge(Node):
 
 
 def main(args=None):
-    rclpy.init(args=args)
+    _ = args
+    rclpy.init()
     node = STM32SerialBridge()
     try:
         rclpy.spin(node)

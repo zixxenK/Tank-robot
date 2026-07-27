@@ -11,7 +11,7 @@ else
 HOST_WS := $(REPO_ROOT)/ros2_ws
 endif
 
-.PHONY: help stm32-config stm32-build stm32-flash microros-build host-build host-launch host-print
+.PHONY: help stm32-config stm32-build stm32-flash microros-build host-build host-launch host-print host-sim host-hardware host-teleop host-teleop-ps5 host-unify host-unify-hw
 
 help:
 	@echo "Targets:"
@@ -21,6 +21,10 @@ help:
 	@echo "  microros-build Build micro-ROS static library for STM32"
 	@echo "  host-build     Build host ROS2 workspace (host_ws preferred)"
 	@echo "  host-launch    Launch Rock64 bringup from active host workspace"
+	@echo "  host-sim       One-shot install deps + build + Gazebo telemetry launch"
+	@echo "  host-hardware  One-shot build + hardware bringup launch"
+	@echo "  host-teleop    One-shot build + keyboard teleop launch"
+	@echo "  host-teleop-ps5 One-shot build + PS5 teleop launch"
 	@echo "  host-print     Print selected host workspace"
 
 host-print:
@@ -43,6 +47,22 @@ host-build:
 
 host-launch:
 	@cd "$(HOST_WS)" && \
-		source /opt/ros/$${ROS_DISTRO:-jazzy}/setup.bash && \
+		source /opt/ros/$${ROS_DISTRO:-humble}/setup.bash && \
 		if [ -f install/setup.bash ]; then source install/setup.bash; fi && \
 		ros2 launch robot_bringup rock64_bringup.launch.py host_workspace:="$(HOST_WS)"
+
+host-sim:
+	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode sim
+
+host-hardware:
+	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode hardware --no-install-deps
+
+host-teleop:
+	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode teleop --teleop keyboard --no-install-deps
+
+host-teleop-ps5:
+	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode teleop --teleop ps5 --no-install-deps
+
+host-unify: host-sim
+
+host-unify-hw: host-hardware

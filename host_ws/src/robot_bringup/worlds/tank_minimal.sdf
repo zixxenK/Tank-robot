@@ -1,0 +1,193 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <world name="tank_world">
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+
+    <gravity>0 0 -9.8</gravity>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.7 0.7 0.7 1</ambient>
+            <diffuse>0.7 0.7 0.7 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="tank_robot">
+      <pose>0 0 0.12 0 0 0</pose>
+
+      <link name="base_link">
+        <inertial>
+          <mass>8.0</mass>
+          <inertia>
+            <ixx>0.18</ixx>
+            <iyy>0.32</iyy>
+            <izz>0.40</izz>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <collision name="base_collision">
+          <geometry>
+            <box>
+              <size>0.40 0.28 0.10</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="base_visual">
+          <geometry>
+            <box>
+              <size>0.40 0.28 0.10</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.1 0.1 0.1 1</ambient>
+            <diffuse>0.2 0.2 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <link name="left_wheel">
+        <pose>0 0.12 0 1.57079632679 0 0</pose>
+        <inertial>
+          <mass>0.7</mass>
+          <inertia>
+            <ixx>0.002</ixx>
+            <iyy>0.002</iyy>
+            <izz>0.001</izz>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <collision name="left_wheel_collision">
+          <geometry>
+            <cylinder>
+              <radius>0.06</radius>
+              <length>0.04</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="left_wheel_visual">
+          <geometry>
+            <cylinder>
+              <radius>0.06</radius>
+              <length>0.04</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.1 0.1 0.1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <link name="right_wheel">
+        <pose>0 -0.12 0 1.57079632679 0 0</pose>
+        <inertial>
+          <mass>0.7</mass>
+          <inertia>
+            <ixx>0.002</ixx>
+            <iyy>0.002</iyy>
+            <izz>0.001</izz>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <collision name="right_wheel_collision">
+          <geometry>
+            <cylinder>
+              <radius>0.06</radius>
+              <length>0.04</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="right_wheel_visual">
+          <geometry>
+            <cylinder>
+              <radius>0.06</radius>
+              <length>0.04</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.1 0.1 0.1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <joint name="left_wheel_joint" type="revolute">
+        <parent>base_link</parent>
+        <child>left_wheel</child>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower>-1e16</lower>
+            <upper>1e16</upper>
+          </limit>
+          <dynamics>
+            <damping>0.2</damping>
+          </dynamics>
+        </axis>
+      </joint>
+
+      <joint name="right_wheel_joint" type="revolute">
+        <parent>base_link</parent>
+        <child>right_wheel</child>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower>-1e16</lower>
+            <upper>1e16</upper>
+          </limit>
+          <dynamics>
+            <damping>0.2</damping>
+          </dynamics>
+        </axis>
+      </joint>
+
+      <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+        <left_joint>left_wheel_joint</left_joint>
+        <right_joint>right_wheel_joint</right_joint>
+        <wheel_separation>0.24</wheel_separation>
+        <wheel_radius>0.06</wheel_radius>
+        <odom_publish_frequency>30</odom_publish_frequency>
+        <topic>/model/tank_robot/cmd_vel</topic>
+        <odom_topic>/model/tank_robot/odom</odom_topic>
+        <tf_topic>/model/tank_robot/tf</tf_topic>
+        <frame_id>odom</frame_id>
+        <child_frame_id>base_link</child_frame_id>
+      </plugin>
+    </model>
+  </world>
+</sdf>

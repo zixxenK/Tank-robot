@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """rock64_bringup.launch.py — Rock64 Ranger system bringup.
 
-Default mode is micro-ROS-first:
-- Launch micro-ROS Agent on Rock64
+Default mode is legacy-bridge-first to match the active firmware integration:
 - Launch PS5 teleop bridge
-- Keep motion control on the STM32 micro-ROS client
+- Launch STM32/ESP32 Python bridges
 
-Legacy Python hardware bridges can be enabled for migration/testing.
+micro-ROS mode can be enabled explicitly when the STM32 firmware build
+includes the corresponding micro-ROS control path.
 """
+
+import os
+import sys
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import ExecuteProcess
+from launch.actions import LogInfo
+from launch.actions import OpaqueFunction
 from launch.conditions import IfCondition
 from launch.substitutions import (
     LaunchConfiguration,
@@ -22,19 +27,34 @@ from launch.substitutions import (
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+_LAUNCH_DIR = os.path.dirname(__file__)
+if _LAUNCH_DIR not in sys.path:
+    sys.path.append(_LAUNCH_DIR)
+
+from preflight_check import preflight_or_raise
+
 
 def generate_launch_description():
     use_micro_ros_arg = DeclareLaunchArgument(
         "use_micro_ros",
-        default_value="true",
+        default_value="false",
         description="Launch micro-ROS agent on Rock64",
     )
 
     use_legacy_bridges_arg = DeclareLaunchArgument(
         "use_legacy_bridges",
-        default_value="false",
+        default_value="true",
         description=(
             "Enable legacy STM32/ESP32 Python bridges during migration"
+        ),
+    )
+
+    allow_mixed_bridges_arg = DeclareLaunchArgument(
+        "allow_mixed_bridges",
+        default_value="false",
+        description=(
+            "Allow micro-ROS and legacy bridges together. Disabled by "
+            "default to avoid serial transport conflicts."
         ),
     )
 
@@ -140,13 +160,34 @@ def generate_launch_description():
         output="screen",
     )
 
+    mixed_mode_warning = LogInfo(
+        msg=(
+            "[rock64_bringup] Both use_micro_ros and use_legacy_bridges are "
+            "true; legacy bridges are suppressed unless "
+            "allow_mixed_bridges:=true"
+        ),
+        condition=IfCondition(PythonExpression([
+            LaunchConfiguration("use_micro_ros"),
+            " and ",
+            LaunchConfiguration("use_legacy_bridges"),
+            " and not ",
+            LaunchConfiguration("allow_mixed_bridges"),
+        ])),
+    )
+
+    preflight_gate = OpaqueFunction(function=preflight_or_raise)
+
     serial_bridge_node = Node(
         package="robot_drivers",
         executable="stm32_serial_bridge",
         name="stm32_serial_bridge",
         condition=IfCondition(PythonExpression([
             LaunchConfiguration("use_legacy_bridges"),
-            " and not ",
+            " and (not ",
+            LaunchConfiguration("use_micro_ros"),
+            " or ",
+            LaunchConfiguration("allow_mixed_bridges"),
+            ") and not ",
             LaunchConfiguration("use_binary_bridge"),
         ])),
         parameters=[
@@ -163,7 +204,11 @@ def generate_launch_description():
         name="stm32_binary_bridge",
         condition=IfCondition(PythonExpression([
             LaunchConfiguration("use_legacy_bridges"),
-            " and ",
+            " and (not ",
+            LaunchConfiguration("use_micro_ros"),
+            " or ",
+            LaunchConfiguration("allow_mixed_bridges"),
+            ") and ",
             LaunchConfiguration("use_binary_bridge"),
         ])),
         parameters=[
@@ -178,7 +223,14 @@ def generate_launch_description():
         package="robot_drivers",
         executable="esp32_camera_bridge",
         name="esp32_camera_bridge",
-        condition=IfCondition(LaunchConfiguration("use_legacy_bridges")),
+        condition=IfCondition(PythonExpression([
+            LaunchConfiguration("use_legacy_bridges"),
+            " and (not ",
+            LaunchConfiguration("use_micro_ros"),
+            " or ",
+            LaunchConfiguration("allow_mixed_bridges"),
+            ")",
+        ])),
         parameters=[
             LaunchConfiguration("hardware_config"),
             {"camera_ip": LaunchConfiguration("camera_ip")},
@@ -190,6 +242,7 @@ def generate_launch_description():
     return LaunchDescription([
         use_micro_ros_arg,
         use_legacy_bridges_arg,
+        allow_mixed_bridges_arg,
         use_binary_bridge_arg,
         run_motor_bringup_test_arg,
         micro_ros_transport_arg,
@@ -199,7 +252,9 @@ def generate_launch_description():
         host_workspace_arg,
         camera_ip_arg,
         hardware_config_arg,
+        preflight_gate,
         micro_ros_agent_process,
+        mixed_mode_warning,
         ps5_bridge_node,
         motor_bringup_test_node,
         serial_bridge_node,

@@ -91,11 +91,22 @@ else
   MICROROS_AGENT_PKG=""
 fi
 
+ROSGZ_PKG="ros-${RESOLVED_DISTRO}-ros-gz"
+if apt-cache show "${ROSGZ_PKG}" >/dev/null 2>&1; then
+  echo "[setup] Found optional package: ${ROSGZ_PKG}"
+else
+  echo "[setup] WARNING: ${ROSGZ_PKG} not available; Gazebo Harmonic launch may be unavailable until ros_gz is installed from your apt source."
+  ROSGZ_PKG=""
+fi
+
 apt-get update -qq
 apt-get install -y --no-install-recommends \
   "ros-${RESOLVED_DISTRO}-desktop" \
   ${MICROROS_AGENT_PKG:+"${MICROROS_AGENT_PKG}"} \
+  ${ROSGZ_PKG:+"${ROSGZ_PKG}"} \
   "ros-${RESOLVED_DISTRO}-cv-bridge" \
+  "ros-${RESOLVED_DISTRO}-rviz2" \
+  "ros-${RESOLVED_DISTRO}-visualization-msgs" \
   "ros-${RESOLVED_DISTRO}-rmw-fastrtps-cpp" \
   python3-colcon-common-extensions \
   python3-rosdep \

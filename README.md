@@ -61,6 +61,26 @@ make help
 make stm32-build
 make host-build
 make host-launch
+make host-unify
+```
+
+One-shot host unify + launch (Ubuntu 22.04 + ROS2 Humble):
+
+```bash
+make host-unify
+```
+
+This target installs missing Gazebo/RViz dependencies, rebuilds host packages,
+verifies launch install layout, and launches:
+
+```bash
+ros2 launch robot_bringup gazebo_telemetry.launch.py
+```
+
+Hardware-only one shot (no apt install step):
+
+```bash
+make host-unify-hw
 ```
 
 ## Build and Flash
@@ -159,11 +179,77 @@ source install/setup.bash
 ros2 launch robot_bringup rock64_bringup.launch.py
 ```
 
-Legacy bridge mode (during migration):
+Default launch profile uses legacy STM32/ESP32 bridges. This matches the
+active firmware integration path and avoids micro-ROS/legacy serial conflicts.
+
+Enable explicit micro-ROS mode when firmware is built for that control path:
 
 ```bash
-ros2 launch robot_bringup rock64_bringup.launch.py use_legacy_bridges:=true
+ros2 launch robot_bringup rock64_bringup.launch.py \
+  use_micro_ros:=true \
+  use_legacy_bridges:=false
 ```
+
+Optional legacy-binary mode:
+
+```bash
+ros2 launch robot_bringup rock64_bringup.launch.py \
+  use_legacy_bridges:=true \
+  use_binary_bridge:=true
+```
+
+### Bringup preflight gate
+
+`rock64_bringup.launch.py` now runs launch-time preflight validation and aborts
+before node startup when mode/serial selections are inconsistent. It blocks on:
+
+- both `use_micro_ros` and `use_legacy_bridges` set `false`
+- both set `true` while `allow_mixed_bridges:=false`
+- missing serial device for selected transport mode
+- mixed mode sharing the same serial device for micro-ROS and legacy bridges
+
+### Bridge diagnostics and encoder telemetry
+
+- `/stm32/bridge_alive` (`std_msgs/Bool`) for fast liveness checks
+- `/stm32/diagnostics` (`diagnostic_msgs/DiagnosticArray`) unified bridge +
+  encoder freshness diagnostics
+- `/stm32/encoder_ticks` (`std_msgs/Int32MultiArray`) raw encoder ticks when
+  STM32 sends `ENC` telemetry lines (for example `ENC:123,456`)
+
+## Gazebo Harmonic scaffold (ros_gz)
+
+Install sim dependencies (Ubuntu 22.04 / Humble target):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ros-humble-ros-gz
+```
+
+Launch the minimal tank world with ROS/Gazebo bridge:
+
+```bash
+source /opt/ros/humble/setup.bash
+cd host_ws
+source install/setup.bash
+ros2 launch robot_bringup gazebo_harmonic.launch.py
+```
+
+Launch Gazebo + RViz telemetry overlays (`/odom`, `/cmd_vel`, encoder ticks):
+
+```bash
+ros2 launch robot_bringup gazebo_telemetry.launch.py
+```
+
+Bridged topics in the scaffold:
+
+- `/clock`
+- `/cmd_vel` (ROS -> Gazebo)
+- `/odom` (Gazebo -> ROS)
+
+## STM32 encoder output alignment
+
+See `docs/stm32_encoder_telemetry_guide.md` for exact STM32 print format and
+source patch points so host parsing stays deterministic.
 
 ## Documentation
 
