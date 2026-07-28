@@ -140,11 +140,14 @@ fi
 # ── Create udev rule for STM32 serial port ────────────────────────────────
 echo "[setup] Installing udev rule for STM32 serial port..."
 cat > /etc/udev/rules.d/99-rock64-stm32.rules <<'EOF'
-# Rock64 Ranger — STM32 motor controller via USB-UART adapter
-SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", \
-  SYMLINK+="rock64_stm32", MODE="0666"
+# Rock64 Ranger — QinHeng CH552 USB-CDC UART (1a86:55d4) for STM32 motor controller
+# Creates stable symlink /dev/rock64_stm32 and suppresses ModemManager interference.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", \
+  SYMLINK+="rock64_stm32", GROUP="dialout", MODE="0664", \
+  ENV{ID_MM_PORT_IGNORE}="1"
 EOF
 udevadm control --reload-rules
+udevadm trigger --subsystem-match=tty
 
 # ── Write deployment config ───────────────────────────────────────────────
 echo "[setup] Writing systemd_config.conf..."
@@ -159,6 +162,15 @@ ROCK64_IP=${ROCK64_IP}
 SERIAL_PORT=${SERIAL_PORT}
 CAMERA_IP_STATION=${CAMERA_IP}
 USE_CAMERA_BRIDGE=false
+
+# micro-ROS / control mode
+# Set USE_MICRO_ROS=true to launch micro-ROS agent (requires STM32 micro-ROS firmware).
+# Set USE_MICRO_ROS=false to use the legacy Python serial bridge.
+USE_MICRO_ROS=false
+USE_LEGACY_BRIDGES=true
+MICRO_ROS_DEV=${SERIAL_PORT}
+MICRO_ROS_BAUD=115200
+MICRO_ROS_TRANSPORT=serial
 
 # ROS
 ROS_DISTRO=${RESOLVED_DISTRO}
