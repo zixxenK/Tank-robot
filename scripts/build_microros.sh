@@ -256,7 +256,6 @@ rosdep update --rosdistro "${ROS_DISTRO}" -q 2>/dev/null || true
 # Keep rosdep scope narrow so stale cached repos do not pull extra host-side tooling.
 rosdep install --from-paths src/micro_ros_setup --ignore-src -y -q --rosdistro "${ROS_DISTRO}"
 colcon build \
-    --packages-select micro_ros_setup \
     --cmake-args -DCMAKE_BUILD_TYPE=Release \
     --event-handlers console_cohesion+
 source_nounset_safe install/setup.bash

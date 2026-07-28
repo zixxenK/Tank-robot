@@ -11,7 +11,7 @@ else
 HOST_WS := $(REPO_ROOT)/ros2_ws
 endif
 
-.PHONY: help stm32-config stm32-build stm32-flash microros-build host-build host-launch host-print host-sim host-hardware host-teleop host-teleop-ps5 host-unify host-unify-hw
+.PHONY: help stm32-config stm32-build stm32-flash microros-build host-build host-launch host-print host-sim host-hardware host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
 
 help:
 	@echo "Targets:"
@@ -25,6 +25,7 @@ help:
 	@echo "  host-hardware  One-shot build + hardware bringup launch"
 	@echo "  host-teleop    One-shot build + keyboard teleop launch"
 	@echo "  host-teleop-ps5 One-shot build + PS5 teleop launch"
+	@echo "  onecmd         One-command Gazebo telemetry launch from the host workspace"
 	@echo "  host-print     Print selected host workspace"
 
 host-print:
@@ -66,3 +67,9 @@ host-teleop-ps5:
 host-unify: host-sim
 
 host-unify-hw: host-hardware
+
+onecmd:
+	@cd "$(HOST_WS)" && \
+		. /opt/ros/$${ROS_DISTRO:-humble}/setup.bash && \
+		if [ -f install/setup.bash ]; then . install/setup.bash; fi && \
+		ros2 launch robot_bringup gazebo_telemetry.launch.py

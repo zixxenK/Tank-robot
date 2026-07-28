@@ -40,10 +40,9 @@ if(NOT EXISTS "${STM32_HAL_DIR}/Src/stm32f4xx_hal.c")
     "Use scripts/sync_stm32_drivers.sh to fetch STM32CubeF4 Drivers/. ")
 endif()
 
-if(NOT EXISTS "${STM32_CMSIS_DIR}/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c")
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/system_stm32f4xx.c" AND NOT EXISTS "${STM32_CMSIS_DIR}/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c")
   message(FATAL_ERROR
-    "Missing STM32 CMSIS device files in firmware/stm32_chassis/Drivers/CMSIS. "
-    "Sync STM32CubeF4 Drivers/CMSIS with scripts/sync_stm32_drivers.sh.")
+    "Missing system_stm32f4xx.c in Core/Src or Drivers/CMSIS.")
 endif()
 
 set(HAL_SOURCES
@@ -128,7 +127,7 @@ set(FREERTOS_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/tasks.c
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/timers.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/port.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
 )
 
@@ -175,7 +174,7 @@ target_include_directories(rock64_ranger_fw PRIVATE
   ${STM32_CMSIS_DIR}/Include
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/include
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
-  ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F
+  ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
   ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/RTT
   ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party
   ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/LVGL
@@ -248,17 +247,8 @@ target_link_options(rock64_ranger_fw PRIVATE
 )
 
 if(STM32_ENABLE_MICROROS)
-  find_library(STM32_ATOMIC_LIB atomic)
-  if(STM32_ATOMIC_LIB)
-    target_link_libraries(rock64_ranger_fw PRIVATE ${MICROROS_LIB} ${STM32_ATOMIC_LIB} m c nosys)
-  else()
-    message(FATAL_ERROR
-      "STM32_ENABLE_MICROROS is ON, but libatomic was not found in this ARM toolchain.\n"
-      "Current micro_ros_lib/libmicroros.a uses 64-bit atomic helpers (__atomic_*_8),\n"
-      "so link will fail without libatomic.\n"
-      "Rebuild micro-ROS with RCUTILS_NO_64_ATOMIC=ON in micro_ros_lib/colcon.meta,\n"
-      "then retry the firmware build.")
-  endif()
+  # Force link micro-ROS and standard system libraries without looking for an external libatomic file
+  target_link_libraries(rock64_ranger_fw PRIVATE ${MICROROS_LIB} m c nosys)
 else()
   target_link_libraries(rock64_ranger_fw PRIVATE m c nosys)
 endif()

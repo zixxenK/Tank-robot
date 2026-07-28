@@ -61,8 +61,12 @@ make help
 make stm32-build
 make host-build
 make host-launch
+make onecmd
 make host-unify
 ```
+
+`make onecmd` is the shortest path for a prepared Rock64 host: it sources the
+active ROS 2 workspace and launches the Gazebo telemetry stack in one step.
 
 One-shot host unify + launch (Ubuntu 22.04 + ROS2 Humble):
 
@@ -238,6 +242,12 @@ Launch Gazebo + RViz telemetry overlays (`/odom`, `/cmd_vel`, encoder ticks):
 
 ```bash
 ros2 launch robot_bringup gazebo_telemetry.launch.py
+```
+
+SSH-friendly one-command launch for a ready Rock64 host:
+
+```bash
+bash scripts/onecmd.sh
 ```
 
 Bridged topics in the scaffold:
