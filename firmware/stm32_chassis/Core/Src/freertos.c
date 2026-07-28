@@ -33,7 +33,6 @@
 typedef StaticTask_t osStaticThreadDef_t;
 typedef StaticQueue_t osStaticMessageQDef_t;
 typedef StaticTimer_t osStaticTimerDef_t;
-typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 typedef StaticEventGroup_t osStaticEventGroupDef_t;
 /* USER CODE BEGIN PTD */
 
@@ -243,51 +242,33 @@ const osTimerAttr_t IMU_read_timer_attributes = {
 };
 /* Definitions for packet_tx_idle */
 osSemaphoreId_t packet_tx_idleHandle;
-osStaticSemaphoreDef_t packet_tx_ControlBlock;
 const osSemaphoreAttr_t packet_tx_idle_attributes = {
-  .name = "packet_tx_idle",
-  .cb_mem = &packet_tx_ControlBlock,
-  .cb_size = sizeof(packet_tx_ControlBlock),
+  .name = "packet_tx_idle"
 };
 /* Definitions for packet_rx_not_empty */
 osSemaphoreId_t packet_rx_not_emptyHandle;
-osStaticSemaphoreDef_t packet_rx_not_emptyControlBlock;
 const osSemaphoreAttr_t packet_rx_not_empty_attributes = {
-  .name = "packet_rx_not_empty",
-  .cb_mem = &packet_rx_not_emptyControlBlock,
-  .cb_size = sizeof(packet_rx_not_emptyControlBlock),
+  .name = "packet_rx_not_empty"
 };
 /* Definitions for mpu6050_data_ready */
 osSemaphoreId_t mpu6050_data_readyHandle;
-osStaticSemaphoreDef_t mpu6050_data_readyControlBlock;
 const osSemaphoreAttr_t mpu6050_data_ready_attributes = {
-  .name = "mpu6050_data_ready",
-  .cb_mem = &mpu6050_data_readyControlBlock,
-  .cb_size = sizeof(mpu6050_data_readyControlBlock),
+  .name = "mpu6050_data_ready"
 };
 /* Definitions for sbus_data_ready_01_ */
 osSemaphoreId_t sbus_data_ready_01_Handle;
-osStaticSemaphoreDef_t sbus_data_ready_01_ControlBlock;
 const osSemaphoreAttr_t sbus_data_ready_01__attributes = {
-  .name = "sbus_data_ready_01_",
-  .cb_mem = &sbus_data_ready_01_ControlBlock,
-  .cb_size = sizeof(sbus_data_ready_01_ControlBlock),
+  .name = "sbus_data_ready_01_"
 };
 /* Definitions for spi_tx_finished */
 osSemaphoreId_t spi_tx_finishedHandle;
-osStaticSemaphoreDef_t spi_tx_finishedControlBlock;
 const osSemaphoreAttr_t spi_tx_finished_attributes = {
-  .name = "spi_tx_finished",
-  .cb_mem = &spi_tx_finishedControlBlock,
-  .cb_size = sizeof(spi_tx_finishedControlBlock),
+  .name = "spi_tx_finished"
 };
 /* Definitions for bluetooth_tx_idle */
 osSemaphoreId_t bluetooth_tx_idleHandle;
-osStaticSemaphoreDef_t bluetooth_tx_idleControlBlock;
 const osSemaphoreAttr_t bluetooth_tx_idle_attributes = {
-  .name = "bluetooth_tx_idle",
-  .cb_mem = &bluetooth_tx_idleControlBlock,
-  .cb_size = sizeof(bluetooth_tx_idleControlBlock),
+  .name = "bluetooth_tx_idle"
 };
 /* Definitions for sbus_data_ready_event_ */
 osEventFlagsId_t sbus_data_ready_event_Handle;

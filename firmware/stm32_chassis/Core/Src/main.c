@@ -19,13 +19,13 @@
   * 
   *   ! ! ! 注意
   *   该工程使用了 FreeRTOS系统  
-  *   用户的入口函数在 Hiwonder/System文件夹中的app.c文件中的app_task_entry()线程任务�?   
-  *   �?要其他线程任务，则需创建其他线程（建议在STM32CubeMX软件中创建）
+  *   用户的入口函数在 Hiwonder/System文件夹中的app.c文件中的app_task_entry()线程任务�?   
+  *   �?要其他线程任务，则需创建其他线程（建议在STM32CubeMX软件中创建）
   *   
   *   ! ! ! 注意
   *   在CubeMX中创建的文件中，
-  *   用户程序与注�? 都需要写在以下注释的中间，才不会在使用CubeMX更改配置之后，导致用户程序被覆盖�? !!! 
-  *   (若不使用CubeMX软件，则可跳过该�?)
+  *   用户程序与注�? 都需要写在以下注释的中间，才不会在使用CubeMX更改配置之后，导致用户程序被覆盖�? !!! 
+  *   (若不使用CubeMX软件，则可跳过该�?)
   * 
   *   / * USER CODE BEGIN xxx * /
   *   //用户程序
@@ -96,9 +96,9 @@ static void MX_NVIC_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  //��־��ӡ���ܳ�ʼ��
+  //��־��ӡ���ܳ�ʼ��
   LOG_INIT();
-  lwmem_assignmem(lwmem_regions);  /* ��̬�ڴ��ʼ�� */
+  lwmem_assignmem(lwmem_regions);  /* ��̬�ڴ��ʼ�� */
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -114,9 +114,9 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-    //����IIC1
+    //����IIC1
     __HAL_RCC_I2C1_CLK_ENABLE();
-    //����DMA����
+    //����DMA����
     __HAL_RCC_DMA1_CLK_ENABLE();
   /* USER CODE END SysInit */
 
@@ -147,10 +147,10 @@ int main(void)
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  //��ӡ��Ϣ����printf()�������÷�һ�����ܹ����ݵȼ�����������־���
+  //��ӡ��Ϣ����printf()�������÷�һ�����ܹ����ݵȼ�����������־���
   LOG_DEBUG("Start...\r\n");
   /* USER CODE END 2 */
-	//���ڿ�����ϵͳ���ȣ�osKernelStart()�������Ե�Ƭ�������ܵ����whileѭ������
+
   /* Init scheduler */
   osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
   MX_FREERTOS_Init();
@@ -162,10 +162,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
     while (1) {
     /* USER CODE END WHILE */
-		
-	//���ڿ�����ϵͳ���ȣ�osKernelStart()�������Ե�Ƭ�������ܵ����whileѭ������
-    
-	/* USER CODE BEGIN 3 */
+
+    /* USER CODE BEGIN 3 */
     }
   /* USER CODE END 3 */
 }
