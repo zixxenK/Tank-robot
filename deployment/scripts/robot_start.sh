@@ -59,8 +59,19 @@ source "${SCRIPT_DIR}/source_ros2_ws.sh"
 
 # ── Launch ─────────────────────────────────────────────────────────────────
 echo "[robot_start] Launching hardware bringup..."
+
+# Control-mode defaults — overridden by EnvironmentFile values from systemd config.
+USE_MICRO_ROS="${USE_MICRO_ROS:-false}"
+USE_LEGACY_BRIDGES="${USE_LEGACY_BRIDGES:-true}"
+MICRO_ROS_DEV="${MICRO_ROS_DEV:-${SERIAL_PORT}}"
+MICRO_ROS_BAUD="${MICRO_ROS_BAUD:-115200}"
+
 exec ros2 launch robot_bringup rock64_bringup.launch.py \
   host_workspace:="$(resolve_host_ws)" \
   serial_port:="${SERIAL_PORT}" \
+  micro_ros_dev:="${MICRO_ROS_DEV}" \
+  micro_ros_baud:="${MICRO_ROS_BAUD}" \
+  use_micro_ros:="${USE_MICRO_ROS}" \
+  use_legacy_bridges:="${USE_LEGACY_BRIDGES}" \
   camera_ip:="${CAMERA_IP}" \
   use_camera_bridge:="${USE_CAMERA_BRIDGE}"

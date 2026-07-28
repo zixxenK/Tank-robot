@@ -29,9 +29,12 @@ def generate_launch_description():
             gz_exec = "ign"
             gz_subcommand = "gazebo"
         else:
-            raise RuntimeError(
-                "Neither 'gz' nor 'ign' CLI is available in PATH for Gazebo launch."
-            )
+            # Gazebo is not installed on this system.  The launch description is
+            # still generated so callers can guard it with IfCondition(gui).
+            # If gz_sim is actually executed, the process will fail with a clear
+            # "command not found" error rather than crashing at parse time.
+            gz_exec = "gz"
+            gz_subcommand = "sim"
 
     if not gz_subcommand:
         gz_subcommand = "gazebo" if os.path.basename(gz_exec) == "ign" else "sim"

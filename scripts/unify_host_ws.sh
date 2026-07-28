@@ -215,7 +215,11 @@ if [[ "$MODE" == "sim" ]]; then
   exec ros2 launch robot_bringup gazebo_telemetry.launch.py
 elif [[ "$MODE" == "hardware" ]]; then
   echo "[unify] Launching hardware bringup stack..."
-  exec ros2 launch robot_bringup rock64_bringup.launch.py use_micro_ros:=false use_legacy_bridges:=true
+  _SERIAL="${SERIAL_PORT:-/dev/rock64_stm32}"
+  exec ros2 launch robot_bringup rock64_bringup.launch.py \
+    use_micro_ros:=false \
+    use_legacy_bridges:=true \
+    serial_port:="${_SERIAL}"
 else
   case "$TELEOP_MODE" in
     keyboard)

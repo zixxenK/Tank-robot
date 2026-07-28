@@ -7,12 +7,30 @@
 ROCK64_IP=192.168.1.159
 
 # ── Hardware ───────────────────────────────────────────────────────────────
-# Serial port for STM32 motor controller
-# udev rule creates symlink: /dev/rock64_stm32 → /dev/ttyACMx
+# Serial port for STM32 motor controller.
+# The udev rule (99-rock64-stm32.rules) creates a stable symlink:
+#   /dev/rock64_stm32  ->  /dev/ttyACMx  (VID:1a86 PID:55d4)
+# Use the persistent by-id path as an alternative to the symlink:
+#   /dev/serial/by-id/usb-1a86_USB_Single_Serial_5C67041071-if00
 SERIAL_PORT=/dev/rock64_stm32
 
 # IP address of the ESP32-S3 camera node on station (client) WiFi
 CAMERA_IP_STATION=192.168.1.125
+
+# Set to true to launch the ESP32 camera bridge node
+USE_CAMERA_BRIDGE=false
+
+# ── Control mode ──────────────────────────────────────────────────────────
+# USE_MICRO_ROS=false  → legacy Python serial bridge (default; works without
+#                        micro-ROS firmware on the STM32)
+# USE_MICRO_ROS=true   → micro-ROS agent; requires STM32 micro-ROS firmware
+USE_MICRO_ROS=false
+USE_LEGACY_BRIDGES=true
+
+# micro-ROS serial device (used when USE_MICRO_ROS=true)
+MICRO_ROS_DEV=/dev/rock64_stm32
+MICRO_ROS_BAUD=115200
+MICRO_ROS_TRANSPORT=serial
 
 # ── ROS2 ───────────────────────────────────────────────────────────────────
 # Set to: humble or auto (auto mode supports Ubuntu 22.04 only)
