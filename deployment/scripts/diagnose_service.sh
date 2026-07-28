@@ -2,7 +2,7 @@
 # diagnose_service.sh - Check systemd service status and logs
 # Run this to see what's happening with the rock64-robot service
 
-set -euo pipefail
+set -eo pipefail  # Removed -u to allow undefined variables
 
 echo "=========================================="
 echo "Rock64 Robot Service Diagnostics"

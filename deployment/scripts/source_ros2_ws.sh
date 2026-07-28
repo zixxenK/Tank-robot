@@ -5,7 +5,7 @@
 # sources both the base ROS2 installation and the active host workspace overlay.
 #
 # Usage: source source_ros2_ws.sh
-set -euo pipefail
+set -eo pipefail  # Removed -u to allow undefined variables
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"

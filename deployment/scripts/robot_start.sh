@@ -4,7 +4,7 @@
 # Called by systemd rock64-robot.service after network-online.target.
 # Validates the environment, sources the ROS2 workspace, then launches
 # the hardware bringup.
-set -euo pipefail
+set -eo pipefail  # Removed -u to allow undefined variables
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"

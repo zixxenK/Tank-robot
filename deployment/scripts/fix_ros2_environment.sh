@@ -2,7 +2,7 @@
 # fix_ros2_environment.sh - Ensure ROS2 is properly installed and configured
 # Run this to fix ROS2 environment issues on the Rock64
 
-set -euo pipefail
+set -eo pipefail  # Removed -u to allow undefined variables
 
 echo "=========================================="
 echo "ROS2 Environment Fix"
@@ -108,7 +108,7 @@ if [[ ! -f "${SOURCE_SCRIPT}" ]]; then
 #!/usr/bin/env bash
 # source_ros2_ws.sh - Source ROS2 workspace with proper error handling
 
-set -euo pipefail
+set -eo pipefail  # Removed -u to allow undefined variables
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
