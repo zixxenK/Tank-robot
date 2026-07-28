@@ -27,9 +27,11 @@ if [ ! -f /opt/ros/humble/setup.bash ]; then
 fi
 
 cd "${HOST_WS}"
+set +u
 . /opt/ros/humble/setup.bash
 if [ -f install/setup.bash ]; then
   . install/setup.bash
 fi
+set -u
 
 exec ros2 launch robot_bringup gazebo_telemetry.launch.py
