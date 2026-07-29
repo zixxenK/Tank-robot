@@ -177,9 +177,6 @@ target_include_directories(rock64_ranger_fw PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
   ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/RTT
   ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party
-  ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/LVGL
-  ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/LVGL/src
-  ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/LVGL/porting
   ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/U8g2
   ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/Lw
   ${CMAKE_CURRENT_SOURCE_DIR}/Third_Party/Fusion/Fusion
@@ -188,9 +185,6 @@ target_include_directories(rock64_ranger_fw PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/Hiwonder/Chassis
   ${CMAKE_CURRENT_SOURCE_DIR}/Hiwonder/Portings
   ${CMAKE_CURRENT_SOURCE_DIR}/Hiwonder/USB_HOST
-  ${CMAKE_CURRENT_SOURCE_DIR}/Hiwonder/LVGL_UI
-  ${CMAKE_CURRENT_SOURCE_DIR}/Hiwonder/LVGL_UI/guider_fonts
-  ${CMAKE_CURRENT_SOURCE_DIR}/Hiwonder/LVGL_UI/images
   ${CMAKE_CURRENT_SOURCE_DIR}/USB_HOST/App
   ${CMAKE_CURRENT_SOURCE_DIR}/USB_HOST/Target
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/STM32_USB_Host_Library/Core/Inc
