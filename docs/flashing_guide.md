@@ -36,28 +36,36 @@ pip install platformio
 ### Build Firmware
 ```bash
 cd firmware/stm32_chassis
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake
-cmake --build build
+cmake --preset Debug
+cmake --build --preset Debug
 ```
 
 ### Flash Firmware
 ```bash
-# Basic flash
-cd ../..
-./scripts/flash_stm32.sh --build
+# Basic flash (Windows)
+.\scripts\flash_stm32_windows.ps1
 
-# Flash with verification
-./scripts/flash_stm32.sh --build --verify
+# Flash with verification (Windows)
+.\scripts\flash_stm32_windows.ps1 -Verify
 
-# Full chip erase before flash
-./scripts/flash_stm32.sh --build --erase
+# Full chip erase before flash (Windows)
+.\scripts\flash_stm32_windows.ps1 -Erase -Verify
+
+# Basic flash (Linux/WSL)
+./scripts/flash_stm32.sh
+
+# Flash with verification (Linux/WSL)
+./scripts/flash_stm32.sh --verify
+
+# Full chip erase before flash (Linux/WSL)
+./scripts/flash_stm32.sh --erase --verify
 ```
 
 ### Manual Flashing (OpenOCD)
 ```bash
 cd firmware/stm32_chassis
 openocd -f ../../scripts/openocd_stm32f407.cfg \
-  -c "program build/rock64_ranger_fw.elf verify reset exit"
+  -c "program build/Debug/factoryfirmwarestm32.bin 0x8000000 verify reset exit"
 ```
 
 ### Live Debug (VS Code + ST-Link)
@@ -383,11 +391,13 @@ ros2 launch robot_bringup rock64_bringup.launch.py
 ```bash
 # If STM32 is bricked, try full chip erase
 ./scripts/flash_stm32.sh --erase
+# Windows
+.\scripts\flash_stm32_windows.ps1 -Erase
 
 # If that fails, use ST-Link Utility
 st-info --probe
 st-flash erase
-st-flash write build/rock64_ranger_fw.bin 0x8000000
+st-flash write build/Debug/factoryfirmwarestm32.bin 0x8000000
 ```
 
 ### ESP32 Recovery
@@ -429,9 +439,9 @@ Edit `ros2_ws/src/robot_bringup/config/rock64_hardware.yaml` for node parameters
 
 | Component | Firmware Binary | Source Files |
 |-----------|----------------|--------------|
-| STM32 | `firmware/stm32_chassis/build/rock64_ranger_fw.elf` | `firmware/stm32_chassis/Core/` |
+| STM32 | `firmware/stm32_chassis/build/Debug/factoryfirmwarestm32.bin` | `firmware/stm32_chassis/Core/` |
 | ESP32 | `firmware/esp32_sensors/.pio/build/esp32cam/firmware.bin` | `firmware/esp32_sensors/src/` |
-| ROS2 | `ros2_ws/install/` | `ros2_ws/src/` |
+| ROS2 | `host_ws/install/` | `host_ws/src/` |
 
 ---
 

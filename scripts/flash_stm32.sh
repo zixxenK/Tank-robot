@@ -5,8 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FIRMWARE_DIR="${REPO_ROOT}/firmware/stm32_chassis"
-BUILD_DIR="${FIRMWARE_DIR}/build"
-ELF_FILE="${BUILD_DIR}/rock64_ranger_fw.elf"
+BUILD_DIR="${FIRMWARE_DIR}/build/Debug"
+ELF_FILE="${BUILD_DIR}/factoryfirmwarestm32.elf"
 
 DO_BUILD=false
 DO_VERIFY=false
@@ -45,7 +45,8 @@ fi
 
 echo "[flash] Flashing ${ELF_FILE} via ST-Link/OpenOCD..."
 
-PROGRAM_CMD="program \"${ELF_FILE}\""
+BIN_FILE="${BUILD_DIR}/factoryfirmwarestm32.bin"
+PROGRAM_CMD="program \"${BIN_FILE}\" 0x8000000"
 if [[ "${DO_VERIFY}" == true ]]; then
   PROGRAM_CMD+=" verify"
 fi

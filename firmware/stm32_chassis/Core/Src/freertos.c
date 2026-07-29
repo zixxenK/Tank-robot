@@ -28,6 +28,9 @@
 // #include "differential_chassis.h"
 // #include "encoder_motor.h"
 // #include "chassis.h"
+#ifdef MICROROS_ENABLED
+#include "microros_node.h"
+#endif
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -461,10 +464,25 @@ void StartDefaultTask(void *argument)
   /* init code for USB_HOST */
   MX_USB_HOST_Init();
   /* USER CODE BEGIN StartDefaultTask */
+  
+#ifdef MICROROS_ENABLED
+  // Initialize micro-ROS node
+  if (microros_node_init() != 0) {
+    // Handle initialization error
+    for(;;) {
+      osDelay(100);
+    }
+  }
+#endif
+  
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+#ifdef MICROROS_ENABLED
+    // Spin micro-ROS node to process messages
+    microros_node_spin();
+#endif
+    osDelay(10);
   }
   /* USER CODE END StartDefaultTask */
 }

@@ -50,6 +50,29 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 #     "Hiwonder/Misc/pid.c"
 # )
 
+# Add micro-ROS integration sources (if micro-ROS is enabled)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/micro_ros_lib/libmicroros.a")
+    file(GLOB MICROROS_SOURCES
+        "Core/Src/microros_transport.c"
+        "Core/Src/microros_node.c"
+    )
+    message("Adding micro-ROS integration sources")
+endif()
+
+# Add micro-ROS library (if built)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/micro_ros_lib/libmicroros.a")
+    message("Found micro-ROS static library")
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+        micro_ros_lib/include
+    )
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/micro_ros_lib/libmicroros.a
+    )
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+        MICROROS_ENABLED
+    )
+endif()
+
 # Add third-party library sources (minimal set)
 # file(GLOB_RECURSE FUSION_SOURCES "Third_Party/Fusion/Fusion/*.c")
 
@@ -57,6 +80,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # ${HIWONDER_SOURCES}
     # ${FUSION_SOURCES}
+    ${MICROROS_SOURCES}
 )
 
 # Add include paths
@@ -69,6 +93,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add minimal third-party library include paths
     # Third_Party/Fusion
     # Third_Party/Fusion/Fusion
+    # Add micro-ROS include paths (if enabled)
+    Core/Inc
 )
 
 # Add project symbols (macros)

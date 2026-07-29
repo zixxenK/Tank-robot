@@ -8,8 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 $fwDir = Join-Path $repoRoot "firmware/stm32_chassis"
-$buildDir = Join-Path $fwDir "build"
-$elfFile = Join-Path $buildDir "rock64_ranger_fw.elf"
+$buildDir = Join-Path $fwDir "build/Debug"
 
 function Resolve-ToolPath {
   param(
@@ -75,11 +74,13 @@ if ($Build) {
   }
 }
 
-if (-not (Test-Path $elfFile)) {
-  throw "Firmware ELF not found at $elfFile. Run with -Build first."
+$binFile = Join-Path $buildDir "factoryfirmwarestm32.bin"
+
+if (-not (Test-Path $binFile)) {
+  throw "Firmware binary not found at $binFile. Run with -Build first."
 }
 
-$programCmd = ('program "{0}"' -f $elfFile)
+$programCmd = ('program "{0}" 0x8000000' -f $binFile.Replace('\', '/'))
 if ($Verify) { $programCmd += " verify" }
 $programCmd += " reset"
 
