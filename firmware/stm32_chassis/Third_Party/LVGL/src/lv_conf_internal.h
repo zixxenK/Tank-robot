@@ -37,7 +37,7 @@
 #  elif defined(LV_CONF_INCLUDE_SIMPLE)        /*Or simply include lv_conf.h is enabled*/
 #    include "lv_conf.h"
 #  else
-#    include "../../lv_conf.h"                 /*Else assume lv_conf.h is next to the lvgl folder */
+#    include "../lv_conf.h"                 /*Else assume lv_conf.h is next to the lvgl folder */
 #  endif
 #endif
 

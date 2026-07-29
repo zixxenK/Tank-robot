@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2023 STMicroelectronics.
+  * Copyright (c) 2026 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -22,8 +22,6 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "global.h"
-#include "tim.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +56,7 @@
 
 /* External variables --------------------------------------------------------*/
 extern HCD_HandleTypeDef hhcd_USB_OTG_HS;
+extern DMA_HandleTypeDef hdma_adc1;
 extern DMA_HandleTypeDef hdma_i2c2_rx;
 extern DMA_HandleTypeDef hdma_i2c2_tx;
 extern DMA_HandleTypeDef hdma_spi2_tx;
@@ -94,10 +93,10 @@ void NMI_Handler(void)
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
 
   /* USER CODE END NonMaskableInt_IRQn 0 */
-  HAL_RCC_NMI_IRQHandler();
   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
-    while (1) {
-    }
+   while (1)
+  {
+  }
   /* USER CODE END NonMaskableInt_IRQn 1 */
 }
 
@@ -189,7 +188,6 @@ void DMA1_Stream0_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Stream0_IRQn 0 */
 
   /* USER CODE END DMA1_Stream0_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_uart5_rx);
   /* USER CODE BEGIN DMA1_Stream0_IRQn 1 */
 
   /* USER CODE END DMA1_Stream0_IRQn 1 */
@@ -203,7 +201,6 @@ void DMA1_Stream1_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Stream1_IRQn 0 */
 
   /* USER CODE END DMA1_Stream1_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart3_rx);
   /* USER CODE BEGIN DMA1_Stream1_IRQn 1 */
 
   /* USER CODE END DMA1_Stream1_IRQn 1 */
@@ -217,7 +214,6 @@ void DMA1_Stream2_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Stream2_IRQn 0 */
 
   /* USER CODE END DMA1_Stream2_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_i2c2_rx);
   /* USER CODE BEGIN DMA1_Stream2_IRQn 1 */
 
   /* USER CODE END DMA1_Stream2_IRQn 1 */
@@ -231,7 +227,6 @@ void DMA1_Stream3_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Stream3_IRQn 0 */
 
   /* USER CODE END DMA1_Stream3_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart3_tx);
   /* USER CODE BEGIN DMA1_Stream3_IRQn 1 */
 
   /* USER CODE END DMA1_Stream3_IRQn 1 */
@@ -285,17 +280,9 @@ void DMA1_Stream6_IRQHandler(void)
 void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
-    extern EncoderMotorObjectTypeDef *motors[4];
-    if(__HAL_TIM_GET_FLAG(&htim2, TIM_FLAG_UPDATE) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_UPDATE);
-        if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2)) {
-            --motors[1]->overflow_num;
-        } else {
-            ++motors[1]->overflow_num;
-        }
-        //printf("motor2, counts:%d", motors[1]->overflow_num * 60000 + __HAL_TIM_GetCounter(&htim2));
-    }
+
   /* USER CODE END TIM2_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
 
   /* USER CODE END TIM2_IRQn 1 */
@@ -307,18 +294,9 @@ void TIM2_IRQHandler(void)
 void TIM3_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM3_IRQn 0 */
-    extern EncoderMotorObjectTypeDef *motors[4];
 
-    if(__HAL_TIM_GET_FLAG(&htim3, TIM_FLAG_UPDATE) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim3, TIM_FLAG_UPDATE);
-        if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3)) {
-            --motors[3]->overflow_num;
-        } else {
-            ++motors[3]->overflow_num;
-        }
-        //printf("motor4, counts:%d", motors[3]->overflow_num * 60000 + __HAL_TIM_GetCounter(&htim3));
-    }
   /* USER CODE END TIM3_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim3);
   /* USER CODE BEGIN TIM3_IRQn 1 */
 
   /* USER CODE END TIM3_IRQn 1 */
@@ -330,17 +308,9 @@ void TIM3_IRQHandler(void)
 void TIM4_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM4_IRQn 0 */
-    extern EncoderMotorObjectTypeDef *motors[4];
-    if(__HAL_TIM_GET_FLAG(&htim4, TIM_FLAG_UPDATE) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim4, TIM_FLAG_UPDATE);
-        if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim4)) {
-            --motors[2]->overflow_num;
-        } else {
-            ++motors[2]->overflow_num;
-        }
-        //printf("motor3, counts:%d", motors[2]->overflow_num * 60000 + __HAL_TIM_GetCounter(&htim4));
-    }
+
   /* USER CODE END TIM4_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim4);
   /* USER CODE BEGIN TIM4_IRQn 1 */
 
   /* USER CODE END TIM4_IRQn 1 */
@@ -366,9 +336,11 @@ void USART2_IRQHandler(void)
 void USART3_IRQHandler(void)
 {
   /* USER CODE BEGIN USART3_IRQn 0 */
+
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
   /* USER CODE BEGIN USART3_IRQn 1 */
+
   /* USER CODE END USART3_IRQn 1 */
 }
 
@@ -378,12 +350,9 @@ void USART3_IRQHandler(void)
 void EXTI15_10_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
-    extern osSemaphoreId_t mpu6050_data_readyHandle;
-    if(__HAL_GPIO_EXTI_GET_IT(IMU_ITR_Pin) != RESET) {
-        __HAL_GPIO_EXTI_CLEAR_IT(IMU_ITR_Pin);
-        osSemaphoreRelease(mpu6050_data_readyHandle);
-    }
+
   /* USER CODE END EXTI15_10_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(IMU_ITR_Pin);
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */
@@ -395,15 +364,9 @@ void EXTI15_10_IRQHandler(void)
 void TIM8_BRK_TIM12_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM8_BRK_TIM12_IRQn 0 */
-    if( __HAL_TIM_GET_FLAG(&htim12, TIM_FLAG_UPDATE) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim12, TIM_FLAG_UPDATE);
-        HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_SET);
-    }
-    if(__HAL_TIM_GET_FLAG(&htim12, TIM_FLAG_CC1) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim12, TIM_FLAG_CC1);
-        HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
-    }
+
   /* USER CODE END TIM8_BRK_TIM12_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim12);
   /* USER CODE BEGIN TIM8_BRK_TIM12_IRQn 1 */
 
   /* USER CODE END TIM8_BRK_TIM12_IRQn 1 */
@@ -415,21 +378,9 @@ void TIM8_BRK_TIM12_IRQHandler(void)
 void TIM8_UP_TIM13_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM8_UP_TIM13_IRQn 0 */
-    extern PWMServoObjectTypeDef *pwm_servos[4];
-    static uint32_t pwm_servo_index = 0;
 
-    if(__HAL_TIM_GET_FLAG(&htim13, TIM_FLAG_CC1) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim13, TIM_FLAG_CC1);
-        pwm_servos[pwm_servo_index]->write_pin(0);
-        pwm_servo_index = pwm_servo_index == 3 ? 0 : pwm_servo_index + 1;
-    }
-    if(__HAL_TIM_GET_FLAG(&htim13, TIM_FLAG_UPDATE) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim13, TIM_FLAG_UPDATE);
-        pwm_servos[pwm_servo_index]->write_pin(1);
-        pwm_servo_duty_compare(pwm_servos[pwm_servo_index]);
-        __HAL_TIM_SET_COMPARE(&htim13, TIM_CHANNEL_1, pwm_servos[pwm_servo_index]->duty_raw);
-    }
   /* USER CODE END TIM8_UP_TIM13_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim13);
   /* USER CODE BEGIN TIM8_UP_TIM13_IRQn 1 */
 
   /* USER CODE END TIM8_UP_TIM13_IRQn 1 */
@@ -457,7 +408,6 @@ void DMA1_Stream7_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Stream7_IRQn 0 */
 
   /* USER CODE END DMA1_Stream7_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_i2c2_tx);
   /* USER CODE BEGIN DMA1_Stream7_IRQn 1 */
 
   /* USER CODE END DMA1_Stream7_IRQn 1 */
@@ -469,18 +419,11 @@ void DMA1_Stream7_IRQHandler(void)
 void TIM5_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM5_IRQn 0 */
-    extern EncoderMotorObjectTypeDef *motors[4];
-    if(__HAL_TIM_GET_FLAG(&htim5, TIM_FLAG_UPDATE) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim5, TIM_FLAG_UPDATE);
-        if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim5)) {
-            --motors[0]->overflow_num;
-        } else {
-            ++motors[0]->overflow_num;
-        }
-        //printf("motor1, counts:%d", motors[0]->overflow_num * 60000 + __HAL_TIM_GetCounter(&htim5));
-    }
+
   /* USER CODE END TIM5_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim5);
   /* USER CODE BEGIN TIM5_IRQn 1 */
+
   /* USER CODE END TIM5_IRQn 1 */
 }
 
@@ -504,28 +447,26 @@ void UART5_IRQHandler(void)
 void TIM7_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM7_IRQn 0 */
-    extern EncoderMotorObjectTypeDef *motors[4];
-    static uint8_t enc_print_div = 0;
-    if(__HAL_TIM_GET_FLAG(&htim7, TIM_FLAG_UPDATE) != RESET) {
-        __HAL_TIM_CLEAR_FLAG(&htim7, TIM_FLAG_UPDATE);
-		encoder_update(motors[0], 0.01, __HAL_TIM_GET_COUNTER(&htim5));
-		encoder_update(motors[1], 0.01, __HAL_TIM_GET_COUNTER(&htim2));
-		encoder_update(motors[2], 0.01, __HAL_TIM_GET_COUNTER(&htim4));
-		encoder_update(motors[3], 0.01, __HAL_TIM_GET_COUNTER(&htim3));
-		for(int i = 0; i < 4; ++i) {
-			encoder_motor_control(motors[i], 0.01);
-		}
-        if (++enc_print_div >= 5U) {
-            enc_print_div = 0;
-            printf("ENC:%ld,%ld\\r\\n",
-                   (long)motors[0]->counter,
-                   (long)motors[1]->counter);
-        }
-    }
+
   /* USER CODE END TIM7_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim7);
   /* USER CODE BEGIN TIM7_IRQn 1 */
 
   /* USER CODE END TIM7_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2 stream0 global interrupt.
+  */
+void DMA2_Stream0_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Stream0_IRQn 0 */
+
+  /* USER CODE END DMA2_Stream0_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_adc1);
+  /* USER CODE BEGIN DMA2_Stream0_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream0_IRQn 1 */
 }
 
 /**
@@ -550,7 +491,6 @@ void OTG_HS_IRQHandler(void)
   /* USER CODE BEGIN OTG_HS_IRQn 0 */
 
   /* USER CODE END OTG_HS_IRQn 0 */
-  HAL_HCD_IRQHandler(&hhcd_USB_OTG_HS);
   /* USER CODE BEGIN OTG_HS_IRQn 1 */
 
   /* USER CODE END OTG_HS_IRQn 1 */

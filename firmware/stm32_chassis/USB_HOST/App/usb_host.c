@@ -7,7 +7,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2023 STMicroelectronics.
+  * Copyright (c) 2026 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -25,7 +25,7 @@
 #include "usbh_hid.h"
 
 /* USER CODE BEGIN Includes */
-#include "usbh_hid_gamepad.h"
+
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN PV */
@@ -69,18 +69,6 @@ void MX_USB_HOST_Init(void)
 {
   /* USER CODE BEGIN USB_HOST_Init_PreTreatment */
 
-    extern USBH_ClassTypeDef  HIWONDER_HID_CLASS;
-    if (USBH_Init(&hUsbHostHS, USBH_UserProcess, HOST_HS) != USBH_OK) {
-        Error_Handler();
-    }
-    if (USBH_RegisterClass(&hUsbHostHS, &HIWONDER_HID_CLASS) != USBH_OK) {
-        Error_Handler();
-    }
-    if (USBH_Start(&hUsbHostHS) != USBH_OK) {
-        Error_Handler();
-    }
-#pragma diag_suppress 111 /* 后面自动生成的代码不要执�?? ?, 手工消除代码不可达警�?? ? */
-    return;
   /* USER CODE END USB_HOST_Init_PreTreatment */
 
   /* Init host Library, add supported class and start the library. */
@@ -97,6 +85,7 @@ void MX_USB_HOST_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USB_HOST_Init_PostTreatment */
+
   /* USER CODE END USB_HOST_Init_PostTreatment */
 }
 
@@ -106,25 +95,26 @@ void MX_USB_HOST_Init(void)
 static void USBH_UserProcess  (USBH_HandleTypeDef *phost, uint8_t id)
 {
   /* USER CODE BEGIN CALL_BACK_1 */
-    switch(id) {
-        case HOST_USER_SELECT_CONFIGURATION:
-            break;
+  switch(id)
+  {
+  case HOST_USER_SELECT_CONFIGURATION:
+  break;
 
-        case HOST_USER_DISCONNECTION:
-            Appli_state = APPLICATION_DISCONNECT;
-            break;
+  case HOST_USER_DISCONNECTION:
+  Appli_state = APPLICATION_DISCONNECT;
+  break;
 
-        case HOST_USER_CLASS_ACTIVE:
-            Appli_state = APPLICATION_READY;
-            break;
+  case HOST_USER_CLASS_ACTIVE:
+  Appli_state = APPLICATION_READY;
+  break;
 
-        case HOST_USER_CONNECTION:
-            Appli_state = APPLICATION_START;
-            break;
+  case HOST_USER_CONNECTION:
+  Appli_state = APPLICATION_START;
+  break;
 
-        default:
-            break;
-    }
+  default:
+  break;
+  }
   /* USER CODE END CALL_BACK_1 */
 }
 

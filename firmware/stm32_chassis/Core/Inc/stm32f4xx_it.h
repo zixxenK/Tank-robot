@@ -6,15 +6,14 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
- ******************************************************************************
+  ******************************************************************************
   */
 /* USER CODE END Header */
 
@@ -23,7 +22,7 @@
 #define __STM32F4xx_IT_H
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Private includes ----------------------------------------------------------*/
@@ -73,6 +72,7 @@ void DMA1_Stream7_IRQHandler(void);
 void TIM5_IRQHandler(void);
 void UART5_IRQHandler(void);
 void TIM7_IRQHandler(void);
+void DMA2_Stream0_IRQHandler(void);
 void USART6_IRQHandler(void);
 void OTG_HS_IRQHandler(void);
 /* USER CODE BEGIN EFP */

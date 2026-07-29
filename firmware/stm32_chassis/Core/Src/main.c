@@ -6,34 +6,13 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  * 
-  * ********************************************
-  *   main()函数，单片机入口函数 
-  * 
-  *   ! ! ! 注意
-  *   该工程使用了 FreeRTOS系统  
-  *   用户的入口函数在 Hiwonder/System文件夹中的app.c文件中的app_task_entry()线程任务�?   
-  *   �?要其他线程任务，则需创建其他线程（建议在STM32CubeMX软件中创建）
-  *   
-  *   ! ! ! 注意
-  *   在CubeMX中创建的文件中，
-  *   用户程序与注�? 都需要写在以下注释的中间，才不会在使用CubeMX更改配置之后，导致用户程序被覆盖�? !!! 
-  *   (若不使用CubeMX软件，则可跳过该�?)
-  * 
-  *   / * USER CODE BEGIN xxx * /
-  *   //用户程序
-  *   / * USER CODE END xxx * /
-  * 
-  *   
-  * ********************************************
-  * 
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -52,9 +31,14 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "lwmem_porting.h"
-#include "log.h"
-#include <stdio.h>
+// #include "differential_chassis.h"
+// #include "encoder_motor.h"
+// #include "pwm_servo.h"
+// #include "led.h"
+// #include "buzzer.h"
+// #include "button.h"
+// #include "imu_mpu6050.h"
+// #include "chassis.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -64,6 +48,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -82,6 +67,7 @@ void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -95,10 +81,9 @@ static void MX_NVIC_Init(void);
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
-  //��־��ӡ���ܳ�ʼ��
-  LOG_INIT();
-  lwmem_assignmem(lwmem_regions);  /* ��̬�ڴ��ʼ�� */
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -114,10 +99,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-    //����IIC1
-    __HAL_RCC_I2C1_CLK_ENABLE();
-    //����DMA����
-    __HAL_RCC_DMA1_CLK_ENABLE();
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -147,24 +129,36 @@ int main(void)
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  //��ӡ��Ϣ����printf()�������÷�һ�����ܹ����ݵȼ�����������־���
-  LOG_DEBUG("Start...\r\n");
+  // Initialize Hiwonder tank chassis components
+  // motors_init();
+  // pwm_servos_init();
+  // leds_init();
+  // buzzers_init();
+  // buttons_init();
+  // chassis_init();
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
+  osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
   MX_FREERTOS_Init();
 
   /* Start scheduler */
   osKernelStart();
+
   /* We should never get here as control is now taken by the scheduler */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-    while (1) {
+  while (1)
+  {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    }
+    // Process serial communication with Rock64
+    // This will be handled by FreeRTOS tasks in MX_FREERTOS_Init()
+    // for now, we can add basic tank chassis task processing
+    osDelay(10);
+  }
   /* USER CODE END 3 */
 }
 
@@ -211,10 +205,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
-  /** Enables the Clock Security System
-  */
-  HAL_RCC_EnableCSS();
 }
 
 /**
@@ -281,7 +271,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM14) {
+  if (htim->Instance == TIM14)
+  {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -296,14 +287,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-    /* User can add his own implementation to report the HAL error return state */
-    __disable_irq();
-    while (1) {
-    }
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -314,8 +305,8 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-    /* User can add his own implementation to report the file name and line number,
-       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

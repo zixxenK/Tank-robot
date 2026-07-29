@@ -1,18 +1,17 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file    stm32f4xx_hal_timebase_TIM.c
+  * @file    stm32f4xx_hal_timebase_tim.c
   * @brief   HAL time base based on the hardware TIM.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -47,6 +46,7 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
 
   uint32_t              uwPrescalerValue = 0U;
   uint32_t              pFLatency;
+
   HAL_StatusTypeDef     status;
 
   /* Enable TIM14 clock */
@@ -74,12 +74,11 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
   htim14.Instance = TIM14;
 
   /* Initialize TIMx peripheral as follow:
-
-  + Period = [(TIM14CLK/1000) - 1]. to have a (1/1000) s time base.
-  + Prescaler = (uwTimclock/1000000 - 1) to have a 1MHz counter clock.
-  + ClockDivision = 0
-  + Counter direction = Up
-  */
+   * Period = [(TIM14CLK/1000) - 1]. to have a (1/1000) s time base.
+   * Prescaler = (uwTimclock/1000000 - 1) to have a 1MHz counter clock.
+   * ClockDivision = 0
+   * Counter direction = Up
+   */
   htim14.Init.Period = (1000000U / 1000U) - 1U;
   htim14.Init.Prescaler = uwPrescalerValue;
   htim14.Init.ClockDivision = 0;
@@ -89,6 +88,7 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
   status = HAL_TIM_Base_Init(&htim14);
   if (status == HAL_OK)
   {
+
     /* Start the TIM time Base generation in interrupt mode */
     status = HAL_TIM_Base_Start_IT(&htim14);
     if (status == HAL_OK)

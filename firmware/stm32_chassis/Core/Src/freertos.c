@@ -6,13 +6,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -26,7 +25,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "lvgl.h"
+// #include "differential_chassis.h"
+// #include "encoder_motor.h"
+// #include "chassis.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -309,27 +310,26 @@ void vApplicationTickHook(void);
 /* USER CODE BEGIN 2 */
 void vApplicationIdleHook( void )
 {
-    /* vApplicationIdleHook() will only be called if configUSE_IDLE_HOOK is set
-    to 1 in FreeRTOSConfig.h. It will be called on each iteration of the idle
-    task. It is essential that code added to this hook function never attempts
-    to block in any way (for example, call xQueueReceive() with a block time
-    specified, or call vTaskDelay()). If the application makes use of the
-    vTaskDelete() API function (as this demo application does) then it is also
-    important that vApplicationIdleHook() is permitted to return to its calling
-    function, because it is the responsibility of the idle task to clean up
-    memory allocated by the kernel to any task that has since been deleted. */
+   /* vApplicationIdleHook() will only be called if configUSE_IDLE_HOOK is set
+   to 1 in FreeRTOSConfig.h. It will be called on each iteration of the idle
+   task. It is essential that code added to this hook function never attempts
+   to block in any way (for example, call xQueueReceive() with a block time
+   specified, or call vTaskDelay()). If the application makes use of the
+   vTaskDelete() API function (as this demo application does) then it is also
+   important that vApplicationIdleHook() is permitted to return to its calling
+   function, because it is the responsibility of the idle task to clean up
+   memory allocated by the kernel to any task that has since been deleted. */
 }
 /* USER CODE END 2 */
 
 /* USER CODE BEGIN 3 */
 void vApplicationTickHook( void )
 {
-    /* This function will be called by each tick interrupt if
-    configUSE_TICK_HOOK is set to 1 in FreeRTOSConfig.h. User code can be
-    added here, but the tick hook is called from an interrupt context, so
-    code must not attempt to block, and only the interrupt safe FreeRTOS API
-    functions can be used (those that end in FromISR()). */
-    lv_tick_inc(1);
+   /* This function will be called by each tick interrupt if
+   configUSE_TICK_HOOK is set to 1 in FreeRTOSConfig.h. User code can be
+   added here, but the tick hook is called from an interrupt context, so
+   code must not attempt to block, and only the interrupt safe FreeRTOS API
+   functions can be used (those that end in FromISR()). */
 }
 /* USER CODE END 3 */
 
@@ -344,30 +344,30 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
-    /* add mutexes, ... */
+  /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
   /* creation of packet_tx_idle */
-  packet_tx_idleHandle = osSemaphoreNew(1, 1, &packet_tx_idle_attributes);
+  packet_tx_idleHandle = osSemaphoreNew(1, 0, &packet_tx_idle_attributes);
 
   /* creation of packet_rx_not_empty */
-  packet_rx_not_emptyHandle = osSemaphoreNew(1, 1, &packet_rx_not_empty_attributes);
+  packet_rx_not_emptyHandle = osSemaphoreNew(1, 0, &packet_rx_not_empty_attributes);
 
   /* creation of mpu6050_data_ready */
-  mpu6050_data_readyHandle = osSemaphoreNew(1, 1, &mpu6050_data_ready_attributes);
+  mpu6050_data_readyHandle = osSemaphoreNew(1, 0, &mpu6050_data_ready_attributes);
 
   /* creation of sbus_data_ready_01_ */
-  sbus_data_ready_01_Handle = osSemaphoreNew(1, 1, &sbus_data_ready_01__attributes);
+  sbus_data_ready_01_Handle = osSemaphoreNew(1, 0, &sbus_data_ready_01__attributes);
 
   /* creation of spi_tx_finished */
-  spi_tx_finishedHandle = osSemaphoreNew(1, 1, &spi_tx_finished_attributes);
+  spi_tx_finishedHandle = osSemaphoreNew(1, 0, &spi_tx_finished_attributes);
 
   /* creation of bluetooth_tx_idle */
-  bluetooth_tx_idleHandle = osSemaphoreNew(1, 1, &bluetooth_tx_idle_attributes);
+  bluetooth_tx_idleHandle = osSemaphoreNew(1, 0, &bluetooth_tx_idle_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
-    /* add semaphores, ... */
+  /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* Create the timer(s) */
@@ -390,7 +390,7 @@ void MX_FREERTOS_Init(void) {
   IMU_read_timerHandle = osTimerNew(IMU_read_timer_callback, osTimerPeriodic, NULL, &IMU_read_timer_attributes);
 
   /* USER CODE BEGIN RTOS_TIMERS */
-    /* start timers, add new ones, ... */
+  /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
@@ -407,7 +407,7 @@ void MX_FREERTOS_Init(void) {
   bluetooth_tx_queueHandle = osMessageQueueNew (8, 8, &bluetooth_tx_queue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
-    /* add queues, ... */
+  /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -436,7 +436,7 @@ void MX_FREERTOS_Init(void) {
   bluetooth_taskHandle = osThreadNew(bluetooth_task_entry, NULL, &bluetooth_task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-    /* add threads, ... */
+  /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
   /* Create the event(s) */
@@ -444,7 +444,7 @@ void MX_FREERTOS_Init(void) {
   sbus_data_ready_event_Handle = osEventFlagsNew(&sbus_data_ready_event__attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
-    /* add events, ... */
+  /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
 
 }
@@ -461,10 +461,11 @@ void StartDefaultTask(void *argument)
   /* init code for USB_HOST */
   MX_USB_HOST_Init();
   /* USER CODE BEGIN StartDefaultTask */
-    /* Infinite loop */
-    for(;;) {
-        osDelay(1);
-    }
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
   /* USER CODE END StartDefaultTask */
 }
 
@@ -478,10 +479,11 @@ void StartDefaultTask(void *argument)
 __weak void imu_task_entry(void *argument)
 {
   /* USER CODE BEGIN imu_task_entry */
-    /* Infinite loop */
-    for(;;) {
-        osDelay(1);
-    }
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
   /* USER CODE END imu_task_entry */
 }
 
@@ -495,10 +497,11 @@ __weak void imu_task_entry(void *argument)
 __weak void packet_tx_task_entry(void *argument)
 {
   /* USER CODE BEGIN packet_tx_task_entry */
-    /* Infinite loop */
-    for(;;) {
-        osDelay(1);
-    }
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
   /* USER CODE END packet_tx_task_entry */
 }
 
@@ -512,10 +515,11 @@ __weak void packet_tx_task_entry(void *argument)
 __weak void packet_rx_task_entry(void *argument)
 {
   /* USER CODE BEGIN packet_rx_task_entry */
-    /* Infinite loop */
-    for(;;) {
-        osDelay(1);
-    }
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
   /* USER CODE END packet_rx_task_entry */
 }
 
@@ -529,10 +533,11 @@ __weak void packet_rx_task_entry(void *argument)
 __weak void sbus_rx_task_entry(void *argument)
 {
   /* USER CODE BEGIN sbus_rx_task_entry */
-    /* Infinite loop */
-    for(;;) {
-        osDelay(1);
-    }
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
   /* USER CODE END sbus_rx_task_entry */
 }
 

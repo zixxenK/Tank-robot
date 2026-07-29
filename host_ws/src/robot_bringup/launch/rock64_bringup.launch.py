@@ -190,15 +190,6 @@ def generate_launch_description():
             "true; legacy bridges are suppressed unless "
             "allow_mixed_bridges:=true"
         ),
-        condition=IfCondition(_bool_expr(
-            "'",
-            LaunchConfiguration("use_micro_ros"),
-            "' == 'true' and '",
-            LaunchConfiguration("use_legacy_bridges"),
-            "' == 'true' and not ('",
-            LaunchConfiguration("allow_mixed_bridges"),
-            "' == 'true')",
-        )),
     )
 
     preflight_gate = OpaqueFunction(function=preflight_or_raise)
@@ -221,7 +212,7 @@ def generate_launch_description():
         parameters=[
             LaunchConfiguration("hardware_config"),
             {"serial_port": LaunchConfiguration("serial_port")},
-            {"baud_rate": 115200},
+            {"baud_rate": 9600},
         ],
         output="screen",
     )
@@ -244,7 +235,7 @@ def generate_launch_description():
         parameters=[
             LaunchConfiguration("hardware_config"),
             {"serial_port": LaunchConfiguration("serial_port")},
-            {"baud_rate": 115200},
+            {"baud_rate": 9600},
         ],
         output="screen",
     )

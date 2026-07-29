@@ -13,7 +13,10 @@
 #include <stdlib.h>
 
 // External chassis object from Hiwonder system
-extern ChassisObjectTypeDef *chassis;
+// extern ChassisTypeDef *chassis;
+
+// Forward declaration
+void uart_ros_execute_command(const char* cmd);
 
 // Command buffer
 #define CMD_BUFFER_SIZE 64

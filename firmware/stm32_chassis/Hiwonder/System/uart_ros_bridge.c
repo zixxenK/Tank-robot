@@ -20,6 +20,7 @@
 
 #include "uart_ros_bridge.h"
 #include "chassis.h"
+#include "usart.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

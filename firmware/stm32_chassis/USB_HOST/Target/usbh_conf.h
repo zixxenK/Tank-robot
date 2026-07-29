@@ -7,7 +7,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2023 STMicroelectronics.
+  * Copyright (c) 2026 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -21,6 +21,7 @@
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __USBH_CONF__H__
 #define __USBH_CONF__H__
+
 #ifdef __cplusplus
  extern "C" {
 #endif
@@ -189,6 +190,4 @@
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* __USBH_CONF__H__ */
-

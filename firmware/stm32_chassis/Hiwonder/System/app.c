@@ -20,8 +20,7 @@
 #include "u8g2_porting.h"
 #include "pwm_servo.h"
 #include "serial_servo.h"
-#include "uart_ros_cmd.h"  // ROS command handler
-#include "uart_ros_integration.h"  // UART integration
+#include <string.h>
 
 /* 云台舵机限位参数 */
 #define  HOLDER_MIN   500  	//对应舵机的0°
@@ -118,8 +117,8 @@ void app_task_entry(void *argument)
     buttons_init();		//按键初始化
     
     /* ROS command handler initialization */
-    uart_ros_cmd_init();  // ROS command handler
-    uart_ros_integration_init();  // UART integration for ROS commands
+    // uart_ros_cmd_init();  // ROS command handler
+    // uart_ros_integration_init();  // UART integration for ROS commands
 	
 	//注册按键回调函数，处理按键值
     button_register_callback(buttons[0], button_event_callback);

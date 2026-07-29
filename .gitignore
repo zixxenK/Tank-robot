@@ -36,21 +36,7 @@ firmware/stm32_chassis/build-*/
 firmware/stm32_chassis/cmake-build-*/
 
 # Archived STM32 firmware tree: keep generated artifacts out of git
-firmware/stm32_chassis_backupoldoutdated/build/
-firmware/stm32_chassis_backupoldoutdated/build-*/
-firmware/stm32_chassis_backupoldoutdated/cmake-build-*/
-firmware/stm32_chassis_backupoldoutdated/build-arm-gcc-ninja/
-firmware/stm32_chassis_backupoldoutdated/build-arm-gcc-ninja-nomicroros/
-firmware/stm32_chassis_backupoldoutdated/build-phase0/
-firmware/stm32_chassis_backupoldoutdated/build-windows-ninja/
-firmware/stm32_chassis_backupoldoutdated/.cache/
-firmware/stm32_chassis_backupoldoutdated/tools/build-host/
-firmware/stm32_chassis_backupoldoutdated/micro_ros_lib/libmicroros.a
-firmware/stm32_chassis_backupoldoutdated/micro_ros_lib/include/
-firmware/stm32_chassis_backupoldoutdated/micro_ros_lib/.inspect/
-
-# Archived vendor driver/docs dump is not part of active firmware sources
-firmware/stm32_chassis_backupoldoutdated/Drivers/
+firmware/stm32_chassis_backupoldoutdated/
 
 # Host-side toolchain parser test build
 firmware/stm32_chassis/tools/build-host/
@@ -62,6 +48,13 @@ firmware/stm32_chassis/.cache/
 firmware/stm32_chassis/micro_ros_lib/libmicroros.a
 firmware/stm32_chassis/micro_ros_lib/include/
 
+# Additional build artifacts
+*.a
+*.lib
+*.obj
+*.out
+*.axf
+
 # OS
 .DS_Store
 Thumbs.db
@@ -70,7 +63,7 @@ Thumbs.db
 *~
 
 # IDE
-.vscode/settings.json
+.vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
@@ -85,3 +78,30 @@ deployment/.env
 
 # Local tool binaries
 tools/*.exe
+
+# CMake & IDE Metadata
+.cmake/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# STM32CubeMX Temp Files
+*.bak
+*.prev
+
+# Keil MDK-ARM IDE
+firmware/stm32_chassis/MDK-ARM/
+*.uvguix.*
+JLinkLog.txt
+
+# Build Artifacts & Output Directories
+Debug/
+Release/
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.d
+*.su
