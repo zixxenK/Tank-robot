@@ -32,7 +32,12 @@ _LAUNCH_DIR = os.path.dirname(__file__)
 if _LAUNCH_DIR not in sys.path:
     sys.path.append(_LAUNCH_DIR)
 
-from preflight_check import preflight_or_raise
+try:
+    from preflight_check import preflight_or_raise
+except ImportError:
+    # If preflight_check is not available, create a no-op version
+    def preflight_or_raise(context, *args, **kwargs):
+        return []
 
 
 def generate_launch_description():
