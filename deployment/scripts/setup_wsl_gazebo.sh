@@ -49,8 +49,12 @@ if ! command -v ros2 &>/dev/null; then
     sudo apt update
     sudo apt install -y ros-humble-desktop python3-rosdep2
     
-    # Initialize rosdep
-    sudo rosdep init
+    # Initialize rosdep (skip if already initialized)
+    if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
+        sudo rosdep init
+    else
+        echo "rosdep already initialized, skipping init"
+    fi
     rosdep update
     
     echo "✅ ROS2 Humble installed"
