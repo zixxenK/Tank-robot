@@ -126,7 +126,7 @@ echo "----------------------------------------------"
 
 sudo apt update
 sudo apt install -y \
-    gazebo11 \
+    gazebo \
     ros-humble-gazebo-ros-pkgs \
     ros-humble-ros2-control \
     ros-humble-ros2-controllers \

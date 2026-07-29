@@ -197,6 +197,9 @@ target_include_directories(rock64_ranger_fw PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/STM32_USB_Host_Library/Class/HID/Inc
 )
 
+# Disable micro-ROS since we're using legacy bridges
+set(STM32_ENABLE_MICROROS OFF CACHE BOOL "Enable micro-ROS support" FORCE)
+
 if(STM32_ENABLE_MICROROS)
   if(NOT EXISTS "${MICROROS_LIB}")
     message(FATAL_ERROR

@@ -11,14 +11,13 @@ else
 HOST_WS := $(REPO_ROOT)/ros2_ws
 endif
 
-.PHONY: help stm32-config stm32-build stm32-flash microros-build host-build host-launch host-print host-sim host-hardware host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
+.PHONY: help stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
 
 help:
 	@echo "Targets:"
 	@echo "  stm32-config   Configure STM32 CMake build in firmware tree"
 	@echo "  stm32-build    Build STM32 firmware in firmware tree"
 	@echo "  stm32-flash    Flash STM32 firmware (requires OpenOCD/ST-Link)"
-	@echo "  microros-build Build micro-ROS static library for STM32"
 	@echo "  host-build     Build host ROS2 workspace (host_ws preferred)"
 	@echo "  host-launch    Launch Rock64 bringup from active host workspace"
 	@echo "  host-sim       One-shot install deps + build + Gazebo telemetry launch"
