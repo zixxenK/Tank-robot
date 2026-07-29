@@ -467,12 +467,7 @@ void StartDefaultTask(void *argument)
   
 #ifdef MICROROS_ENABLED
   // Initialize micro-ROS node
-  if (microros_node_init() != 0) {
-    // Handle initialization error
-    for(;;) {
-      osDelay(100);
-    }
-  }
+  microros_node_init();
 #endif
   
   /* Infinite loop */
@@ -480,7 +475,7 @@ void StartDefaultTask(void *argument)
   {
 #ifdef MICROROS_ENABLED
     // Spin micro-ROS node to process messages
-    microros_node_spin();
+    microros_spin_once();
 #endif
     osDelay(10);
   }
