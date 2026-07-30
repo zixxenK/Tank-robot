@@ -1,6 +1,6 @@
 {
-  "name": "Rock64 Ranger — ROS 2 Jazzy + STM32",
-  "image": "osrf/ros:jazzy-desktop",
+  "name": "Rock64 Ranger — ROS 2 Humble + STM32",
+  "image": "osrf/ros:humble-desktop",
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
@@ -31,7 +31,7 @@
     }
   },
   "remoteEnv": {
-    "ROS_DISTRO": "jazzy",
+    "ROS_DISTRO": "humble",
     "ROS_DOMAIN_ID": "42",
     "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
     "ROBOT_NAMESPACE": "rock64_1"

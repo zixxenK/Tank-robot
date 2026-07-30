@@ -81,6 +81,14 @@ def generate_launch_description():
         ),
     )
 
+    use_hardened_bridge_arg = DeclareLaunchArgument(
+        "use_hardened_bridge",
+        default_value="false",
+        description=(
+            "Use hardened STM32 binary bridge with CRC validation and reconnect logic"
+        ),
+    )
+
     run_motor_bringup_test_arg = DeclareLaunchArgument(
         "run_motor_bringup_test",
         default_value="false",
@@ -149,11 +157,30 @@ def generate_launch_description():
         description="Path to shared bringup parameter file",
     )
 
+    safety_config_arg = DeclareLaunchArgument(
+        "safety_config",
+        default_value=PathJoinSubstitution([
+            LaunchConfiguration("host_workspace"), "../deployment/safety_config.yaml"
+        ]),
+        description="Path to safety gateway configuration file",
+    )
+
     ps5_bridge_node = Node(
         package="robot_teleop",
         executable="ps5_ros_bridge",
         name="ps5_ros_bridge",
         parameters=[LaunchConfiguration("hardware_config")],
+        output="screen",
+    )
+
+    # Safety gateway for agent-driven control with velocity clamping and heartbeat watchdog
+    safety_gateway_node = Node(
+        package="agent_core",
+        executable="safety_gateway",
+        name="safety_gateway",
+        parameters=[
+            {"config_file": LaunchConfiguration("safety_config")},
+        ],
         output="screen",
     )
 
@@ -212,7 +239,6 @@ def generate_launch_description():
         parameters=[
             LaunchConfiguration("hardware_config"),
             {"serial_port": LaunchConfiguration("serial_port")},
-            {"baud_rate": 9600},
         ],
         output="screen",
     )
@@ -235,7 +261,27 @@ def generate_launch_description():
         parameters=[
             LaunchConfiguration("hardware_config"),
             {"serial_port": LaunchConfiguration("serial_port")},
-            {"baud_rate": 9600},
+        ],
+        output="screen",
+    )
+
+    # Hardened bridge with CRC validation and reconnect logic (recommended for production)
+    hardened_bridge_node = Node(
+        package="robot_drivers",
+        executable="stm32_hardened_bridge",
+        name="stm32_hardened_bridge",
+        condition=IfCondition(_bool_expr(
+            "'",
+            LaunchConfiguration("use_hardened_bridge"),
+            "' == 'true' and (not ('",
+            LaunchConfiguration("use_micro_ros"),
+            "' == 'true') or ('",
+            LaunchConfiguration("allow_mixed_bridges"),
+            "' == 'true'))",
+        )),
+        parameters=[
+            LaunchConfiguration("hardware_config"),
+            {"serial_port": LaunchConfiguration("serial_port")},
         ],
         output="screen",
     )
@@ -268,6 +314,7 @@ def generate_launch_description():
         use_legacy_bridges_arg,
         allow_mixed_bridges_arg,
         use_binary_bridge_arg,
+        use_hardened_bridge_arg,
         run_motor_bringup_test_arg,
         micro_ros_transport_arg,
         micro_ros_dev_arg,
@@ -277,12 +324,15 @@ def generate_launch_description():
         camera_ip_arg,
         use_camera_bridge_arg,
         hardware_config_arg,
+        safety_config_arg,
         preflight_gate,
         micro_ros_agent_process,
         mixed_mode_warning,
         ps5_bridge_node,
+        safety_gateway_node,
         motor_bringup_test_node,
         serial_bridge_node,
         binary_bridge_node,
+        hardened_bridge_node,
         camera_bridge_node,
     ])

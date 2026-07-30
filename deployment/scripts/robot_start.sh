@@ -12,8 +12,13 @@ REPO_ROOT="$(cd "${DEPLOY_DIR}/.." && pwd)"
 
 resolve_host_ws() {
   if [[ -n "${HOST_WS_PATH:-}" ]]; then
-    echo "${HOST_WS_PATH}"
-    return
+    if [[ -d "${HOST_WS_PATH}/src" ]]; then
+      echo "${HOST_WS_PATH}"
+      return
+    else
+      echo "ERROR: HOST_WS_PATH=${HOST_WS_PATH} does not contain src directory"
+      exit 1
+    fi
   fi
 
   if [[ -d "${REPO_ROOT}/host_ws/src" ]]; then
@@ -21,7 +26,10 @@ resolve_host_ws() {
     return
   fi
 
-  echo "${REPO_ROOT}/ros2_ws"
+  echo "ERROR: host_ws/src not found at ${REPO_ROOT}/host_ws/src"
+  echo "ERROR: Cannot proceed without valid ROS2 workspace"
+  echo "Please ensure host_ws is properly checked out or set HOST_WS_PATH"
+  exit 1
 }
 
 # ── Load deployment configuration ─────────────────────────────────────────

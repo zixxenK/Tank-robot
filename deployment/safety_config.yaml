@@ -5,10 +5,20 @@ safety_supervisor:
   # Watchdog timeout threshold (milliseconds)
   # If heartbeat is not received within this window, safety layer forces zero-velocity
   heartbeat_timeout_ms: 100
-  
+
   # Enable hard stop on watchdog timeout
   # When true, immediately halts all motion on heartbeat loss
   enable_hard_stop: true
+
+  # Battery voltage thresholds (volts)
+  min_battery_voltage: 10.5  # Below this, reduce max speed
+  critical_battery_voltage: 9.5  # Below this, hard stop
+
+  # Acceleration limits (m/s^2)
+  max_acceleration: 2.0
+
+  # Enable telemetry-based dynamic monitoring
+  enable_telemetry_monitoring: true
 
   # Kinematic ceilings - maximum velocity limits
   # These prevent runaway commands during initial testing

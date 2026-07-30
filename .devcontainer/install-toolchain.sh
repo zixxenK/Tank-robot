@@ -22,7 +22,7 @@ apt-get install -y --no-install-recommends \
   python3-evdev \
   python3-colcon-common-extensions \
   python3-rosdep \
-  ros-jazzy-rmw-fastrtps-cpp
+  ros-humble-rmw-fastrtps-cpp
 
 echo "[toolchain] ARM toolchain installation complete."
 arm-none-eabi-gcc --version

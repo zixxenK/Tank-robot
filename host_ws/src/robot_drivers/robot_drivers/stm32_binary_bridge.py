@@ -48,8 +48,9 @@ FUNC_HEARTBEAT = 0xF0
 FUNC_SELF_TEST = 0xF1
 SELF_TEST_STATUS_STARTED = 0xA1
 SELF_TEST_STATUS_FINISHED = 0xA2
-FUNC_EMERGENCY_STOP = 0x11
+# Emergency stop uses FUNC_MOTOR + MOTOR_SUBCMD_EMERGENCY_STOP (not a top-level function code)
 MOTOR_SUBCMD_SET_SPEED = 0x01
+MOTOR_SUBCMD_EMERGENCY_STOP = 0x02
 PWM_SERVO_SUBCMD_SET_POSITION = 0x01
 PWM_SERVO_SUBCMD_SET_OFFSET = 0x07
 BUS_SERVO_SUBCMD_STOP = 0x03
@@ -610,7 +611,11 @@ class STM32BinaryBridge(Node):
         self._last_sent_pair = (left_speed, right_speed)
 
     def destroy_node(self):
-        self._send_frame(FUNC_EMERGENCY_STOP)
+        # Send emergency stop using correct function code (FUNC_MOTOR + EMERGENCY_STOP subcommand)
+        # 0x11 is FUNC_BATTERY in firmware, not a command code
+        payload = bytearray()
+        payload.extend(struct.pack("<BB", MOTOR_SUBCMD_EMERGENCY_STOP, 0))  # subcmd, motor_id (0 = all)
+        self._send_frame(FUNC_MOTOR, bytes(payload))
         if self._ser and self._ser.is_open:
             self._ser.close()
         super().destroy_node()

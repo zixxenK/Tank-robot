@@ -71,9 +71,9 @@ void binary_protocol_integration_init_packed(void) {
     
     // Initialize protocol with packed structures
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart3,           // USART3 for Master TX/RX
-                               &hdma_usart3_rx,   // DMA1_Stream1 for RX
-                               &hdma_usart3_tx,   // DMA1_Stream3 for TX
+                               &huart2,           // USART2 for Master TX/RX (matches host expectation)
+                               &hdma_usart2_rx,   // DMA1_Stream5 for RX
+                               &hdma_usart2_tx,   // DMA1_Stream6 for TX
                                &htim2,            // TIM2 for watchdog
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout

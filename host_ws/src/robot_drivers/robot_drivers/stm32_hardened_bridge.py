@@ -27,6 +27,8 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool, Int32MultiArray, Float32MultiArray
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import BatteryState, Imu, JointState
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Quaternion
 
 # Protocol Constants
 SYNC_1 = 0xAA
@@ -162,6 +164,10 @@ class FrameParser:
         self.frame_buffer = bytearray()
         self.parse_errors = 0
         self.valid_frames = 0
+        self.crc_errors = 0
+        self.sync_errors = 0
+        self.malformed_frames = 0
+        self.total_bytes_processed = 0
         self.lock = threading.Lock()
 
     def reset(self):
@@ -170,10 +176,13 @@ class FrameParser:
             self.sync_state = 0
             self.expected_payload_len = 0
             self.frame_buffer.clear()
+            # Don't reset error counters - they're cumulative for diagnostics
 
     def process_byte(self, byte: int) -> Optional[Tuple[int, bytes]]:
         """Process a single byte, return complete frame if available."""
         with self.lock:
+            self.total_bytes_processed += 1
+
             if self.sync_state == 0:
                 # Seeking SYNC_1
                 if byte == SYNC_1:
@@ -188,6 +197,7 @@ class FrameParser:
                     self.frame_buffer.append(SYNC_2)
                 else:
                     # False sync, reset
+                    self.sync_errors += 1
                     if byte == SYNC_1:
                         self.frame_buffer = bytearray([SYNC_1])
                     else:
@@ -238,21 +248,24 @@ class FrameParser:
     def _validate_frame(self, frame: bytes) -> Optional[Tuple[int, bytes]]:
         """Validate frame CRC and return (function_code, payload)."""
         if len(frame) < FRAME_HEADER_SIZE + FRAME_FOOTER_SIZE:
+            self.malformed_frames += 1
             return None
-        
+
         # Extract components
         function_code = frame[2]
         payload_len = frame[3]
         payload = frame[4:4+payload_len]
         received_crc = frame[4+payload_len]
-        
+
         # Calculate CRC
         body = frame[2:4+payload_len]  # function_code + payload_len + payload
         calculated_crc = self._crc8_ccitt(body)
-        
+
         if received_crc != calculated_crc:
+            self.crc_errors += 1
             return None
-        
+
+        self.valid_frames += 1
         return function_code, payload
 
     def _crc8_ccitt(self, data: bytes) -> int:
@@ -265,9 +278,16 @@ class FrameParser:
     def get_stats(self) -> Dict[str, int]:
         """Get parser statistics."""
         with self.lock:
+            total_frames = self.valid_frames + self.crc_errors + self.malformed_frames
+            error_rate = (self.crc_errors + self.malformed_frames) / max(1, total_frames) * 100 if total_frames > 0 else 0.0
+
             return {
                 'valid_frames': self.valid_frames,
-                'parse_errors': self.parse_errors,
+                'crc_errors': self.crc_errors,
+                'sync_errors': self.sync_errors,
+                'malformed_frames': self.malformed_frames,
+                'total_bytes_processed': self.total_bytes_processed,
+                'error_rate_percent': error_rate,
                 'sync_state': self.sync_state
             }
 
@@ -291,6 +311,9 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("angular_slew_rate", 6.0)
         self.declare_parameter("encoder_timeout", 1.0)
         self.declare_parameter("enable_telemetry", True)
+        self.declare_parameter("wheel_separation", 0.3)  # meters
+        self.declare_parameter("wheel_radius", 0.06)    # meters
+        self.declare_parameter("encoder_ticks_per_rev", 1000)
 
         # Get parameter values
         self._serial_port = self.get_parameter("serial_port").value
@@ -305,6 +328,9 @@ class STM32HardenedBridge(Node):
         self._angular_slew_rate = float(self.get_parameter("angular_slew_rate").value)
         self._encoder_timeout = float(self.get_parameter("encoder_timeout").value)
         self._enable_telemetry = self.get_parameter("enable_telemetry").value
+        self._wheel_separation = float(self.get_parameter("wheel_separation").value)
+        self._wheel_radius = float(self.get_parameter("wheel_radius").value)
+        self._encoder_ticks_per_rev = int(self.get_parameter("encoder_ticks_per_rev").value)
 
         # State variables
         self._target_lin = 0.0
@@ -318,6 +344,13 @@ class STM32HardenedBridge(Node):
         self._last_encoder_time = 0.0
         self._connection_loss_time = 0.0
         self._reconnect_attempt_time = 0.0
+
+        # Odometry state
+        self._x = 0.0
+        self._y = 0.0
+        self._theta = 0.0
+        self._prev_left_enc = 0
+        self._prev_right_enc = 0
 
         # Telemetry data
         self._telemetry = TelemetryData()
@@ -340,6 +373,10 @@ class STM32HardenedBridge(Node):
 
         # ROS2 interfaces
         self._setup_ros_interfaces()
+
+        # Diagnostic updater - use manual publishing for now
+        self._diagnostic_updater = None
+        self.get_logger().info("Using manual diagnostic publishing")
 
         # Timers
         self._setup_timers()
@@ -364,6 +401,7 @@ class STM32HardenedBridge(Node):
         self._joint_state_pub = self.create_publisher(JointState, "/stm32/joint_states", 10)
         self._battery_pub = self.create_publisher(BatteryState, "/stm32/battery", 10)
         self._imu_pub = self.create_publisher(Imu, "/stm32/imu", 10)
+        self._odom_pub = self.create_publisher(Odometry, "/stm32/odom", 10)
         self._diagnostics_pub = self.create_publisher(DiagnosticArray, "/stm32/diagnostics", 10)
 
     def _setup_timers(self):
@@ -777,55 +815,135 @@ class STM32HardenedBridge(Node):
                 imu_msg.angular_velocity.z = self._telemetry.imu_gyro[2]
                 self._imu_pub.publish(imu_msg)
 
+            # Publish odometry from encoder data
+            self._publish_odometry()
+
+    def _publish_odometry(self):
+        """Publish odometry from encoder data using differential drive kinematics."""
+        with self._telemetry_lock:
+            left_enc = self._telemetry.encoder_left
+            right_enc = self._telemetry.encoder_right
+            timestamp = self._telemetry.timestamp
+
+        # Calculate delta in encoder ticks
+        delta_left = left_enc - self._prev_left_enc
+        delta_right = right_enc - self._prev_right_enc
+
+        # Convert ticks to distance (meters)
+        ticks_per_meter = self._encoder_ticks_per_rev / (2 * math.pi * self._wheel_radius)
+        left_dist = delta_left / ticks_per_meter
+        right_dist = delta_right / ticks_per_meter
+
+        # Differential drive kinematics
+        dist = (left_dist + right_dist) / 2.0
+        delta_theta = (right_dist - left_dist) / self._wheel_separation
+
+        # Update pose
+        self._x += dist * math.cos(self._theta)
+        self._y += dist * math.sin(self._theta)
+        self._theta += delta_theta
+
+        # Calculate velocities
+        dt = timestamp - (self._last_encoder_time if self._last_encoder_time > 0 else timestamp)
+        if dt > 0:
+            linear_vel = dist / dt
+            angular_vel = delta_theta / dt
+        else:
+            linear_vel = 0.0
+            angular_vel = 0.0
+
+        # Create odometry message
+        odom_msg = Odometry()
+        odom_msg.header.stamp = self.get_clock().now().to_msg()
+        odom_msg.header.frame_id = "odom"
+        odom_msg.child_frame_id = "base_link"
+
+        # Position
+        odom_msg.pose.pose.position.x = self._x
+        odom_msg.pose.pose.position.y = self._y
+        odom_msg.pose.pose.position.z = 0.0
+
+        # Orientation from yaw
+        quat = self._yaw_to_quaternion(self._theta)
+        odom_msg.pose.pose.orientation = quat
+
+        # Velocity (in child frame)
+        odom_msg.twist.twist.linear.x = linear_vel
+        odom_msg.twist.twist.linear.y = 0.0
+        odom_msg.twist.twist.angular.z = angular_vel
+
+        # Publish
+        self._odom_pub.publish(odom_msg)
+
+        # Update previous encoder values
+        self._prev_left_enc = left_enc
+        self._prev_right_enc = right_enc
+
+    def _yaw_to_quaternion(self, yaw: float):
+        """Convert yaw angle to quaternion."""
+        quat = Quaternion()
+        quat.x = 0.0
+        quat.y = 0.0
+        quat.z = math.sin(yaw / 2.0)
+        quat.w = math.cos(yaw / 2.0)
+        return quat
+
     def _publish_diagnostics(self):
         """Publish diagnostic information."""
         now = time.time()
-        
+
         # Connection status
         serial_open = bool(self._ser and self._ser.is_open)
         alive = serial_open and (now - self._last_heartbeat_time) < self._heartbeat_timeout
-        
+
         # Frame parser stats
         parser_stats = self._frame_parser.get_stats()
-        
+
         # Buffer status
         buffer_available = self._rx_buffer.available()
-        
+
         # Create diagnostic status
         status = DiagnosticStatus()
         status.name = "stm32_hardened_bridge"
         status.hardware_id = self._serial_port
-        
+
         if not serial_open:
             status.level = DiagnosticStatus.ERROR
             status.message = "serial_closed"
         elif not alive:
             status.level = DiagnosticStatus.ERROR
             status.message = "heartbeat_timeout"
-        elif parser_stats['parse_errors'] > 10:
+        elif parser_stats['error_rate_percent'] > 5.0:
             status.level = DiagnosticStatus.WARN
-            status.message = "high_parse_error_rate"
+            status.message = f"high_error_rate_{parser_stats['error_rate_percent']:.1f}%"
+        elif parser_stats['crc_errors'] > 10:
+            status.level = DiagnosticStatus.WARN
+            status.message = f"crc_errors_{parser_stats['crc_errors']}"
         else:
             status.level = DiagnosticStatus.OK
             status.message = "ok"
-        
+
         status.values = [
             KeyValue(key="serial_open", value=str(serial_open).lower()),
             KeyValue(key="alive", value=str(alive).lower()),
             KeyValue(key="heartbeat_age_s", value=f"{now - self._last_heartbeat_time:.3f}"),
             KeyValue(key="valid_frames", value=str(parser_stats['valid_frames'])),
-            KeyValue(key="parse_errors", value=str(parser_stats['parse_errors'])),
+            KeyValue(key="crc_errors", value=str(parser_stats['crc_errors'])),
+            KeyValue(key="sync_errors", value=str(parser_stats['sync_errors'])),
+            KeyValue(key="malformed_frames", value=str(parser_stats['malformed_frames'])),
+            KeyValue(key="error_rate_percent", value=f"{parser_stats['error_rate_percent']:.2f}"),
+            KeyValue(key="total_bytes", value=str(parser_stats['total_bytes_processed'])),
             KeyValue(key="buffer_available", value=str(buffer_available)),
             KeyValue(key="encoder_left", value=str(self._telemetry.encoder_left)),
             KeyValue(key="encoder_right", value=str(self._telemetry.encoder_right)),
             KeyValue(key="battery_voltage", value=f"{self._telemetry.battery_voltage:.2f}"),
         ]
-        
+
         diag_msg = DiagnosticArray()
         diag_msg.header.stamp = self.get_clock().now().to_msg()
         diag_msg.status = [status]
         self._diagnostics_pub.publish(diag_msg)
-        
+
         # Publish alive status
         self._alive_pub.publish(Bool(data=alive))
 
