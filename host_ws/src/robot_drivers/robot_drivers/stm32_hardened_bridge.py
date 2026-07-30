@@ -807,177 +807,126 @@ class STM32HardenedBridge(Node):
             if self._telemetry.imu_accel != (0.0, 0.0, 0.0):
                 imu_msg = Imu()
                 imu_msg.header.stamp = self.get_clock().now().to_msg()
+                imu_msg.header.frame_id = "imu_link"
                 imu_msg.linear_acceleration.x = self._telemetry.imu_accel[0]
                 imu_msg.linear_acceleration.y = self._telemetry.imu_accel[1]
                 imu_msg.linear_acceleration.z = self._telemetry.imu_accel[2]
                 imu_msg.angular_velocity.x = self._telemetry.imu_gyro[0]
                 imu_msg.angular_velocity.y = self._telemetry.imu_gyro[1]
                 imu_msg.angular_velocity.z = self._telemetry.imu_gyro[2]
+                # Default orientation covariance since we don't have absolute orientation from IMU alone
+                imu_msg.orientation_covariance[0] = -1.0
                 self._imu_pub.publish(imu_msg)
 
-            # Publish odometry from encoder data
-            self._publish_odometry()
+            # Calculate and publish odometry
+            self._update_odometry()
 
-    def _publish_odometry(self):
-        """Publish odometry from encoder data using differential drive kinematics."""
-        with self._telemetry_lock:
-            left_enc = self._telemetry.encoder_left
-            right_enc = self._telemetry.encoder_right
-            timestamp = self._telemetry.timestamp
-
-        # Calculate delta in encoder ticks
-        delta_left = left_enc - self._prev_left_enc
-        delta_right = right_enc - self._prev_right_enc
+    def _update_odometry(self):
+        """Calculate and publish differential drive odometry from encoders."""
+        left_enc = self._telemetry.encoder_left
+        right_enc = self._telemetry.encoder_right
+        
+        # Calculate delta ticks
+        d_left = left_enc - self._prev_left_enc
+        d_right = right_enc - self._prev_right_enc
+        self._prev_left_enc = left_enc
+        self._prev_right_enc = right_enc
 
         # Convert ticks to distance (meters)
-        ticks_per_meter = self._encoder_ticks_per_rev / (2 * math.pi * self._wheel_radius)
-        left_dist = delta_left / ticks_per_meter
-        right_dist = delta_right / ticks_per_meter
+        meters_per_tick = (2.0 * math.pi * self._wheel_radius) / float(self._encoder_ticks_per_rev)
+        dist_left = float(d_left) * meters_per_tick
+        dist_right = float(d_right) * meters_per_tick
 
-        # Differential drive kinematics
-        dist = (left_dist + right_dist) / 2.0
-        delta_theta = (right_dist - left_dist) / self._wheel_separation
+        d_center = (dist_left + dist_right) / 2.0
+        d_theta = (dist_right - dist_left) / self._wheel_separation
 
         # Update pose
-        self._x += dist * math.cos(self._theta)
-        self._y += dist * math.sin(self._theta)
-        self._theta += delta_theta
+        self._x += d_center * math.cos(self._theta + d_theta / 2.0)
+        self._y += d_center * math.sin(self._theta + d_theta / 2.0)
+        self._theta += d_theta
+        self._theta = math.atan2(math.sin(self._theta), math.cos(self._theta))  # Normalize to [-pi, pi]
 
-        # Calculate velocities
-        dt = timestamp - (self._last_encoder_time if self._last_encoder_time > 0 else timestamp)
-        if dt > 0:
-            linear_vel = dist / dt
-            angular_vel = delta_theta / dt
-        else:
-            linear_vel = 0.0
-            angular_vel = 0.0
+        # Quaternion from yaw
+        q_x, q_y, q_z, q_w = self._yaw_to_quaternion(self._theta)
 
-        # Create odometry message
+        # Publish odometry message
         odom_msg = Odometry()
         odom_msg.header.stamp = self.get_clock().now().to_msg()
         odom_msg.header.frame_id = "odom"
         odom_msg.child_frame_id = "base_link"
-
-        # Position
+        
         odom_msg.pose.pose.position.x = self._x
         odom_msg.pose.pose.position.y = self._y
         odom_msg.pose.pose.position.z = 0.0
+        odom_msg.pose.pose.orientation.x = q_x
+        odom_msg.pose.pose.orientation.y = q_y
+        odom_msg.pose.pose.orientation.z = q_z
+        odom_msg.pose.pose.orientation.w = q_w
 
-        # Orientation from yaw
-        quat = self._yaw_to_quaternion(self._theta)
-        odom_msg.pose.pose.orientation = quat
+        # Simple velocity estimation
+        dt = 0.1  # telemetry interval
+        odom_msg.twist.twist.linear.x = d_center / dt if dt > 0 else 0.0
+        odom_msg.twist.twist.angular.z = d_theta / dt if dt > 0 else 0.0
 
-        # Velocity (in child frame)
-        odom_msg.twist.twist.linear.x = linear_vel
-        odom_msg.twist.twist.linear.y = 0.0
-        odom_msg.twist.twist.angular.z = angular_vel
-
-        # Publish
         self._odom_pub.publish(odom_msg)
 
-        # Update previous encoder values
-        self._prev_left_enc = left_enc
-        self._prev_right_enc = right_enc
-
-    def _yaw_to_quaternion(self, yaw: float):
-        """Convert yaw angle to quaternion."""
-        quat = Quaternion()
-        quat.x = 0.0
-        quat.y = 0.0
-        quat.z = math.sin(yaw / 2.0)
-        quat.w = math.cos(yaw / 2.0)
-        return quat
+    def _yaw_to_quaternion(self, yaw: float) -> Tuple[float, float, float, float]:
+        """Convert yaw angle to quaternion components (x, y, z, w)."""
+        qz = math.sin(yaw / 2.0)
+        qw = math.cos(yaw / 2.0)
+        return 0.0, 0.0, qz, qw
 
     def _publish_diagnostics(self):
-        """Publish diagnostic information."""
-        now = time.time()
+        """Publish system diagnostics and bridge status."""
+        diag_array = DiagnosticArray()
+        diag_array.header.stamp = self.get_clock().now().to_msg()
 
-        # Connection status
-        serial_open = bool(self._ser and self._ser.is_open)
-        alive = serial_open and (now - self._last_heartbeat_time) < self._heartbeat_timeout
-
-        # Frame parser stats
-        parser_stats = self._frame_parser.get_stats()
-
-        # Buffer status
-        buffer_available = self._rx_buffer.available()
-
-        # Create diagnostic status
         status = DiagnosticStatus()
-        status.name = "stm32_hardened_bridge"
-        status.hardware_id = self._serial_port
-
-        if not serial_open:
-            status.level = DiagnosticStatus.ERROR
-            status.message = "serial_closed"
-        elif not alive:
-            status.level = DiagnosticStatus.ERROR
-            status.message = "heartbeat_timeout"
-        elif parser_stats['error_rate_percent'] > 5.0:
-            status.level = DiagnosticStatus.WARN
-            status.message = f"high_error_rate_{parser_stats['error_rate_percent']:.1f}%"
-        elif parser_stats['crc_errors'] > 10:
-            status.level = DiagnosticStatus.WARN
-            status.message = f"crc_errors_{parser_stats['crc_errors']}"
-        else:
+        status.name = "stm32_hardened_bridge: Serial Link"
+        
+        if self._ser and self._ser.is_open:
             status.level = DiagnosticStatus.OK
-            status.message = "ok"
+            status.message = "Connected"
+        else:
+            status.level = DiagnosticStatus.ERROR
+            status.message = "Disconnected"
 
-        status.values = [
-            KeyValue(key="serial_open", value=str(serial_open).lower()),
-            KeyValue(key="alive", value=str(alive).lower()),
-            KeyValue(key="heartbeat_age_s", value=f"{now - self._last_heartbeat_time:.3f}"),
-            KeyValue(key="valid_frames", value=str(parser_stats['valid_frames'])),
-            KeyValue(key="crc_errors", value=str(parser_stats['crc_errors'])),
-            KeyValue(key="sync_errors", value=str(parser_stats['sync_errors'])),
-            KeyValue(key="malformed_frames", value=str(parser_stats['malformed_frames'])),
-            KeyValue(key="error_rate_percent", value=f"{parser_stats['error_rate_percent']:.2f}"),
-            KeyValue(key="total_bytes", value=str(parser_stats['total_bytes_processed'])),
-            KeyValue(key="buffer_available", value=str(buffer_available)),
-            KeyValue(key="encoder_left", value=str(self._telemetry.encoder_left)),
-            KeyValue(key="encoder_right", value=str(self._telemetry.encoder_right)),
-            KeyValue(key="battery_voltage", value=f"{self._telemetry.battery_voltage:.2f}"),
-        ]
+        stats = self._frame_parser.get_stats()
+        for k, v in stats.items():
+            status.values.append(KeyValue(key=k, value=str(v)))
 
-        diag_msg = DiagnosticArray()
-        diag_msg.header.stamp = self.get_clock().now().to_msg()
-        diag_msg.status = [status]
-        self._diagnostics_pub.publish(diag_msg)
+        diag_array.status.append(status)
+        self._diagnostics_pub.publish(diag_array)
 
-        # Publish alive status
-        self._alive_pub.publish(Bool(data=alive))
+        # Publish bridge alive status
+        alive_msg = Bool()
+        alive_msg.data = (self._ser is not None and self._ser.is_open)
+        self._alive_pub.publish(alive_msg)
 
     def destroy_node(self):
-        """Cleanup and shutdown."""
-        self.get_logger().info("Shutting down STM32 Hardened Bridge")
-        
+        """Clean shutdown of background threads and serial port."""
         self._running = False
-        
-        # Send emergency stop before closing
-        if self._ser and self._ser.is_open:
-            self._send_emergency_stop()
-            time.sleep(0.1)  # Give it time to send
-            self._ser.close()
-        
-        # Wait for threads to finish
         if self._read_thread and self._read_thread.is_alive():
             self._read_thread.join(timeout=1.0)
         if self._process_thread and self._process_thread.is_alive():
             self._process_thread.join(timeout=1.0)
+        
+        with self._serial_lock:
+            if self._ser and self._ser.is_open:
+                self._ser.close()
         
         super().destroy_node()
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = STM32HardenedBridge()
-    
+    bridge = STM32HardenedBridge()
     try:
-        rclpy.spin(node)
+        rclpy.spin(bridge)
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
+        bridge.destroy_node()
         rclpy.shutdown()
 
 
