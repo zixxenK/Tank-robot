@@ -337,6 +337,8 @@ class STM32HardenedBridge(Node):
         self._target_ang = 0.0
         self._cmd_lin = 0.0
         self._cmd_ang = 0.0
+        self._vendor_motor_entries = []
+        self._vendor_motor_timestamp = 0.0
         self._last_cmd_vel_time = time.time()
         self._last_send_time = time.time()
         self._last_sent_pair = (None, None)
@@ -808,14 +810,17 @@ class STM32HardenedBridge(Node):
                 imu_msg = Imu()
                 imu_msg.header.stamp = self.get_clock().now().to_msg()
                 imu_msg.header.frame_id = "imu_link"
+                
+                # Populate linear acceleration
                 imu_msg.linear_acceleration.x = self._telemetry.imu_accel[0]
                 imu_msg.linear_acceleration.y = self._telemetry.imu_accel[1]
                 imu_msg.linear_acceleration.z = self._telemetry.imu_accel[2]
+                
+                # Populate angular velocity
                 imu_msg.angular_velocity.x = self._telemetry.imu_gyro[0]
                 imu_msg.angular_velocity.y = self._telemetry.imu_gyro[1]
                 imu_msg.angular_velocity.z = self._telemetry.imu_gyro[2]
-                # Default orientation covariance since we don't have absolute orientation from IMU alone
-                imu_msg.orientation_covariance[0] = -1.0
+                
                 self._imu_pub.publish(imu_msg)
 
             # Calculate and publish odometry
