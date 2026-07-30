@@ -29,12 +29,12 @@ class MotorBringupTest(Node):
         self.declare_parameter("track_width_m", 0.194)
         self.declare_parameter("start_delay", 1.0)
 
-        speed = float(self.get_parameter("step_speed").value)
-        step_duration = float(self.get_parameter("step_duration").value)
-        pause_duration = float(self.get_parameter("pause_duration").value)
-        publish_rate_hz = float(self.get_parameter("publish_rate_hz").value)
-        track_width = float(self.get_parameter("track_width_m").value)
-        self._start_delay = float(self.get_parameter("start_delay").value)
+        speed = float(self.get_parameter("step_speed").value)  # type: ignore[arg-type]
+        step_duration = float(self.get_parameter("step_duration").value)  # type: ignore[arg-type]
+        pause_duration = float(self.get_parameter("pause_duration").value)  # type: ignore[arg-type]
+        publish_rate_hz = float(self.get_parameter("publish_rate_hz").value)  # type: ignore[arg-type]
+        track_width = float(self.get_parameter("track_width_m").value)  # type: ignore[arg-type]
+        self._start_delay = float(self.get_parameter("start_delay").value)  # type: ignore[arg-type]
 
         turn_ang = (2.0 * speed) / max(track_width, 1e-3)
 

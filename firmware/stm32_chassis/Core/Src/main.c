@@ -31,14 +31,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-// #include "differential_chassis.h"
-// #include "encoder_motor.h"
-// #include "pwm_servo.h"
-// #include "led.h"
-// #include "buzzer.h"
-// #include "button.h"
-// #include "imu_mpu6050.h"
-// #include "chassis.h"
+#include "uart_binary_protocol_integration_packed.h"
+#include "imu_integration.h"
+#include "battery_integration.h"
+#include "status_integration.h"
+#include "motor_control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -129,13 +126,12 @@ int main(void)
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  // Initialize Hiwonder tank chassis components
-  // motors_init();
-  // pwm_servos_init();
-  // leds_init();
-  // buzzers_init();
-  // buttons_init();
-  // chassis_init();
+  // Initialize ROS2-STM32 integration subsystems
+  // Note: IMU, Battery, and Status are initialized inside binary_protocol_integration_init_packed()
+  binary_protocol_integration_init_packed();
+  
+  // Additional initialization if needed
+  // Motor control is initialized by binary_protocol_integration_init_packed()
   /* USER CODE END 2 */
 
   /* Init scheduler */

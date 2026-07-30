@@ -1,0 +1,62 @@
+# Safety Supervisor Configuration
+# This file defines the hard safety parameters for the autonomous agent system
+
+safety_supervisor:
+  # Watchdog timeout threshold (milliseconds)
+  # If heartbeat is not received within this window, safety layer forces zero-velocity
+  heartbeat_timeout_ms: 100
+  
+  # Enable hard stop on watchdog timeout
+  # When true, immediately halts all motion on heartbeat loss
+  enable_hard_stop: true
+
+  # Kinematic ceilings - maximum velocity limits
+  # These prevent runaway commands during initial testing
+  kinematic_limits:
+    max_linear_speed: 0.5    # m/s - maximum forward/backward speed
+    max_angular_speed: 1.0   # rad/s - maximum rotation speed
+    
+  # Emergency stop configuration
+  e_stop:
+    topic: "/safety/e_stop"
+    latch: true  # E-stop state persists until explicitly cleared
+    
+  # Heartbeat configuration
+  heartbeat:
+    topic: "/agent/heartbeat"
+    expected_rate_hz: 50  # Agent should send heartbeat at 50Hz
+    
+  # Safety status publishing
+  status:
+    topic: "/safety/status"
+    publish_rate_hz: 50
+    
+  # Diagnostics configuration
+  diagnostics:
+    topic: "/diagnostics"
+    publish_rate_hz: 10
+
+# Agent command gating configuration
+agent_gateway:
+  # Input topic from agent (proposed commands)
+  input_topic: "/agent/cmd_vel_proposed"
+  
+  # Output topic to hardware (validated commands)
+  output_topic: "/ranger/cmd_vel_safe"
+  
+  # Command validation rate
+  validation_rate_hz: 50
+  
+  # Safety checks
+  checks:
+    - heartbeat_freshness
+    - e_stop_state
+    - velocity_limits
+    - command_rate_limiting
+
+# ROS 2 topic namespace configuration
+namespaces:
+  agent: "/agent"
+  safety: "/safety"
+  hardware: "/ranger"
+  diagnostics: "/diagnostics"

@@ -42,13 +42,82 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
 )
 
+# Add linker script
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+    -T${CMAKE_CURRENT_SOURCE_DIR}/STM32F407xx_FLASH.ld
+)
+
 # Add Hiwonder sources (minimal set for basic tank functionality)
-# file(GLOB_RECURSE HIWONDER_SOURCES
-#     "Hiwonder/Chassis/*.c"
-#     "Hiwonder/Peripherals/encoder_motor.c"
-#     "Hiwonder/Peripherals/pwm_servo.c"
-#     "Hiwonder/Misc/pid.c"
-# )
+# Motor control and encoders
+file(GLOB_RECURSE MOTOR_SOURCES
+    "Hiwonder/Peripherals/encoder_motor.c"
+    "Hiwonder/Portings/motor_porting.c"
+    "Hiwonder/Misc/pid.c"
+)
+
+# Memory management (lwmem)
+file(GLOB_RECURSE LWMEM_SOURCES
+    "Hiwonder/Portings/lwmem_porting.c"
+    "Third_Party/Lw/*.c"
+)
+
+# Binary protocol integration (UART communication)
+file(GLOB_RECURSE BINARY_PROTOCOL_SOURCES
+    "Hiwonder/System/uart_binary_protocol_packed.c"
+    "Hiwonder/System/uart_binary_protocol_integration_packed.c"
+)
+
+# Motor control wrapper layer
+file(GLOB_RECURSE MOTOR_CONTROL_SOURCES
+    "Hiwonder/System/motor_control.c"
+)
+
+# IMU integration (with fixed delta time)
+file(GLOB_RECURSE IMU_SOURCES
+    "Hiwonder/Peripherals/imu.c"
+    "Hiwonder/Peripherals/imu_mpu6050.c"
+    "Hiwonder/Portings/imu_porting.c"
+    "Hiwonder/System/imu_integration.c"
+)
+
+# Battery/ADC integration (with filter priming)
+file(GLOB_RECURSE BATTERY_SOURCES
+    "Hiwonder/System/battery_integration.c"
+    "Hiwonder/System/battery_handle.c"
+)
+
+# Status peripherals (buzzer/LED)
+file(GLOB_RECURSE STATUS_SOURCES
+    "Hiwonder/Peripherals/buzzer.c"
+    "Hiwonder/Portings/buzzer_porting.c"
+    "Hiwonder/Peripherals/led.c"
+    "Hiwonder/Portings/led_porting.c"
+    "Hiwonder/System/status_integration.c"
+)
+
+# Third-party Fusion library for IMU sensor fusion
+file(GLOB_RECURSE FUSION_SOURCES "Third_Party/Fusion/Fusion/*.c")
+
+# ============================================================================
+# BLOAT QUARANTINE (Explicitly excluded from build)
+# ============================================================================
+# These files are deliberately excluded to free CPU/RAM and prevent
+# conflicting control sources. The ROCK64 is now the sole master.
+
+# EXCLUDED: Wireless parsers (SBUS, Bluetooth)
+# "Hiwonder/Misc/sbus.c"
+# "Hiwonder/Portings/sbus_porting.c"
+# "Hiwonder/Portings/bluetooth_porting.c"
+
+# EXCLUDED: Legacy kinematics (chassis control)
+# "Hiwonder/Chassis/chassis.c"
+# "Hiwonder/Chassis/differential_chassis.c"
+# "Hiwonder/Chassis/mecanum_chassis.c"
+# "Hiwonder/Chassis/ackermann_chassis.c"
+# "Hiwonder/Portings/chassis_porting.c"
+
+# EXCLUDED: LVGL UI framework
+# "Hiwonder/LVGL_UI/*.c"
 
 # Add micro-ROS integration sources (if micro-ROS is enabled)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/micro_ros_lib/libmicroros.a")
@@ -78,22 +147,32 @@ endif()
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    # ${HIWONDER_SOURCES}
-    # ${FUSION_SOURCES}
+    ${MOTOR_SOURCES}
+    ${LWMEM_SOURCES}
+    ${BINARY_PROTOCOL_SOURCES}
+    ${MOTOR_CONTROL_SOURCES}
+    ${IMU_SOURCES}
+    ${BATTERY_SOURCES}
+    ${STATUS_SOURCES}
+    ${FUSION_SOURCES}
     ${MICROROS_SOURCES}
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add Hiwonder include paths (minimal)
-    # Hiwonder/Chassis
-    # Hiwonder/System
-    # Hiwonder/Peripherals
-    # Hiwonder/Misc
-    # Add minimal third-party library include paths
-    # Third_Party/Fusion
-    # Third_Party/Fusion/Fusion
-    # Add micro-ROS include paths (if enabled)
+    # Hiwonder include paths (minimal set for integration)
+    Hiwonder/Peripherals
+    Hiwonder/Portings
+    Hiwonder/System
+    Hiwonder/Misc
+    Hiwonder/USB_HOST
+    Hiwonder/Chassis
+    # Third-party library include paths
+    Third_Party/Fusion
+    Third_Party/Fusion/Fusion
+    Third_Party/RTT
+    Third_Party/Lw
+    # Core HAL includes
     Core/Inc
 )
 
@@ -108,6 +187,7 @@ list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
+    m
 
     # Add user defined libraries
 )

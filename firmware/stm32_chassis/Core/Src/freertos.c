@@ -25,9 +25,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-// #include "differential_chassis.h"
-// #include "encoder_motor.h"
-// #include "chassis.h"
+#include "uart_binary_protocol_integration_packed.h"
+#include "motor_control.h"
 #ifdef MICROROS_ENABLED
 #include "microros_node.h"
 #endif
@@ -417,26 +416,26 @@ void MX_FREERTOS_Init(void) {
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  /* creation of imu_task */
-  imu_taskHandle = osThreadNew(imu_task_entry, NULL, &imu_task_attributes);
+  /* BLOAT QUARANTINE: IMU task - now handled by IMU_Update() in telemetry loop */
+  // imu_taskHandle = osThreadNew(imu_task_entry, NULL, &imu_task_attributes);
 
-  /* creation of packet_tx_task */
-  packet_tx_taskHandle = osThreadNew(packet_tx_task_entry, NULL, &packet_tx_task_attributes);
+  /* BLOAT QUARANTINE: Packet tasks - replaced by binary protocol */
+  // packet_tx_taskHandle = osThreadNew(packet_tx_task_entry, NULL, &packet_tx_task_attributes);
 
-  /* creation of packet_rx_task */
-  packet_rx_taskHandle = osThreadNew(packet_rx_task_entry, NULL, &packet_rx_task_attributes);
+  /* BLOAT QUARANTINE: Packet tasks - replaced by binary protocol */
+  // packet_rx_taskHandle = osThreadNew(packet_rx_task_entry, NULL, &packet_rx_task_attributes);
 
-  /* creation of sbus_rx_task */
-  sbus_rx_taskHandle = osThreadNew(sbus_rx_task_entry, NULL, &sbus_rx_task_attributes);
+  /* BLOAT QUARANTINE: SBUS task - wireless parser quarantined */
+  // sbus_rx_taskHandle = osThreadNew(sbus_rx_task_entry, NULL, &sbus_rx_task_attributes);
 
-  /* creation of gui_task */
-  gui_taskHandle = osThreadNew(gui_task_entry, NULL, &gui_task_attributes);
+  /* BLOAT QUARANTINE: GUI task - LVGL UI quarantined */
+  // gui_taskHandle = osThreadNew(gui_task_entry, NULL, &gui_task_attributes);
 
-  /* creation of app_task */
-  app_taskHandle = osThreadNew(app_task_entry, NULL, &app_task_attributes);
+  /* BLOAT QUARANTINE: App task - Hiwonder application logic quarantined */
+  // app_taskHandle = osThreadNew(app_task_entry, NULL, &app_task_attributes);
 
-  /* creation of bluetooth_task */
-  bluetooth_taskHandle = osThreadNew(bluetooth_task_entry, NULL, &bluetooth_task_attributes);
+  /* BLOAT QUARANTINE: Bluetooth task - wireless parser quarantined */
+  // bluetooth_taskHandle = osThreadNew(bluetooth_task_entry, NULL, &bluetooth_task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -473,11 +472,14 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    // Process binary protocol (motor commands, telemetry, safety)
+    binary_protocol_main_task();
+    
 #ifdef MICROROS_ENABLED
     // Spin micro-ROS node to process messages
     microros_spin_once();
 #endif
-    osDelay(10);
+    osDelay(10);  // 100Hz main loop
   }
   /* USER CODE END StartDefaultTask */
 }
