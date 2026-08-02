@@ -30,6 +30,10 @@ setup(
     entry_points={
         "console_scripts": [
             "safety_gateway = agent_core.safety_gateway:main",
+            "lmstudio_codegen = agent_core.lmstudio_nodes:codegen_main",
+            "lmstudio_diagnostics = "
+            "agent_core.lmstudio_nodes:diagnostics_main",
+            "lmstudio_teleop = agent_core.lmstudio_nodes:teleop_main",
         ],
     },
 )

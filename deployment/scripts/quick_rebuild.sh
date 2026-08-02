@@ -8,7 +8,8 @@ echo "=========================================="
 echo "Quick Rebuild - robot_bringup Package"
 echo "=========================================="
 
-REPO_ROOT="${REPO_ROOT:-/opt/rock64-robot}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 cd "${REPO_ROOT}" || exit 1
 
 WS_PATH="${REPO_ROOT}/host_ws"

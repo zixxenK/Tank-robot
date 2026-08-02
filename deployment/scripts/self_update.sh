@@ -11,8 +11,8 @@ cd "${REPO_ROOT}"
 exec 200>"${LOCK_FILE}"
 flock -n 200 || { echo "[self_update] Update already running - exiting."; exit 0; }
 
-if [[ -n "$(git status --porcelain)" ]]; then
-  echo "[self_update] Local changes present - refusing to pull. Resolve manually." >&2
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+  echo "[self_update] Tracked local changes present - refusing to pull. Resolve manually." >&2
   exit 1
 fi
 

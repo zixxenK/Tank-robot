@@ -46,6 +46,33 @@ else
   echo "MISSING: ${SERIAL_PORT} (expected off-hardware on local PC / WSL)"
 fi
 
+echo; echo "--- Network and USB hardware ---"
+ip -brief link 2>/dev/null || true
+if command -v nmcli >/dev/null 2>&1; then
+  nmcli --terse --fields DEVICE,TYPE,STATE,CONNECTION device status || true
+fi
+if command -v rfkill >/dev/null 2>&1; then
+  rfkill list || true
+fi
+if command -v lsusb >/dev/null 2>&1; then
+  lsusb || true
+fi
+
+echo; echo "--- Operator input devices ---"
+if compgen -G "/dev/input/event*" >/dev/null; then
+  ls -l /dev/input/event* || true
+else
+  echo "No /dev/input/event* devices detected."
+fi
+
+echo; echo "--- ESP32 camera reachability ---"
+CAMERA_IP_STATION="${CAMERA_IP_STATION:-192.168.1.125}"
+if ping -c 1 -W 1 "${CAMERA_IP_STATION}" >/dev/null 2>&1; then
+  echo "OK: camera host ${CAMERA_IP_STATION} responds"
+else
+  echo "UNREACHABLE: camera host ${CAMERA_IP_STATION}"
+fi
+
 echo; echo "--- git state ---"
 git -C "${REPO_ROOT}" status --short --branch || true
 

@@ -8,7 +8,8 @@ echo "=========================================="
 echo "ROS2 Workspace Rebuild"
 echo "=========================================="
 
-REPO_ROOT="${REPO_ROOT:-/opt/rock64-robot}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 cd "${REPO_ROOT}" || exit 1
 
 WS_PATH="${REPO_ROOT}/host_ws"
@@ -31,11 +32,7 @@ rm -rf build install log
 echo ""
 echo "Step 3: Install dependencies..."
 echo "----------------------------------------------"
-if [[ -f "src/dependencies.txt" ]]; then
-    rosdep install --from-paths src --ignore-src -r -y
-else
-    echo "No dependencies.txt found, skipping rosdep"
-fi
+rosdep install --from-paths src --ignore-src -r -y
 
 echo ""
 echo "Step 4: Build workspace..."

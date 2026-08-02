@@ -14,11 +14,6 @@ install/
 log/
 build/
 
-# ros2_ws build artifacts (allowed here, not root)
-ros2_ws/build/
-ros2_ws/install/
-ros2_ws/log/
-
 # PlatformIO
 # Build artifacts belong inside firmware/ only - never at repo root
 .pio/
@@ -34,9 +29,6 @@ firmware/**/*.map
 firmware/stm32_chassis/build/
 firmware/stm32_chassis/build-*/
 firmware/stm32_chassis/cmake-build-*/
-
-# Archived STM32 firmware tree: keep generated artifacts out of git
-firmware/stm32_chassis_backupoldoutdated/
 
 # Host-side toolchain parser test build
 firmware/stm32_chassis/tools/build-host/
@@ -72,6 +64,8 @@ Thumbs.db
 .env
 *.env.local
 deployment/.env
+deployment/systemd/systemd_config.conf
+firmware/esp32_sensors/include/secrets.h
 
 # Logs
 *.log

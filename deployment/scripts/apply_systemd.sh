@@ -6,8 +6,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${DEPLOY_DIR}/.." && pwd)"
 SERVICE_SRC="${DEPLOY_DIR}/systemd/rock64-robot.service"
 SERVICE_DST="/etc/systemd/system/rock64-robot.service"
+UPDATE_SERVICE_SRC="${DEPLOY_DIR}/systemd/rock64-robot-update.service"
+UPDATE_SERVICE_DST="/etc/systemd/system/rock64-robot-update.service"
+UPDATE_TIMER_SRC="${DEPLOY_DIR}/systemd/rock64-robot-update.timer"
+UPDATE_TIMER_DST="/etc/systemd/system/rock64-robot-update.timer"
 CONFIG_SRC="${DEPLOY_DIR}/systemd/systemd_config.conf"
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -18,6 +23,14 @@ fi
 # ── Copy systemd service file ─────────────────────────────────────────────
 echo "[apply_systemd] Copying service file to ${SERVICE_DST}..."
 cp "${SERVICE_SRC}" "${SERVICE_DST}"
+echo "[apply_systemd] Copying update units..."
+cp "${UPDATE_SERVICE_SRC}" "${UPDATE_SERVICE_DST}"
+cp "${UPDATE_TIMER_SRC}" "${UPDATE_TIMER_DST}"
+
+sed -i "s|^WorkingDirectory=.*|WorkingDirectory=${REPO_ROOT}|" "${SERVICE_DST}"
+sed -i "s|^ExecStart=.*|ExecStart=/bin/bash ${REPO_ROOT}/deployment/scripts/robot_start.sh|" "${SERVICE_DST}"
+sed -i "s|^WorkingDirectory=.*|WorkingDirectory=${REPO_ROOT}|" "${UPDATE_SERVICE_DST}"
+sed -i "s|^ExecStart=.*|ExecStart=/bin/bash ${REPO_ROOT}/deployment/scripts/self_update.sh|" "${UPDATE_SERVICE_DST}"
 
 # ── Embed configuration values into the service environment ───────────────
 if [[ -f "${CONFIG_SRC}" ]]; then
@@ -31,6 +44,7 @@ fi
 # ── Enable and start service ──────────────────────────────────────────────
 systemctl daemon-reload
 systemctl enable rock64-robot.service
+systemctl enable --now rock64-robot-update.timer
 systemctl start  rock64-robot.service
 
 echo "[apply_systemd] Service installed and started."

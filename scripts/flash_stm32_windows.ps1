@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 $fwDir = Join-Path $repoRoot "firmware/stm32_chassis"
-$buildDir = Join-Path $fwDir "build/Debug"
+$buildDir = Join-Path $fwDir "build/Release"
 
 function Resolve-ToolPath {
   param(
@@ -64,8 +64,8 @@ if ($Build) {
     if ($ninjaExe) {
       $env:Path = "$(Split-Path $ninjaExe);$env:Path"
     }
-    & $cmakeExe --preset Debug
-    & $cmakeExe --build --preset Debug -j4
+    & $cmakeExe --preset Release
+    & $cmakeExe --build --preset Release -j4
   }
   finally {
     Pop-Location

@@ -12,6 +12,11 @@ class Float32:
         self.data = 0.0
 
 
+class String:
+    def __init__(self, data=""):
+        self.data = data
+
+
 class UInt16:
     def __init__(self):
         self.data = 0

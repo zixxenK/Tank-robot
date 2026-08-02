@@ -16,16 +16,17 @@ ls -la /dev/input/event* | head -5
 echo ""
 echo "Step 2: Add user to input group"
 echo "----------------------------------------------"
-# The service runs as root, but let's ensure proper permissions
-sudo usermod -a -G input root 2>/dev/null || echo "Root already has input access"
+INPUT_USER="${INPUT_USER:-${SUDO_USER:-rock64}}"
+sudo usermod -a -G input "${INPUT_USER}"
+echo "Added ${INPUT_USER} to the input group"
 
 echo ""
 echo "Step 3: Create udev rule for input devices"
 echo "----------------------------------------------"
 sudo tee /etc/udev/rules.d/99-input-permissions.rules > /dev/null <<'EOF'
 # Input device permissions for ROS joystick access
-KERNEL=="event[0-9]*", MODE="0666"
-KERNEL=="js[0-9]*", MODE="0666"
+SUBSYSTEM=="input", KERNEL=="event[0-9]*", GROUP="input", MODE="0660"
+SUBSYSTEM=="input", KERNEL=="js[0-9]*", GROUP="input", MODE="0660"
 EOF
 
 echo "✅ Created udev rules for input devices"
@@ -39,8 +40,10 @@ sudo udevadm trigger
 echo ""
 echo "Step 5: Fix current device permissions"
 echo "----------------------------------------------"
-sudo chmod 666 /dev/input/event* 2>/dev/null || echo "No event devices to fix"
-sudo chmod 666 /dev/input/js* 2>/dev/null || echo "No joystick devices to fix"
+sudo chgrp input /dev/input/event* 2>/dev/null || echo "No event devices to fix"
+sudo chmod 660 /dev/input/event* 2>/dev/null || echo "No event devices to fix"
+sudo chgrp input /dev/input/js* 2>/dev/null || echo "No joystick devices to fix"
+sudo chmod 660 /dev/input/js* 2>/dev/null || echo "No joystick devices to fix"
 
 echo ""
 echo "Step 6: Verify permissions"

@@ -55,7 +55,7 @@ echo "----------------------------------------------"
 ROBOT_DEVICE=""
 for device in /dev/ttyACM* /dev/ttyUSB*; do
     if [[ -e "$device" ]]; then
-        local udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
+        udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
         if echo "$udev_info" | grep -q "1a86"; then
             ROBOT_DEVICE="$device"
             echo "✅ Found CH341 device: $ROBOT_DEVICE"
@@ -68,7 +68,7 @@ done
 if [[ -z "$ROBOT_DEVICE" ]]; then
     for device in /dev/ttyACM* /dev/ttyUSB*; do
         if [[ -e "$device" ]]; then
-            local udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
+                udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
             if echo "$udev_info" | grep -q "0483"; then
                 ROBOT_DEVICE="$device"
                 echo "✅ Found STM32 native device: $ROBOT_DEVICE"
@@ -122,16 +122,16 @@ echo "----------------------------------------------"
 
 # Get device IDs for persistent rules
 if [[ -e "$ROBOT_DEVICE" ]]; then
-    local udev_info=$(udevadm info --query=property --name="$ROBOT_DEVICE" 2>/dev/null)
-    local vendor=$(echo "$udev_info" | grep "ID_VENDOR_ID=" | cut -d= -f2)
-    local model=$(echo "$udev_info" | grep "ID_MODEL_ID=" | cut -d= -f2)
+    udev_info=$(udevadm info --query=property --name="$ROBOT_DEVICE" 2>/dev/null)
+    vendor=$(echo "$udev_info" | grep "ID_VENDOR_ID=" | cut -d= -f2)
+    model=$(echo "$udev_info" | grep "ID_MODEL_ID=" | cut -d= -f2)
     
     if [[ -n "$vendor" && -n "$model" ]]; then
         echo "Creating udev rule for $vendor:$model"
         
         sudo tee /etc/udev/rules.d/99-rock64-robot-auto.rules > /dev/null <<EOF
 # Auto-generated rule for robot controller
-SUBSYSTEM=="tty", ATTRS{idVendor}=="$vendor", ATTRS{idProduct}=="$model", SYMLINK+="rock64_stm32", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="$vendor", ATTRS{idProduct}=="$model", SYMLINK+="rock64_stm32", GROUP="dialout", MODE="0660"
 ENV{ID_MM_PORT_IGNORE}="1"
 EOF
         
@@ -144,6 +144,7 @@ EOF
         if [[ -L /dev/rock64_stm32 ]]; then
             echo "✅ Symlink /dev/rock64_stm32 created successfully"
             ROBOT_DEVICE="/dev/rock64_stm32"
+            sed -i "s|^SERIAL_PORT=.*|SERIAL_PORT=$ROBOT_DEVICE|" "$CONFIG_FILE"
         else
             echo "⚠️  Symlink not created, using direct device path"
         fi

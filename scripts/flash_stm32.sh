@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FIRMWARE_DIR="${REPO_ROOT}/firmware/stm32_chassis"
-BUILD_DIR="${FIRMWARE_DIR}/build/Debug"
+BUILD_DIR="${FIRMWARE_DIR}/build/Release"
 ELF_FILE="${BUILD_DIR}/rock64_ranger_fw.elf"
 
 DO_BUILD=false
@@ -33,8 +33,8 @@ fi
 if [[ "${DO_BUILD}" == true ]]; then
   echo "[flash] Building firmware..."
   cd "${FIRMWARE_DIR}"
-  cmake --preset Debug
-  cmake --build --preset Debug -j4
+  cmake --preset Release
+  cmake --build --preset Release -j4
 fi
 
 if [[ ! -f "${ELF_FILE}" ]]; then
