@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodically run Tank-robot self-update
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

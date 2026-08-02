@@ -1,0 +1,11 @@
+[Unit]
+Description=Tank-robot self-update (git pull + conditional rebuild)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=rock64
+Group=rock64
+WorkingDirectory=/opt/rock64-robot
+ExecStart=/bin/bash /opt/rock64-robot/deployment/scripts/self_update.sh
