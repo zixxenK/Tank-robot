@@ -50,11 +50,6 @@ if [[ -d "${WS_PATH}" ]]; then
     fi
 else
     echo "❌ Workspace not found at ${WS_PATH}"
-    echo "Checking for alternative workspace..."
-    if [[ -d "/opt/rock64-robot/ros2_ws" ]]; then
-        echo "Found ros2_ws instead"
-        WS_PATH="/opt/rock64-robot/ros2_ws"
-    fi
 fi
 
 echo ""

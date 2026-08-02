@@ -1,5 +1,3 @@
-from .node import Node
-
 __all__ = [
     "Node",
     "Logger",
@@ -60,3 +58,6 @@ def spin_once(_node, _timeout_sec=None):
 
 def ok():
     return True
+
+
+from .node import Node  # noqa: E402

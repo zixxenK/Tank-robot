@@ -25,17 +25,23 @@ static bool status_initialized = false;
 // ============================================================================
 
 static int buzzer_get_ctrl_block(BuzzerObjectTypeDef *self, BuzzerCtrlTypeDef *p) {
+    (void)self;
+    (void)p;
     // Simple queue implementation (could be enhanced with FreeRTOS queue)
     // For now, return empty (no queued commands)
     return -1; // No queued commands
 }
 
 static int buzzer_put_ctrl_block(BuzzerObjectTypeDef *self, BuzzerCtrlTypeDef *p) {
+    (void)self;
+    (void)p;
     // Direct execution for simplicity
     return 0;
 }
 
 static void buzzer_set_pwm(BuzzerObjectTypeDef *self, uint32_t freq) {
+    (void)self;
+    (void)freq;
     // Configure PWM for buzzer on TIM4 Channel 2 (example)
     // Adapt to your actual hardware configuration
     // TIM4->CCR2 = (SystemCoreClock / (freq * 2)) - 1;
@@ -46,16 +52,21 @@ static void buzzer_set_pwm(BuzzerObjectTypeDef *self, uint32_t freq) {
 // ============================================================================
 
 static int led_get_ctrl_block(LEDObjectTypeDef *self, LEDCtrlTypeDef *p) {
+    (void)self;
+    (void)p;
     // Simple queue implementation
     return -1; // No queued commands
 }
 
 static int led_put_ctrl_block(LEDObjectTypeDef *self, LEDCtrlTypeDef *p) {
+    (void)self;
+    (void)p;
     // Direct execution for simplicity
     return 0;
 }
 
 static void led_set_pin(LEDObjectTypeDef *self, uint32_t new_state) {
+    (void)self;
     // Configure LED GPIO (example: PD14)
     // Adapt to your actual hardware configuration
     GPIO_PinState pin_state = (new_state) ? GPIO_PIN_SET : GPIO_PIN_RESET;

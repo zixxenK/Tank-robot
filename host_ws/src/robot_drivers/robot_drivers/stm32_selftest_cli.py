@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""One-shot CLI tester for STM32 self-test over ROS topics.
+"""
+Run the STM32 self-test once over ROS topics.
 
 Publishes /stm32/self_test once and waits for /stm32/self_test_result.
 Returns exit code 0 on pass, 1 on fail/timeout.

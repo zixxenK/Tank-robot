@@ -23,8 +23,10 @@ extern "C" {
 #define FRAME_HEADER_SIZE        4  // SYNC_1, SYNC_2, FUNC, LEN
 #define FRAME_FOOTER_SIZE        1  // CRC
 #define MAX_FRAME_SIZE           256
+#define MAX_PAYLOAD_SIZE         (MAX_FRAME_SIZE - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE)
 #define RX_BUFFER_SIZE           512
-#define TX_BUFFER_SIZE           512
+#define TX_FRAME_QUEUE_DEPTH     8
+#define MOTOR_COMMAND_CAPACITY   4
 
 // Function Codes
 typedef enum {
@@ -69,7 +71,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t subcmd;                  // MotorSubCommand
     uint8_t motor_count;             // Number of motor commands
-    MotorCommandEntry motors[8];     // Up to 8 motor commands
+    MotorCommandEntry motors[MOTOR_COMMAND_CAPACITY];
 } MotorCommandPayload;
 
 /**
@@ -133,6 +135,11 @@ typedef enum {
     FRAME_STATE_CRC
 } FrameState;
 
+typedef struct {
+    uint16_t length;
+    uint8_t data[MAX_FRAME_SIZE];
+} ProtocolTxFrame;
+
 // ============================================================================
 // PROTOCOL CONTEXT
 // ============================================================================
@@ -150,8 +157,9 @@ typedef struct {
     uint8_t expected_payload_len;
     
     // TX State
-    uint8_t tx_buffer[TX_BUFFER_SIZE];
-    volatile uint16_t tx_write_pos;
+    ProtocolTxFrame tx_queue[TX_FRAME_QUEUE_DEPTH];
+    volatile uint8_t tx_head;
+    volatile uint8_t tx_tail;
     volatile bool tx_busy;
     
     // Command Processing
@@ -178,14 +186,14 @@ typedef struct {
         uint32_t crc_errors;
         uint32_t timeout_errors;
         uint32_t buffer_overruns;
+        uint32_t tx_queue_overruns;
+        uint32_t tx_errors;
     } stats;
     
     // Hardware Handles
     UART_HandleTypeDef *uart_handle;
     DMA_HandleTypeDef *rx_dma_handle;
     DMA_HandleTypeDef *tx_dma_handle;
-    TIM_HandleTypeDef *watchdog_timer;  // Hardware timer for timeout
-    
 } BinaryProtocolContext;
 
 // ============================================================================
@@ -195,10 +203,9 @@ typedef struct {
 /**
  * @brief Initialize binary protocol with DMA and hardware timer
  * @param ctx Protocol context
- * @param huart UART handle (USART3 for Master TX/RX)
- * @param hdma_rx RX DMA handle (DMA1_Stream1)
- * @param hdma_tx TX DMA handle (DMA1_Stream3)
- * @param htim_watchdog Hardware timer for timeout protection
+ * @param huart USART2 handle for the Rock64 link
+ * @param hdma_rx USART2 RX DMA handle
+ * @param hdma_tx USART2 TX DMA handle
  * @param command_timeout_ms Command timeout in milliseconds
  * @param heartbeat_timeout_ms Heartbeat timeout in milliseconds
  */
@@ -206,7 +213,6 @@ void binary_protocol_init_packed(BinaryProtocolContext *ctx,
                                  UART_HandleTypeDef *huart,
                                  DMA_HandleTypeDef *hdma_rx,
                                  DMA_HandleTypeDef *hdma_tx,
-                                 TIM_HandleTypeDef *htim_watchdog,
                                  uint32_t command_timeout_ms,
                                  uint32_t heartbeat_timeout_ms);
 
@@ -228,6 +234,12 @@ void binary_protocol_send_heartbeat(BinaryProtocolContext *ctx);
  * @param ctx Protocol context
  */
 void binary_protocol_send_telemetry_burst(BinaryProtocolContext *ctx);
+
+/**
+ * @brief Advance the transmit queue after USART2 DMA completion.
+ * @param ctx Protocol context
+ */
+void binary_protocol_tx_complete(BinaryProtocolContext *ctx);
 
 /**
  * @brief Emergency stop - zero all motors immediately

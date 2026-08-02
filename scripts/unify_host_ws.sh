@@ -58,7 +58,8 @@ resolve_host_ws() {
     echo "${REPO_ROOT}/host_ws"
     return
   fi
-  echo "${REPO_ROOT}/ros2_ws"
+  echo "[unify] ERROR: host_ws/src not found" >&2
+  return 1
 }
 
 HOST_WS="$(resolve_host_ws)"
@@ -217,8 +218,7 @@ elif [[ "$MODE" == "hardware" ]]; then
   echo "[unify] Launching hardware bringup stack..."
   _SERIAL="${SERIAL_PORT:-/dev/rock64_stm32}"
   exec ros2 launch robot_bringup rock64_bringup.launch.py \
-    use_micro_ros:=false \
-    use_legacy_bridges:=true \
+    use_hardware_bridge:=true \
     serial_port:="${_SERIAL}"
 else
   case "$TELEOP_MODE" in

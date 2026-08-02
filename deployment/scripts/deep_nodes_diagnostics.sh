@@ -22,7 +22,7 @@ echo "----------------------------------------------"
 # Expected nodes based on launch configuration
 EXPECTED_NODES=(
     "ps5_ros_bridge"
-    "stm32_serial_bridge"
+    "stm32_hardened_bridge"
     "esp32_camera_bridge"
 )
 
@@ -275,7 +275,7 @@ if [[ -z "$AUTO_SERIAL_PORT" ]]; then
 elif [[ "$SERVICE_STATUS" != "active" ]]; then
     echo "❌ Service not running - check logs with: journalctl -u rock64-robot.service -f"
 elif [[ $(echo "$ACTUAL_NODES" | wc -l) -lt 2 ]]; then
-    echo "⚠️  Few nodes running - expected at least 2 (ps5_ros_bridge, stm32_serial_bridge)"
+    echo "⚠️  Few nodes running - expected safety_gateway, ps5_ros_bridge, and stm32_hardened_bridge"
 else
     echo "✅ System appears operational"
 fi

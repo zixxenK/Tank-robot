@@ -62,19 +62,17 @@ if ($Build) {
   Push-Location $fwDir
   try {
     if ($ninjaExe) {
-      & $cmakeExe -S . -B build -G Ninja "-DCMAKE_MAKE_PROGRAM=$ninjaExe" "-DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake"
+      $env:Path = "$(Split-Path $ninjaExe);$env:Path"
     }
-    else {
-      & $cmakeExe -S . -B build "-DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake"
-    }
-    & $cmakeExe --build build -j4
+    & $cmakeExe --preset Debug
+    & $cmakeExe --build --preset Debug -j4
   }
   finally {
     Pop-Location
   }
 }
 
-$binFile = Join-Path $buildDir "factoryfirmwarestm32.bin"
+$binFile = Join-Path $buildDir "rock64_ranger_fw.bin"
 
 if (-not (Test-Path $binFile)) {
   throw "Firmware binary not found at $binFile. Run with -Build first."

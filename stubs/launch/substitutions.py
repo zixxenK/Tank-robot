@@ -3,6 +3,11 @@ class LaunchConfiguration:
         self.name = name
         self.default = default
 
+    def perform(self, context):
+        if isinstance(context, dict):
+            return str(context.get(self.name, self.default or ""))
+        return str(self.default or "")
+
 
 class EnvironmentVariable:
     def __init__(self, name, default_value=None):

@@ -3,10 +3,17 @@ class SerialException(Exception):
 
 
 class Serial:
-    def __init__(self, port=None, baudrate=115200, timeout=0.1):
+    def __init__(
+        self,
+        port=None,
+        baudrate=115200,
+        timeout=0.1,
+        write_timeout=None,
+    ):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
+        self.write_timeout = write_timeout
         self.is_open = True
         self.in_waiting = 0
 

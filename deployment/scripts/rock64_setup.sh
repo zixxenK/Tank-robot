@@ -22,10 +22,11 @@ resolve_host_ws() {
     return
   fi
 
-  echo "${REPO_ROOT}/ros2_ws"
+  echo "[setup] ERROR: host_ws/src not found" >&2
+  return 1
 }
 
-ROS2_WS="$(resolve_host_ws)"
+HOST_WS="$(resolve_host_ws)"
 
 # ── Defaults ──────────────────────────────────────────────────────────────
 ROS_DISTRO_ARG="auto"
@@ -70,7 +71,7 @@ resolve_target_ros_distro() {
 
 RESOLVED_DISTRO="$(resolve_target_ros_distro "${ROS_DISTRO_ARG}")"
 echo "[setup] Target ROS2 distro: ${RESOLVED_DISTRO}"
-echo "[setup] Host workspace     : ${ROS2_WS}"
+echo "[setup] Host workspace     : ${HOST_WS}"
 
 UBUNTU_VERSION="$(lsb_release -rs 2>/dev/null || echo "0")"
 if [[ ! "${UBUNTU_VERSION}" =~ ^22\. ]]; then
@@ -83,14 +84,6 @@ fi
 # ── Install system dependencies ───────────────────────────────────────────
 echo "[setup] Installing system dependencies..."
 
-MICROROS_AGENT_PKG="ros-${RESOLVED_DISTRO}-micro-ros-agent"
-if apt-cache show "${MICROROS_AGENT_PKG}" >/dev/null 2>&1; then
-  echo "[setup] Found optional package: ${MICROROS_AGENT_PKG}"
-else
-  echo "[setup] WARNING: ${MICROROS_AGENT_PKG} not available for this architecture/repo; skipping package install."
-  MICROROS_AGENT_PKG=""
-fi
-
 ROSGZ_PKG="ros-${RESOLVED_DISTRO}-ros-gz"
 if apt-cache show "${ROSGZ_PKG}" >/dev/null 2>&1; then
   echo "[setup] Found optional package: ${ROSGZ_PKG}"
@@ -102,7 +95,6 @@ fi
 apt-get update -qq
 apt-get install -y --no-install-recommends \
   "ros-${RESOLVED_DISTRO}-desktop" \
-  ${MICROROS_AGENT_PKG:+"${MICROROS_AGENT_PKG}"} \
   ${ROSGZ_PKG:+"${ROSGZ_PKG}"} \
   "ros-${RESOLVED_DISTRO}-cv-bridge" \
   "ros-${RESOLVED_DISTRO}-rviz2" \
@@ -124,18 +116,6 @@ apt-get install -y --no-install-recommends \
   cmake \
   stlink-tools \
   openocd
-
-if [[ -z "${MICROROS_AGENT_PKG}" ]]; then
-  echo "[setup] Adding micro_ros_agent source fallback into workspace..."
-  mkdir -p "${ROS2_WS}/src"
-  if [[ ! -d "${ROS2_WS}/src/micro_ros_agent/.git" ]]; then
-    git clone --depth 1 -b "${RESOLVED_DISTRO}" \
-      https://github.com/micro-ROS/micro-ROS-Agent.git \
-      "${ROS2_WS}/src/micro_ros_agent"
-  else
-    echo "[setup] micro_ros_agent source already present — skipping clone."
-  fi
-fi
 
 # ── Create udev rule for STM32 serial port ────────────────────────────────
 echo "[setup] Installing udev rule for STM32 serial port..."
@@ -163,28 +143,22 @@ SERIAL_PORT=${SERIAL_PORT}
 CAMERA_IP_STATION=${CAMERA_IP}
 USE_CAMERA_BRIDGE=false
 
-# micro-ROS / control mode
-# Set USE_MICRO_ROS=true to launch micro-ROS agent (requires STM32 micro-ROS firmware).
-# Set USE_MICRO_ROS=false to use the legacy Python serial bridge.
-USE_MICRO_ROS=false
-USE_LEGACY_BRIDGES=true
-MICRO_ROS_DEV=${SERIAL_PORT}
-MICRO_ROS_BAUD=115200
-MICRO_ROS_TRANSPORT=serial
+# Canonical packed-binary STM32 bridge
+USE_HARDWARE_BRIDGE=true
 
 # ROS
 ROS_DISTRO=${RESOLVED_DISTRO}
 ROS_DOMAIN_ID=42
 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ROBOT_NAMESPACE=rock64_1
-HOST_WS_PATH=${ROS2_WS}
+HOST_WS_PATH=${HOST_WS}
 EOF
 
 # ── Build ROS2 workspace ───────────────────────────────────────────────────
 echo "[setup] Building ROS2 workspace..."
 # shellcheck source=/dev/null
 source "/opt/ros/${RESOLVED_DISTRO}/setup.bash"
-cd "${ROS2_WS}"
+cd "${HOST_WS}"
 colcon build --symlink-install
 
 # ── Install systemd service ────────────────────────────────────────────────

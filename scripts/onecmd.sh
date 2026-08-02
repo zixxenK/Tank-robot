@@ -16,7 +16,8 @@ resolve_host_ws() {
     return 0
   fi
 
-  printf '%s\n' "${REPO_ROOT}/ros2_ws"
+  echo "[onecmd] host_ws/src not found" >&2
+  return 1
 }
 
 HOST_WS=$(resolve_host_ws)

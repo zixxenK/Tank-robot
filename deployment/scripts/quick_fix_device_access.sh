@@ -116,31 +116,12 @@ else
 fi
 
 echo ""
-echo "Step 5: Display firmware fix requirements..."
+echo "Step 5: Display firmware status..."
 echo "----------------------------------------------"
 
 cat <<'EOF'
-⚠️  CRITICAL FIRMWARE FIXES REQUIRED:
-
-The STM32 firmware requires two critical fixes:
-
-1. UART BAUD RATE FIX:
-   File: firmware/stm32_chassis/Core/Src/usart.c
-   Line 108: Change from 9600 to 115200
-   Command: 
-     huart2.Init.BaudRate = 115200;  // Was 9600
-
-2. PROTOCOL COMPATIBILITY LAYER:
-   The current Hiwonder firmware uses character-based protocol (A, B, C, I, S)
-   but ROS bridges expect either:
-   - ASCII format: <motor_id,direction,speed>\n
-   - Binary frames: 0xAA 0x55 [function_code] [payload_len] [payload...] [crc8]
-
-   You need to add a UART command handler that translates ROS commands to
-   Hiwonder chassis control calls.
-
-See deployment/REMEDIATION_PLAN.md for detailed implementation steps.
-
+The active STM32 firmware and host bridge use packed binary frames on USART2
+at 115200 baud. Complete docs/HARDWARE_VALIDATION.md before enabling motors.
 EOF
 
 echo ""

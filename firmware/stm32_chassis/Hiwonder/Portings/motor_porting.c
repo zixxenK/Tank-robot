@@ -1,10 +1,10 @@
-#include "global.h"
+#include "encoder_motor.h"
 #include "tim.h"
-#include "lwmem_porting.h"
 #include "motors_param.h"
 
 /* 全局变量 */
 EncoderMotorObjectTypeDef *motors[4];
+static EncoderMotorObjectTypeDef motor_storage[4];
 /* static void packet_handler(struct PacketRawFrame *frame); */
 
 static void motor1_set_pulse(EncoderMotorObjectTypeDef *self, int speed);
@@ -43,9 +43,8 @@ void set_motor_type(EncoderMotorObjectTypeDef *motor, MotorTypeEnum type) {
 void motors_init(void)
 {
     for(int i = 0; i < 4; ++i) {
-        motors[i] = LWMEM_CCM_MALLOC(sizeof( EncoderMotorObjectTypeDef));
+        motors[i] = &motor_storage[i];
         encoder_motor_object_init(motors[i]);
-		motors[i]->ticks_overflow = 60000;
         motors[i]->ticks_per_circle = MOTOR_DEFAULT_TICKS_PER_CIRCLE;
         motors[i]->rps_limit = MOTOR_DEFAULT_RPS_LIMIT;
         motors[i]->pid_controller.set_point = 0.0f;
@@ -63,9 +62,10 @@ void motors_init(void)
     /* 编码器 */
     __HAL_TIM_SET_COUNTER(&htim5, 0);
     __HAL_TIM_CLEAR_IT(&htim5, TIM_IT_UPDATE);
-    __HAL_TIM_ENABLE_IT(&htim5, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE(&htim5);
     HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL);
+    motors[0]->ticks_overflow =
+        (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim5) + 1;
 
 
     /* 马达 2 */
@@ -77,9 +77,10 @@ void motors_init(void)
     /* 编码器 */
     __HAL_TIM_SET_COUNTER(&htim2, 0);
     __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
-    __HAL_TIM_ENABLE_IT(&htim2, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE(&htim2);
     HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+    motors[1]->ticks_overflow =
+        (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim2) + 1;
 
     /* 马达 3 */
     motors[2]->set_pulse = motor3_set_pulse;
@@ -90,9 +91,10 @@ void motors_init(void)
     /* 编码器 */
     __HAL_TIM_SET_COUNTER(&htim4, 0);
     __HAL_TIM_CLEAR_IT(&htim4, TIM_IT_UPDATE);
-    __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE(&htim4);
     HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
+    motors[2]->ticks_overflow =
+        (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim4) + 1;
 
     /* 马达 4 */
     motors[3]->set_pulse = motor4_set_pulse;
@@ -106,9 +108,10 @@ void motors_init(void)
     /* 编码器 */
     __HAL_TIM_SET_COUNTER(&htim3, 0);
     __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_UPDATE);
-    __HAL_TIM_ENABLE_IT(&htim3, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE(&htim3);
-    HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
+    HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+    motors[3]->ticks_overflow =
+        (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim3) + 1;
 
 
     // 测速更新定时器
@@ -122,6 +125,8 @@ void motors_init(void)
 
 static void motor1_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
 {
+    (void)self;
+
     if(speed > 0) {
         __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0);
         __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, speed);
@@ -139,6 +144,8 @@ static void motor1_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
 
 static void motor2_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
 {
+    (void)self;
+
     if(speed > 0) {
         __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
         __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, speed);
@@ -155,6 +162,8 @@ static void motor2_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
 
 static void motor3_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
 {
+    (void)self;
+
     HAL_TIM_PWM_Stop(&htim9, TIM_CHANNEL_1);
     HAL_TIM_PWM_Stop(&htim9, TIM_CHANNEL_2);
     if(speed > 0) {
@@ -173,6 +182,8 @@ static void motor3_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
 
 static void motor4_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
 {
+    (void)self;
+
     HAL_TIM_PWM_Stop(&htim10, TIM_CHANNEL_1);
     HAL_TIM_PWM_Stop(&htim11, TIM_CHANNEL_1);
     if(speed > 0) {

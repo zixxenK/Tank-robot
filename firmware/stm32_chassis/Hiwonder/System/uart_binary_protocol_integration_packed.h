@@ -36,15 +36,14 @@ void binary_protocol_process_dma_buffer(void);
  * - DMA buffer processing
  * - Timeout checking
  * - Motor command processing
- * - Telemetry transmission
+ * - Motor PID update and watchdog refresh
  */
 void binary_protocol_main_task(void);
 
 /**
- * @brief Update and send telemetry
- * Reads sensors and transmits telemetry burst
+ * @brief Sample sensors and enqueue telemetry at 50Hz
  */
-void binary_protocol_update_and_send_telemetry(void);
+void binary_protocol_telemetry_task(void);
 
 /**
  * @brief Trigger emergency stop (external trigger)

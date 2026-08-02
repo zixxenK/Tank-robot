@@ -3,11 +3,11 @@
 # stm32 python sdk
 import enum
 import time
-import copy
 import queue
 import struct
 import serial
 import threading
+
 
 class PacketControllerState(enum.IntEnum):
     # 通信协议的格式
@@ -19,6 +19,7 @@ class PacketControllerState(enum.IntEnum):
     PACKET_CONTROLLER_STATE_ID = 4
     PACKET_CONTROLLER_STATE_DATA = 5
     PACKET_CONTROLLER_STATE_CHECKSUM = 6
+
 
 class PacketFunction(enum.IntEnum):
     # 可通过串口实现的控制功能
@@ -34,6 +35,7 @@ class PacketFunction(enum.IntEnum):
     PACKET_FUNC_SBUS = 9  # 航模遥控获取
     PACKET_FUNC_NONE = 10
 
+
 class PacketReportKeyEvents(enum.IntEnum):
     # 按键的不同状态
     KEY_EVENT_PRESSED = 0x01
@@ -42,8 +44,9 @@ class PacketReportKeyEvents(enum.IntEnum):
     KEY_EVENT_RELEASE_FROM_LP = 0x08
     KEY_EVENT_RELEASE_FROM_SP = 0x10
     KEY_EVENT_CLICK = 0x20
-    KEY_EVENT_DOUBLE_CLICK= 0x40
+    KEY_EVENT_DOUBLE_CLICK = 0x40
     KEY_EVENT_TRIPLE_CLICK = 0x80
+
 
 crc8_table = [
     0, 94, 188, 226, 97, 63, 221, 131, 194, 156, 126, 32, 163, 253, 31, 65,
@@ -64,6 +67,7 @@ crc8_table = [
     116, 42, 200, 150, 21, 75, 169, 247, 182, 232, 10, 84, 215, 137, 107, 53
 ]
 
+
 def checksum_crc8(data):
     # 校验
     check = 0
@@ -71,28 +75,30 @@ def checksum_crc8(data):
         check = crc8_table[check ^ b]
     return check & 0x00FF
 
+
 class SBusStatus:
     def __init__(self):
-        self.channels = [0] * 16;
+        self.channels = [0] * 16
         self.channel_17 = False
         self.channel_18 = False
         self.signal_loss = True
         self.fail_safe = False
 
+
 class Board:
     buttons_map = {
-            'GAMEPAD_BUTTON_MASK_L2':        0x0001,
-            'GAMEPAD_BUTTON_MASK_R2':        0x0002,
-            'GAMEPAD_BUTTON_MASK_SELECT':    0x0004,
-            'GAMEPAD_BUTTON_MASK_START':     0x0008,
-            'GAMEPAD_BUTTON_MASK_L3':        0x0020,
-            'GAMEPAD_BUTTON_MASK_R3':        0x0040,
-            'GAMEPAD_BUTTON_MASK_CROSS':     0x0100,
-            'GAMEPAD_BUTTON_MASK_CIRCLE':    0x0200,
-            'GAMEPAD_BUTTON_MASK_SQUARE':    0x0800,
-            'GAMEPAD_BUTTON_MASK_TRIANGLE':  0x1000,
-            'GAMEPAD_BUTTON_MASK_L1':        0x4000,
-            'GAMEPAD_BUTTON_MASK_R1':        0x8000
+        'GAMEPAD_BUTTON_MASK_L2': 0x0001,
+        'GAMEPAD_BUTTON_MASK_R2': 0x0002,
+        'GAMEPAD_BUTTON_MASK_SELECT': 0x0004,
+        'GAMEPAD_BUTTON_MASK_START': 0x0008,
+        'GAMEPAD_BUTTON_MASK_L3': 0x0020,
+        'GAMEPAD_BUTTON_MASK_R3': 0x0040,
+        'GAMEPAD_BUTTON_MASK_CROSS': 0x0100,
+        'GAMEPAD_BUTTON_MASK_CIRCLE': 0x0200,
+        'GAMEPAD_BUTTON_MASK_SQUARE': 0x0800,
+        'GAMEPAD_BUTTON_MASK_TRIANGLE': 0x1000,
+        'GAMEPAD_BUTTON_MASK_L1': 0x4000,
+        'GAMEPAD_BUTTON_MASK_R1': 0x8000
     }
 
     def __init__(self, device="/dev/ttyACM0", baudrate=1000000, timeout=5):
@@ -104,7 +110,7 @@ class Board:
         self.state = PacketControllerState.PACKET_CONTROLLER_STATE_STARTBYTE1
         self.servo_read_lock = threading.Lock()
         self.pwm_servo_read_lock = threading.Lock()
-        
+
         self.sys_queue = queue.Queue(maxsize=1)
         self.bus_servo_queue = queue.Queue(maxsize=1)
         self.pwm_servo_queue = queue.Queue(maxsize=1)
@@ -213,8 +219,8 @@ class Board:
                 gamepad_data = struct.unpack("<HB4b", self.gamepad_queue.get(block=False))
                 # 'lx', 'ly', 'rx', 'ry', 'r2', 'l2', 'hat_x', 'hat_y'
                 axes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                # 'cross', 'circle', '', 'square', 'triangle', '', 'l1', 'r1', 'l2', 'r2', 'select', 'start', '', 'l3', 'r3', ''
-                buttons = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] 
+                # Button order follows the controller protocol's 16-bit mask.
+                buttons = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                 for b in self.buttons_map:
                     if self.buttons_map[b] & gamepad_data[0]:
                         if b == 'GAMEPAD_BUTTON_MASK_R2':
@@ -237,7 +243,7 @@ class Board:
                             buttons[10] = 1
                         elif b == 'GAMEPAD_BUTTON_MASK_START':
                             buttons[11] = 1
-               
+
                 if gamepad_data[2] > 0:
                     axes[0] = -gamepad_data[2] / 127
                 elif gamepad_data[2] < 0:
@@ -257,12 +263,12 @@ class Board:
                     axes[3] = gamepad_data[5] / 127
                 elif gamepad_data[5] < 0:
                     axes[3] = gamepad_data[5] / 128
-            
+
                 if gamepad_data[1] == 9:
                     axes[6] = 1.0
                 elif gamepad_data[1] == 13:
                     axes[6] = -1.0
-                
+
                 if gamepad_data[1] == 11:
                     axes[7] = -1.0
                 elif gamepad_data[1] == 15:
@@ -279,7 +285,8 @@ class Board:
             try:
                 sbus_data = self.sbus_queue.get(block=False)
                 status = SBusStatus()
-                *status.channels, ch17, ch18, sig_loss, fail_safe = struct.unpack("<16hBBBB", sbus_data)
+                values = struct.unpack("<16hBBBB", sbus_data)
+                *status.channels, ch17, ch18, sig_loss, fail_safe = values
                 status.channel_17 = ch17 != 0
                 status.channel_18 = ch18 != 0
                 status.signal_loss = sig_loss != 0
@@ -293,7 +300,7 @@ class Board:
                     data[7] = 0
                 else:
                     for i in status.channels:
-                        data.append((i - 192)/(1792 - 192))
+                        data.append((i - 192) / (1792 - 192))
                 return data
             except queue.Empty:
                 return None
@@ -309,14 +316,28 @@ class Board:
         self.port.write(buf)
 
     def set_led(self, on_time, off_time, repeat=1, led_id=1):
-        on_time = int(on_time*1000)
-        off_time = int(off_time*1000)
-        self.buf_write(PacketFunction.PACKET_FUNC_LED, struct.pack("<BHHH", led_id, on_time, off_time, repeat))
+        on_time = int(on_time * 1000)
+        off_time = int(off_time * 1000)
+        self.buf_write(
+            PacketFunction.PACKET_FUNC_LED,
+            struct.pack(
+                "<BHHH",
+                led_id,
+                on_time,
+                off_time,
+                repeat))
 
     def set_buzzer(self, freq, on_time, off_time, repeat=1):
-        on_time = int(on_time*1000)
-        off_time = int(off_time*1000)
-        self.buf_write(PacketFunction.PACKET_FUNC_BUZZER, struct.pack("<HHHH", freq, on_time, off_time, repeat))
+        on_time = int(on_time * 1000)
+        off_time = int(off_time * 1000)
+        self.buf_write(
+            PacketFunction.PACKET_FUNC_BUZZER,
+            struct.pack(
+                "<HHHH",
+                freq,
+                on_time,
+                off_time,
+                repeat))
 
     def set_motor_speed(self, speeds):
         data = [0x01, len(speeds)]
@@ -330,7 +351,7 @@ class Board:
         for i in positions:
             data.extend(struct.pack("<BH", i[0], i[1]))
         self.buf_write(PacketFunction.PACKET_FUNC_PWM_SERVO, data)
-    
+
     def pwm_servo_set_offset(self, servo_id, offset):
         data = struct.pack("<BBb", 0x07, servo_id, int(offset))
         self.buf_write(PacketFunction.PACKET_FUNC_PWM_SERVO, data)
@@ -387,13 +408,14 @@ class Board:
         time.sleep(0.02)
 
     def bus_servo_stop(self, servo_id):
-        data = [0x03, len(servo_id)] 
-        data.extend(struct.pack("<"+'B'*len(servo_id), *servo_id))
+        data = [0x03, len(servo_id)]
+        data.extend(struct.pack("<" + 'B' * len(servo_id), *servo_id))
         self.buf_write(PacketFunction.PACKET_FUNC_BUS_SERVO, data)
 
     def bus_servo_set_position(self, duration, positions):
         duration = int(duration * 1000)
-        data = [0x01, duration & 0xFF, 0xFF & (duration >> 8), len(positions)] # 0x00 is bus servo sub command
+        data = [0x01, duration & 0xFF, 0xFF & (duration >> 8), len(
+            positions)]  # 0x00 is bus servo sub command
         for i in positions:
             data.extend(struct.pack("<BH", i[0], i[1]))
         self.buf_write(PacketFunction.PACKET_FUNC_BUS_SERVO, data)
@@ -411,13 +433,13 @@ class Board:
 
     def bus_servo_read_offset(self, servo_id):
         return self.bus_servo_read_and_unpack(servo_id, 0x22, "<BBbb")
-    
+
     def bus_servo_read_position(self, servo_id):
         return self.bus_servo_read_and_unpack(servo_id, 0x05, "<BBbh")
 
     def bus_servo_read_vin(self, servo_id):
         return self.bus_servo_read_and_unpack(servo_id, 0x07, "<BBbH")
-    
+
     def bus_servo_read_temp(self, servo_id):
         return self.bus_servo_read_and_unpack(servo_id, 0x09, "<BBbB")
 
@@ -489,6 +511,7 @@ class Board:
         self.port.close()
         print("END...")
 
+
 def bus_servo_test(board):
     board.bus_servo_set_position(1, [[1, 500], [2, 500]])
     time.sleep(1)
@@ -496,17 +519,17 @@ def bus_servo_test(board):
     time.sleep(1)
     board.bus_servo_stop([1, 2])
     time.sleep(1)
-    
+
     servo_id = 1
     board.bus_servo_set_id(254, servo_id)
     servo_id = board.bus_servo_read_id()
     if servo_id is not None:
         servo_id = servo_id[0]
-        
+
         offset_set = -10
         board.bus_servo_set_offset(servo_id, offset_set)
         board.bus_servo_save_offset(servo_id)
-        
+
         vin_l, vin_h = 4500, 14500
         board.bus_servo_set_vin_limit(servo_id, [vin_l, vin_h])
 
@@ -515,7 +538,7 @@ def bus_servo_test(board):
 
         angle_l, angle_h = 0, 1000
         board.bus_servo_set_angle_limit(servo_id, [angle_l, angle_h])
-        
+
         board.bus_servo_enable_torque(servo_id, 1)
 
         print('id:', board.bus_servo_read_id(servo_id))
@@ -528,12 +551,14 @@ def bus_servo_test(board):
         print('temp_limit:', board.bus_servo_read_temp_limit(servo_id), temp_limit)
         print('torque_state:', board.bus_servo_read_torque_state(servo_id))
 
+
 def pwm_servo_test(board):
     servo_id = 1
     board.pwm_servo_set_position(0.5, [[servo_id, 1500]])
     board.pwm_servo_set_offset(servo_id, 0)
     print('offset:', board.pwm_servo_read_offset(servo_id))
     print('position:', board.pwm_servo_read_position(servo_id))
+
 
 if __name__ == "__main__":
     board = Board()
@@ -550,17 +575,17 @@ if __name__ == "__main__":
         try:
             # res = board.get_imu()
             # if res is not None:
-                # print(res)
+            # print(res)
             # res = board.get_button()
             # if res is not None:
-                # print(res)
+            # print(res)
             # data = board.get_gamepad()
             # if data is not None:
-                # print(data[0])
-                # print(data[1])
+            # print(data[0])
+            # print(data[1])
             # res = board.get_sbus()
             # if res is not None:
-                # print(res)
+            # print(res)
             res = board.get_battery()
             if res is not None:
                 print(res)

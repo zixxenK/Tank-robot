@@ -1,7 +1,7 @@
 {
-  "include": ["firmware", "host_ws", "ros2_ws", "scripts", "docs"],
+  "include": ["firmware", "host_ws", "scripts", "docs"],
   "extraPaths": ["stubs"],
-  "exclude": ["**/build", "**/build-ninja", "**/__pycache__", "**/.venv", "**/install", "**/log", "host_ws/src/robot_teleop/robot_teleop/ps5_ros_bridge.py", "ros2_ws/src/robot_teleop/robot_teleop/ps5_ros_bridge.py"],
+  "exclude": ["**/build", "**/build-ninja", "**/__pycache__", "**/.venv", "**/install", "**/log", "host_ws/src/robot_teleop/robot_teleop/ps5_ros_bridge.py"],
   "typeCheckingMode": "basic",
   "reportMissingImports": false,
   "reportMissingModuleSource": false,

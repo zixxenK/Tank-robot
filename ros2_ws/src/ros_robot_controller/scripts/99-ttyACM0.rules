@@ -1,5 +1,0 @@
-# Rock64 Ranger — QinHeng CH552 USB-CDC UART (1a86:55d4) for STM32 motor controller
-# Creates /dev/rock64_stm32 symlink, sets open permissions, and suppresses ModemManager.
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", \
-  SYMLINK+="rock64_stm32", GROUP="dialout", MODE="0664", \
-  ENV{ID_MM_PORT_IGNORE}="1"

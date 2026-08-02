@@ -22,9 +22,18 @@
 */
 void encoder_update(EncoderMotorObjectTypeDef *self, float period, int64_t counter)
 {
-    counter = counter + self->overflow_num * self->ticks_overflow; /* 总的计数值, 60000 根据实际设置的定时器溢出值 */
-    int delta_count = counter - self->counter;
-    self->counter = counter; /* 存储新的计数值 */
+    int64_t delta_count = counter - self->counter;
+
+    if (self->ticks_overflow > 0) {
+        int64_t half_modulus = self->ticks_overflow / 2;
+        if (delta_count > half_modulus) {
+            delta_count -= self->ticks_overflow;
+        } else if (delta_count < -half_modulus) {
+            delta_count += self->ticks_overflow;
+        }
+    }
+
+    self->counter = counter;
     self->tps = (float)delta_count / period * 0.9f + self->tps * 0.1f; /* 计算脉冲频率 */
     self->rps = self->tps / self->ticks_per_circle; /* 计算转速 单位rps, 转每秒 */
 }

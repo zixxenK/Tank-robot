@@ -2,52 +2,41 @@
  * @file uart_binary_protocol_integration_packed.c
  * @brief Production integration example for packed binary protocol
  * 
- * This file demonstrates how to integrate the packed binary protocol with:
- * 1. DMA circular buffer for USART3
- * 2. Hardware timer for timeout protection
- * 3. Main loop or FreeRTOS task integration
- * 4. Actual chassis control
+ * This file integrates the packed binary protocol with:
+ * 1. DMA circular reception on USART2
+ * 2. HAL tick based command and heartbeat timeouts
+ * 3. FreeRTOS task integration
+ * 4. Actual motor control
  * 
  * HARDWARE CONFIGURATION:
- * - USART3: PD8 (TX), PD9 (RX) for Master communication
- * - DMA1_Stream1: USART3_RX (Circular mode)
- * - DMA1_Stream3: USART3_TX (Normal mode)
- * - TIM2: Hardware watchdog timer (1ms period)
+ * - USART2: Rock64 host link at 115200 baud
+ * - DMA1_Stream5: USART2_RX (circular mode)
+ * - DMA1_Stream6: USART2_TX
+ * - TIM2: Motor 2 quadrature encoder; never reconfigured here
  */
 
 #include "uart_binary_protocol_packed.h"
 #include "motor_control.h"
-#include "chassis.h"
 #include "encoder_motor.h"
 #include "adc.h"
 #include "imu_mpu6050.h"
 #include "imu_integration.h"
 #include "battery_integration.h"
 #include "status_integration.h"
+#include "watchdog.h"
 #include "main.h"
 #include "usart.h"
 #include "tim.h"
 #include <string.h>
 
-// External DMA handles from STM32CubeMX (usart.c)
-extern DMA_HandleTypeDef hdma_usart3_rx;
-extern DMA_HandleTypeDef hdma_usart3_tx;
-
-// Forward declarations
-void binary_protocol_update_and_send_telemetry(void);
+extern DMA_HandleTypeDef hdma_usart2_rx;
+extern DMA_HandleTypeDef hdma_usart2_tx;
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
 // ============================================================================
 
 static BinaryProtocolContext protocol_ctx;
-
-// ============================================================================
-// ENCODER STATE
-// ============================================================================
-
-static int32_t last_left_encoder = 0;
-static int32_t last_right_encoder = 0;
 
 // ============================================================================
 // INTEGRATION INITIALIZATION
@@ -74,23 +63,12 @@ void binary_protocol_integration_init_packed(void) {
                                &huart2,           // USART2 for Master TX/RX (matches host expectation)
                                &hdma_usart2_rx,   // DMA1_Stream5 for RX
                                &hdma_usart2_tx,   // DMA1_Stream6 for TX
-                               &htim2,            // TIM2 for watchdog
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
     
-    // Configure TIM2 for 1ms period (assuming 84MHz APB1 clock)
-    // Prescaler: 84MHz / 84 = 1MHz
-    // Period: 1MHz / 1000 = 1kHz (1ms)
-    htim2.Init.Prescaler = 84 - 1;
-    htim2.Init.Period = 1000 - 1;
-    HAL_TIM_Base_Init(&htim2);
-    
-    // Start TIM2
-    HAL_TIM_Base_Start(&htim2);
-    
-    // Initialize encoder reading from motor control layer
-    last_left_encoder = MotorControl_GetEncoderCount(0);
-    last_right_encoder = MotorControl_GetEncoderCount(1);
+    if (!Watchdog_Init()) {
+        Error_Handler();
+    }
 }
 
 // ============================================================================
@@ -110,16 +88,16 @@ void binary_protocol_main_task(void) {
     binary_protocol_process_dma_buffer();
     
     // Check for timeouts
-    if (binary_protocol_check_timeouts(&protocol_ctx)) {
-        // Timeout occurred - emergency stop already triggered
-        // Additional recovery logic if needed
+    if (binary_protocol_check_timeouts(&protocol_ctx) ||
+        protocol_ctx.emergency_stop_active) {
+        MotorControl_EmergencyStop();
     }
     
     // Process motor commands
-    MotorCommandEntry motor_commands[8];
+    MotorCommandEntry motor_commands[MOTOR_COMMAND_CAPACITY];
     uint8_t motor_count = binary_protocol_get_motor_commands(&protocol_ctx,
                                                              motor_commands,
-                                                             8);
+                                                             MOTOR_COMMAND_CAPACITY);
     
     if (motor_count > 0) {
         // Apply motor commands using our motor control layer
@@ -140,15 +118,14 @@ void binary_protocol_main_task(void) {
     // Update motor control loop (100Hz PID control)
     MotorControl_Update(CONTROL_PERIOD_SEC);
     
-    // Update and send telemetry
-    binary_protocol_update_and_send_telemetry();
+    Watchdog_Refresh();
 }
 
 // ============================================================================
 // TELEMETRY UPDATE AND TRANSMISSION
 // ============================================================================
 
-void binary_protocol_update_and_send_telemetry(void) {
+void binary_protocol_telemetry_task(void) {
     // Read encoder values from motor control layer
     int32_t left_encoder = MotorControl_GetEncoderCount(0);   // Motor 0 (left)
     int32_t right_encoder = MotorControl_GetEncoderCount(1);  // Motor 1 (right)
@@ -202,13 +179,7 @@ void binary_protocol_update_and_send_telemetry(void) {
     // Send telemetry burst
     binary_protocol_send_telemetry_burst(&protocol_ctx);
     
-    // Update status peripherals (10ms period)
-    static uint32_t last_status_update = 0;
-    uint32_t current_time = HAL_GetTick();
-    if (current_time - last_status_update >= 10) {
-        Status_Update(10);  // 10ms period
-        last_status_update = current_time;
-    }
+    Status_Update(20);
 }
 
 // ============================================================================
@@ -220,7 +191,7 @@ void binary_protocol_update_and_send_telemetry(void) {
  * Called when DMA transfer completes (for circular buffer, this indicates buffer wrap)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART3) {
+    if (huart->Instance == USART2) {
         // DMA circular buffer handling is automatic
         // The main loop will process the data via binary_protocol_process_dma()
     }
@@ -230,8 +201,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  * @brief UART TX Complete callback
  */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART3) {
-        protocol_ctx.tx_busy = false;
+    if (huart->Instance == USART2) {
+        binary_protocol_tx_complete(&protocol_ctx);
     }
 }
 
@@ -285,7 +256,7 @@ void binary_protocol_task(void *argument) {
  *     HAL_Init();
  *     SystemClock_Config();
  *     MX_GPIO_Init();
- *     MX_USART3_UART_Init();
+ *     MX_USART2_UART_Init();
  *     MX_DMA_Init();
  *     MX_TIM2_Init();
  *     

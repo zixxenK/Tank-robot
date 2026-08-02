@@ -30,6 +30,9 @@ class Node:
     def create_subscription(self, _msg_type, _topic, _callback, _qos_profile):
         return object()
 
+    def create_service(self, _srv_type, _service, _callback):
+        return object()
+
     def create_timer(self, _timer_period_sec, _callback):
         return Timer()
 

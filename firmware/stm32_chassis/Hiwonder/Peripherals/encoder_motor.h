@@ -21,9 +21,9 @@ typedef struct EncoderMotorObject EncoderMotorObjectTypeDef;
  * @brief 编码器电机对象结构体
 */
 struct EncoderMotorObject{
-    int64_t counter;        /**< @brief 总计数值, 64bit 认为不会溢出 */
-    int64_t overflow_num;   /**< @brief 溢出计数 */
-    int32_t ticks_overflow; /**< @brief 计数溢出值 */
+    int64_t counter;        /**< @brief 上一次硬件计数值 */
+    int64_t overflow_num;   /**< @brief 保留字段 */
+    int32_t ticks_overflow; /**< @brief 硬件计数器模数 (ARR + 1) */
     float tps;              /**< @brief ticks per second 计数器频率 */
     float rps;              /**< @brief revolutions per second 输出轴转速 转每秒 */
     int current_pulse;      /**< @brief 当前输出的PWM值, 有符号对应正反转 */

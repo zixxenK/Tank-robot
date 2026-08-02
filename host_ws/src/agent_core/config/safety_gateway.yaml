@@ -1,0 +1,23 @@
+/**:
+  ros__parameters:
+    max_linear_speed: 0.5
+    max_angular_speed: 1.0
+    max_linear_acceleration: 2.0
+    max_angular_acceleration: 4.0
+    teleop_command_timeout: 0.25
+    agent_command_timeout: 0.1
+    agent_heartbeat_timeout: 0.1
+    output_rate_hz: 50.0
+    monitor_battery: true
+    battery_timeout: 1.0
+    minimum_battery_voltage: 10.5
+    critical_battery_voltage: 9.5
+    battery_recovery_voltage: 10.0
+    battery_recovery_time: 2.0
+    teleop_command_topic: /cmd_vel
+    agent_command_topic: /agent/cmd_vel_proposed
+    safe_command_topic: /ranger/cmd_vel_safe
+    estop_topic: /safety/e_stop
+    agent_heartbeat_topic: /agent/heartbeat
+    battery_topic: /stm32/battery
+    battery_reset_service: /safety/reset_battery_latch

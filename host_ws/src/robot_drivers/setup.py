@@ -22,9 +22,6 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "chassis_bridge = robot_drivers.chassis_bridge:main",
-            "stm32_serial_bridge = robot_drivers.stm32_serial_bridge:main",
-            "stm32_binary_bridge = robot_drivers.stm32_binary_bridge:main",
             "stm32_hardened_bridge = robot_drivers.stm32_hardened_bridge:main",
             "esp32_camera_bridge = robot_drivers.esp32_camera_bridge:main",
             "motor_bringup_test = robot_drivers.motor_bringup_test:main",

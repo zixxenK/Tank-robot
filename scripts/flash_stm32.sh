@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FIRMWARE_DIR="${REPO_ROOT}/firmware/stm32_chassis"
 BUILD_DIR="${FIRMWARE_DIR}/build/Debug"
-ELF_FILE="${BUILD_DIR}/factoryfirmwarestm32.elf"
+ELF_FILE="${BUILD_DIR}/rock64_ranger_fw.elf"
 
 DO_BUILD=false
 DO_VERIFY=false
@@ -33,8 +33,8 @@ fi
 if [[ "${DO_BUILD}" == true ]]; then
   echo "[flash] Building firmware..."
   cd "${FIRMWARE_DIR}"
-  cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake
-  cmake --build build -j4
+  cmake --preset Debug
+  cmake --build --preset Debug -j4
 fi
 
 if [[ ! -f "${ELF_FILE}" ]]; then
@@ -45,7 +45,7 @@ fi
 
 echo "[flash] Flashing ${ELF_FILE} via ST-Link/OpenOCD..."
 
-BIN_FILE="${BUILD_DIR}/factoryfirmwarestm32.bin"
+BIN_FILE="${BUILD_DIR}/rock64_ranger_fw.bin"
 PROGRAM_CMD="program \"${BIN_FILE}\" 0x8000000"
 if [[ "${DO_VERIFY}" == true ]]; then
   PROGRAM_CMD+=" verify"

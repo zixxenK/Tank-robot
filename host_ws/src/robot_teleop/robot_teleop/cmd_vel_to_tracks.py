@@ -3,7 +3,7 @@
 
 This node keeps tank-drive math centralized on the Rock64 and publishes
 normalized per-track commands in the range [-1.0, 1.0] for expansion hubs
-or micro-ROS clients that prefer direct track setpoints.
+or consumers that prefer explicit track setpoints.
 """
 
 import rclpy

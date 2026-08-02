@@ -30,7 +30,7 @@ done
 
 echo "❌ ARM toolchain not found in common locations"
 echo ""
-echo "You need to install the ARM toolchain to build micro-ROS library."
+echo "You need the ARM GNU toolchain to build the STM32 firmware."
 echo ""
 echo "Option 1: Install locally without sudo:"
 echo "  cd ~"

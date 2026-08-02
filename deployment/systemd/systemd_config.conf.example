@@ -20,17 +20,8 @@ CAMERA_IP_STATION=192.168.1.125
 # Set to true to launch the ESP32 camera bridge node
 USE_CAMERA_BRIDGE=false
 
-# ── Control mode ──────────────────────────────────────────────────────────
-# USE_MICRO_ROS=false  → legacy Python serial bridge (default; works without
-#                        micro-ROS firmware on the STM32)
-# USE_MICRO_ROS=true   → micro-ROS agent; requires STM32 micro-ROS firmware
-USE_MICRO_ROS=false
-USE_LEGACY_BRIDGES=true
-
-# micro-ROS serial device (used when USE_MICRO_ROS=true)
-MICRO_ROS_DEV=/dev/rock64_stm32
-MICRO_ROS_BAUD=115200
-MICRO_ROS_TRANSPORT=serial
+# Set false only for host-side simulation or mocked integration tests.
+USE_HARDWARE_BRIDGE=true
 
 # ── ROS2 ───────────────────────────────────────────────────────────────────
 # Set to: humble or auto (auto mode supports Ubuntu 22.04 only)

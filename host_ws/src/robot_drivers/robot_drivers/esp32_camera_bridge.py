@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""esp32_camera_bridge.py — ESP32 MJPEG stream → /camera/image_raw bridge.
+"""
+Bridge the ESP32 MJPEG stream to /camera/image_raw.
 
 Connects to the ESP32-S3 camera's MJPEG HTTP stream, decodes each JPEG
 frame, and publishes it as a sensor_msgs/Image on /camera/image_raw.
@@ -23,11 +24,11 @@ class ESP32CameraBridge(Node):
     def __init__(self):
         super().__init__("esp32_camera_bridge")
 
-        self.declare_parameter("camera_ip",   "192.168.1.125")
+        self.declare_parameter("camera_ip", "192.168.1.125")
         self.declare_parameter("stream_port", 81)
         self.declare_parameter("stream_path", "/stream")
 
-        ip   = self.get_parameter("camera_ip").value
+        ip = self.get_parameter("camera_ip").value
         port = self.get_parameter("stream_port").value
         path = self.get_parameter("stream_path").value
 
@@ -36,8 +37,7 @@ class ESP32CameraBridge(Node):
         self._running = True
         self._bridge = CvBridge()
 
-        self._thread = threading.Thread(target=self._stream_loop,
-                                        daemon=True)
+        self._thread = threading.Thread(target=self._stream_loop, daemon=True)
         self._thread.start()
         self.get_logger().info(f"Camera bridge connecting to {self._url}")
 
@@ -68,7 +68,7 @@ class ESP32CameraBridge(Node):
                                 buf = boundary + after
                                 break
                             jpeg = payload[:next_bound].rstrip(b"\r\n")
-                            buf  = payload[next_bound:]
+                            buf = payload[next_bound:]
                             self._publish_frame(jpeg)
 
             except Exception as exc:  # noqa: BLE001
@@ -79,8 +79,9 @@ class ESP32CameraBridge(Node):
                     time.sleep(2.0)
 
     def _publish_frame(self, jpeg_bytes: bytes):
-        frame = cv2.imdecode(np.frombuffer(jpeg_bytes, dtype=np.uint8),
-                             cv2.IMREAD_COLOR)
+        frame = cv2.imdecode(
+            np.frombuffer(jpeg_bytes, dtype=np.uint8), cv2.IMREAD_COLOR
+        )
         if frame is None:
             self.get_logger().warn("Dropped invalid JPEG frame from ESP32")
             return

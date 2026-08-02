@@ -26,7 +26,6 @@
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
-#include "usb_host.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -36,6 +35,7 @@
 #include "battery_integration.h"
 #include "status_integration.h"
 #include "motor_control.h"
+#include "watchdog.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -87,6 +87,7 @@ int main(void)
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+  Watchdog_CaptureResetCause();
 
   /* USER CODE BEGIN Init */
 

@@ -46,7 +46,7 @@ echo ""
 echo "Launching manually for 10 seconds to capture errors..."
 timeout 10 ros2 launch robot_bringup rock64_bringup.launch.py \
   serial_port:="$SERIAL_PORT" \
-  use_legacy_bridges:=true 2>&1 || echo "Launch failed or timed out"
+  use_hardware_bridge:=true 2>&1 || echo "Launch failed or timed out"
 
 echo ""
 echo "=========================================="

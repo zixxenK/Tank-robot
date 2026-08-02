@@ -27,11 +27,21 @@ extern TIM_HandleTypeDef htim3;  // Motor 4 encoder
 extern TIM_HandleTypeDef htim4;  // Motor 3 encoder
 extern TIM_HandleTypeDef htim5;  // Motor 1 encoder
 
+void motors_init(void);
+
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
 void MotorControl_Init(void) {
+    static bool initialized = false;
+
+    if (initialized) {
+        return;
+    }
+
+    motors_init();
+
     // Clear motor state
     memset(motor_states, 0, sizeof(motor_states));
     
@@ -39,9 +49,8 @@ void MotorControl_Init(void) {
     for (int i = 0; i < MOTOR_COUNT; i++) {
         motor_states[i].enabled = true;
     }
-    
-    // Note: Hiwonder motors are already initialized by motors_init()
-    // which is called from the main system initialization
+
+    initialized = true;
 }
 
 // ============================================================================
@@ -135,13 +144,20 @@ void MotorControl_Update(float period) {
 // ============================================================================
 
 void MotorControl_EmergencyStop(void) {
-    // Set all target RPS to 0
     for (int i = 0; i < MOTOR_COUNT; i++) {
-        MotorControl_SetTargetRPS(i, 0.0f);
+        motor_states[i].target_rps = 0.0f;
+
+        if (motors[i] == NULL) {
+            continue;
+        }
+
+        motors[i]->pid_controller.set_point = 0.0f;
+        motors[i]->pid_controller.previous_0_err = 0.0f;
+        motors[i]->pid_controller.previous_1_err = 0.0f;
+        motors[i]->pid_controller.output = 0.0f;
+        motors[i]->current_pulse = 0;
+        motors[i]->set_pulse(motors[i], 0);
     }
-    
-    // Force immediate update to bring motors to halt
-    MotorControl_Update(CONTROL_PERIOD_SEC);
 }
 
 // ============================================================================

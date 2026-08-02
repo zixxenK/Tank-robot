@@ -29,7 +29,7 @@ export PATH=$HOME/tools/gcc-arm-none-eabi-10.3-2021.10/bin:$PATH
 # Add to .bashrc for persistence
 if ! grep -q "gcc-arm-none-eabi-10.3-2021.10/bin" ~/.bashrc; then
     echo "" >> ~/.bashrc
-    echo "# ARM toolchain for micro-ROS" >> ~/.bashrc
+    echo "# ARM toolchain for STM32 firmware" >> ~/.bashrc
     echo "export PATH=\$HOME/tools/gcc-arm-none-eabi-10.3-2021.10/bin:\$PATH" >> ~/.bashrc
     echo "Added ARM toolchain to PATH in ~/.bashrc"
 fi

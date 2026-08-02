@@ -5,11 +5,7 @@ SHELL := /bin/bash
 
 REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 FIRMWARE_DIR := $(REPO_ROOT)/firmware/stm32_chassis
-ifneq (,$(wildcard $(REPO_ROOT)/host_ws/src))
 HOST_WS := $(REPO_ROOT)/host_ws
-else
-HOST_WS := $(REPO_ROOT)/ros2_ws
-endif
 
 .PHONY: help stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
 
@@ -38,9 +34,6 @@ stm32-build: stm32-config
 
 stm32-flash:
 	@bash "$(REPO_ROOT)/scripts/flash_stm32.sh"
-
-microros-build:
-	@bash "$(REPO_ROOT)/scripts/build_microros.sh"
 
 host-build:
 	@cd "$(HOST_WS)" && colcon build --symlink-install
