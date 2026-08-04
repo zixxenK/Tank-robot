@@ -118,6 +118,15 @@ int main(void)
   // Additional initialization if needed
   // Motor control is initialized by binary_protocol_integration_init_packed()
   
+  // --- TEMPORARY HARDWARE SERIAL TEST ---
+  uint8_t test_data[] = "STM32_USART1_TEST\r\n";
+  while (1) 
+  {
+      HAL_UART_Transmit(&huart1, test_data, sizeof(test_data)-1, 100);
+      HAL_Delay(500); // Wait half a second
+  }
+  // --------------------------------------
+  
   /* USER CODE END 2 */
   
   MX_SPI2_Init();
