@@ -62,9 +62,9 @@ void binary_protocol_integration_init_packed(void) {
     
     // Initialize protocol with packed structures
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart3,           // USART3 on MASTER_TX/RX header
-                               &hdma_usart3_rx,   // DMA1_Stream1 for RX
-                               &hdma_usart3_tx,   // DMA1_Stream3 for TX
+                               &huart2,           // USART2 — confirmed wired to Rock64 CH340 dongle
+                               &hdma_usart2_rx,   // DMA1_Stream5 for RX
+                               &hdma_usart2_tx,   // DMA1_Stream6 for TX
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
     
@@ -197,7 +197,7 @@ void binary_protocol_telemetry_task(void) {
  * Called when DMA transfer completes (for circular buffer, this indicates buffer wrap)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART3) {
+    if (huart->Instance == USART2) {
         // DMA circular buffer handling is automatic
         // The main loop will process the data via binary_protocol_process_dma()
     }
@@ -207,7 +207,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  * @brief UART TX Complete callback
  */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART3) {
+    if (huart->Instance == USART2) {
         binary_protocol_tx_complete(&protocol_ctx);
     }
 }
