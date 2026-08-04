@@ -133,6 +133,7 @@ int main(void)
   
   // Additional initialization if needed
   // Motor control is initialized by binary_protocol_integration_init_packed()
+  
   /* USER CODE END 2 */
 
   /* Init scheduler */

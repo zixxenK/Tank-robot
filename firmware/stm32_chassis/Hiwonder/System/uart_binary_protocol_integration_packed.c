@@ -9,7 +9,7 @@
  * 4. Actual motor control
  * 
  * HARDWARE CONFIGURATION:
- * - USART2: Rock64 host link at 115200 baud
+ * - USART2: Rock64 host link at 115200 baud (PD5=BLE_TX, PD6=BLE_RX)
  * - DMA1_Stream5: USART2_RX (circular mode)
  * - DMA1_Stream6: USART2_TX
  * - TIM2: Motor 2 quadrature encoder; never reconfigured here
@@ -62,7 +62,7 @@ void binary_protocol_integration_init_packed(void) {
     
     // Initialize protocol with packed structures
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart2,           // USART2 — confirmed wired to Rock64 CH340 dongle
+                               &huart2,           // USART2 for Rock64 host link (PD5/PD6)
                                &hdma_usart2_rx,   // DMA1_Stream5 for RX
                                &hdma_usart2_tx,   // DMA1_Stream6 for TX
                                200,               // 200ms command timeout
