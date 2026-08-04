@@ -157,15 +157,10 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-    // Process serial communication with Rock64
-    // This will be handled by FreeRTOS tasks in MX_FREERTOS_Init()
-    // for now, we can add basic tank chassis task processing
-    osDelay(10);
+  char *test_msg = "ROCK64_RANGER_ALIVE\r\n";
+  while (1) {
+      HAL_UART_Transmit(&huart1, (uint8_t*)test_msg, strlen(test_msg), HAL_MAX_DELAY);
+      HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
