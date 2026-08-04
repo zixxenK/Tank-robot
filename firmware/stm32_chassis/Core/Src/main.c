@@ -104,26 +104,10 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
-  MX_SPI2_Init();
-  MX_TIM1_Init();
-  MX_TIM2_Init();
-  MX_TIM5_Init();
-  MX_TIM9_Init();
-  MX_TIM10_Init();
-  MX_TIM11_Init();
-  MX_I2C2_Init();
-  MX_UART5_Init();
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
   MX_USART6_UART_Init();
-  MX_TIM7_Init();
-  MX_TIM3_Init();
-  MX_TIM4_Init();
-  MX_TIM13_Init();
-  MX_CRC_Init();
-  MX_TIM12_Init();
-  MX_ADC1_Init();
-
+  
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
@@ -135,6 +119,23 @@ int main(void)
   // Motor control is initialized by binary_protocol_integration_init_packed()
   
   /* USER CODE END 2 */
+  
+  MX_SPI2_Init();
+  MX_TIM1_Init();
+  MX_TIM2_Init();
+  MX_TIM5_Init();
+  MX_TIM9_Init();
+  MX_TIM10_Init();
+  MX_TIM11_Init();
+  MX_I2C2_Init();
+  MX_UART5_Init();
+  MX_TIM7_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
+  MX_TIM13_Init();
+  MX_CRC_Init();
+  MX_TIM12_Init();
+  MX_ADC1_Init();
 
   /* Init scheduler */
   osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */

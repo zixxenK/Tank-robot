@@ -9,9 +9,7 @@
  * 4. Actual motor control
  * 
  * HARDWARE CONFIGURATION:
- * - USART2: Rock64 host link at 115200 baud (PD5=BLE_TX, PD6=BLE_RX)
- * - DMA1_Stream5: USART2_RX (circular mode)
- * - DMA1_Stream6: USART2_TX
+ * - USART1: Rock64 host link at 115200 baud (PA9=DBG_TX, PA10=DBG_RX)
  * - TIM2: Motor 2 quadrature encoder; never reconfigured here
  */
 
@@ -28,6 +26,7 @@
 #include "usart.h"
 #include "tim.h"
 #include <string.h>
+#include <math.h>
 
 extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
@@ -61,10 +60,11 @@ void binary_protocol_integration_init_packed(void) {
     Status_StartupSequence();
     
     // Initialize protocol with packed structures
+    // Using USART1 (PA9/PA10) without DMA for Rock64 host link
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart2,           // USART2 for Rock64 host link (PD5/PD6)
-                               &hdma_usart2_rx,   // DMA1_Stream5 for RX
-                               &hdma_usart2_tx,   // DMA1_Stream6 for TX
+                               &huart1,           // USART1 for Rock64 host link (PA9/PA10)
+                               NULL,              // No DMA for USART1
+                               NULL,              // No DMA for USART1
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
     
@@ -135,7 +135,7 @@ void binary_protocol_telemetry_task(void) {
     // Read battery voltage from integration layer
     Battery_Update();  // Process ADC DMA buffer
     float battery_voltage = Battery_GetVoltage();
-    float battery_current = Battery_GetCurrent();
+    float battery_current = Battery_IsCurrentValid() ? Battery_GetCurrent() : NAN;
     
     // Check for low battery condition
     if (Battery_IsLowVoltage()) {
@@ -197,7 +197,7 @@ void binary_protocol_telemetry_task(void) {
  * Called when DMA transfer completes (for circular buffer, this indicates buffer wrap)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART2) {
+    if (huart->Instance == USART1) {
         // DMA circular buffer handling is automatic
         // The main loop will process the data via binary_protocol_process_dma()
     }
@@ -207,7 +207,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  * @brief UART TX Complete callback
  */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART2) {
+    if (huart->Instance == USART1) {
         binary_protocol_tx_complete(&protocol_ctx);
     }
 }

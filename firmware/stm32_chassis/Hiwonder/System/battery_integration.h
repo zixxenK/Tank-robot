@@ -68,6 +68,12 @@ bool Battery_IsCriticalVoltage(void);
  */
 bool Battery_IsReady(void);
 
+/**
+ * @brief Check if current sensing is valid and available
+ * @return true if current sensor is present and providing valid data
+ */
+bool Battery_IsCurrentValid(void);
+
 #ifdef __cplusplus
 }
 #endif

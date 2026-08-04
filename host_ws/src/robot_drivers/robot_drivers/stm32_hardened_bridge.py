@@ -1171,7 +1171,11 @@ class STM32HardenedBridge(Node):
                 battery_msg = BatteryState()
                 battery_msg.header.stamp = self.get_clock().now().to_msg()
                 battery_msg.voltage = self._telemetry.battery_voltage
-                battery_msg.current = self._telemetry.battery_current
+                # Handle NaN from STM32 when current sensor is not available
+                if math.isnan(self._telemetry.battery_current):
+                    battery_msg.current = 0.0  # Use 0.0 as placeholder for unavailable current
+                else:
+                    battery_msg.current = self._telemetry.battery_current
                 battery_msg.percentage = min(
                     1.0,
                     max(0.0, (self._telemetry.battery_voltage - 9.0) / 3.0),

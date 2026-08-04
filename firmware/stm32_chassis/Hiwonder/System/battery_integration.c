@@ -31,6 +31,7 @@
 
 static float battery_voltage = 0.0f;     // Current filtered voltage (V)
 static float battery_current = 0.0f;    // Current reading (A) - if current sensing available
+static bool current_sense_available = false; // Current sensor validity flag
 static bool battery_initialized = false;
 static bool filter_primed = false;
 
@@ -126,8 +127,9 @@ int Battery_Update(void) {
     
     // Optional: Read current sense if available (channel 1)
     // This would require a current sense amplifier (e.g., INA219)
-    // For now, set to 0.0f
+    // For now, set to 0.0f and mark as unavailable
     battery_current = 0.0f;
+    current_sense_available = false;  // Set true only when INA219 or equivalent is wired to adc_buffer[1]
     
     return 0; // Success
 }
@@ -154,6 +156,10 @@ bool Battery_IsCriticalVoltage(void) {
 
 bool Battery_IsReady(void) {
     return battery_initialized && filter_primed;
+}
+
+bool Battery_IsCurrentValid(void) {
+    return current_sense_available;
 }
 
 // ============================================================================
