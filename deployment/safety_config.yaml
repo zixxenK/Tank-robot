@@ -23,8 +23,8 @@ safety_supervisor:
   # Kinematic ceilings - maximum velocity limits
   # These prevent runaway commands during initial testing
   kinematic_limits:
-    max_linear_speed: 0.5    # m/s - maximum forward/backward speed
-    max_angular_speed: 1.0   # rad/s - maximum rotation speed
+    max_linear_speed: 1.0    # m/s - maximum forward/backward speed
+    max_angular_speed: 1.5   # rad/s - maximum rotation speed
     
   # Emergency stop configuration
   e_stop:

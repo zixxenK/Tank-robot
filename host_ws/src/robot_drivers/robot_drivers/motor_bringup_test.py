@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""One-shot low-speed motor direction bring-up test for /cmd_vel."""
+"""One-shot low-speed motor direction bring-up test for /cmd_vel.
+
+This sequence validates the tread pair mapped to motor 0 (left / M1) and
+motor 1 (right / M2) through the hardened bridge.
+"""
 
 import time
 from dataclasses import dataclass
@@ -48,6 +52,7 @@ class MotorBringupTest(Node):
             self.get_parameter("start_delay").value  # type: ignore[arg-type]
         )
 
+        # Use differential-drive geometry so each phase isolates one tread.
         turn_ang = (2.0 * speed) / max(track_width, 1e-3)
 
         # Sequence mirrors firmware self-test intent using cmd_vel only.
@@ -71,8 +76,8 @@ class MotorBringupTest(Node):
         self._timer = self.create_timer(period, self._tick)
 
         self.get_logger().warn(
-            "Motor bring-up test armed. Keep robot lifted. "
-            f"Starting in {self._start_delay:.1f}s."
+            "Motor bring-up test armed for motor 0 (left/M1) and motor 1 "
+            f"(right/M2). Keep robot lifted. Starting in {self._start_delay:.1f}s."
         )
 
     def _publish(self, linear: float, angular: float) -> None:

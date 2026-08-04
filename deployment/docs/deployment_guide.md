@@ -75,3 +75,13 @@ Expected control nodes are:
 
 Before enabling motor power, complete the preflight and raised-track checks in
 `docs/HARDWARE_VALIDATION.md`.
+
+For a dedicated raised-track motor check, run:
+
+```bash
+make host-motor-test
+```
+
+That launch path keeps teleop disabled and exercises the tread pair mapped to
+motor IDs 0 and 1 on the STM32 bridge, which correspond to the M1/M2 motor
+controller outputs.

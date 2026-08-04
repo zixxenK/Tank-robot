@@ -57,22 +57,28 @@ int IMU_Init(void) {
     imu_sensor.i2c_write_byte_to_mem = i2c_write_byte_to_mem;
     imu_sensor.i2c_read_from_mem = i2c_read_from_mem;
     imu_sensor.sleep_ms = delay_ms;
+
+    // Temporary safety bypass: IMU bring-up currently hardfaults on this
+    // hardware/firmware path. Keep IMU disabled so drivetrain protocol can boot.
+    imu_initialized = false;
+    last_imu_update_time = HAL_GetTick();
+    return -1;
     
     // Reset and calibrate IMU
     imu_sensor.base.reset(&imu_sensor.base);
     imu_sensor.base.calibrat(&imu_sensor.base);
-    
+
     // Configure for optimal performance
     mpu6050_set_accel_fsr(&imu_sensor, MPU6050_ACCEL_FSR_4G);     // ±4g for good dynamic range
     mpu6050_set_gyro_fsr(&imu_sensor, MPU6050_GYRO_FSR_1000DPS); // ±1000°/s for tank robotics
     mpu6050_set_rate(&imu_sensor, IMU_UPDATE_FREQ_HZ);           // 50Hz sampling rate
-    
+
     // Set low-pass filter to 20Hz (helps reduce vibration noise)
     mpu6050_set_lpf(&imu_sensor, 20);
-    
+
     imu_initialized = true;
     last_imu_update_time = HAL_GetTick();
-    
+
     return 0; // Success
 }
 

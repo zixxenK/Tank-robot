@@ -20,7 +20,9 @@ Record before flashing:
 3. Flash the Release image and verify read-back.
 4. Confirm boot diagnostics and whether the previous reset was IWDG-caused.
 5. Send heartbeat and zero-speed packed frames before enabling motor power.
-6. Exercise each motor independently at the lowest effective command.
+6. Exercise each motor independently at the lowest effective command. For the
+   tread pair, motor 0 is the left tread and motor 1 is the right tread, which
+   maps to the M1/M2 motor-control board outputs.
 7. Record expected direction, PWM channel, encoder timer, encoder sign, and
    ticks per output-shaft revolution for motors 0 through 3.
 8. Confirm Motor 2 uses TIM2 without its `ARR` or prescaler changing.
@@ -59,6 +61,16 @@ Record before flashing:
 4. Verify stop distance for command timeout, e-stop, host process termination,
    serial disconnect, and STM32 reset.
 5. Run a stationary telemetry soak, then a low-speed motion soak.
+
+Recommended bench command for the tread pair:
+
+```bash
+make host-motor-test
+```
+
+This starts the hardened bridge, keeps teleop disabled, and publishes the
+existing low-speed one-track-at-a-time sequence that validates M1/M2 direction
+before the floor test.
 
 Record every measured parameter in the canonical configuration before raising
 limits. A failed item blocks deployment; restore the previous known firmware

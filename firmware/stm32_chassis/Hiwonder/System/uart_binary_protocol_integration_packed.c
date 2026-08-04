@@ -31,6 +31,8 @@
 
 extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
+extern DMA_HandleTypeDef hdma_usart3_rx;
+extern DMA_HandleTypeDef hdma_usart3_tx;
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
@@ -60,9 +62,9 @@ void binary_protocol_integration_init_packed(void) {
     
     // Initialize protocol with packed structures
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart2,           // USART2 for Master TX/RX (matches host expectation)
-                               &hdma_usart2_rx,   // DMA1_Stream5 for RX
-                               &hdma_usart2_tx,   // DMA1_Stream6 for TX
+                               &huart3,           // USART3 on MASTER_TX/RX header
+                               &hdma_usart3_rx,   // DMA1_Stream1 for RX
+                               &hdma_usart3_tx,   // DMA1_Stream3 for TX
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
     
@@ -176,6 +178,10 @@ void binary_protocol_telemetry_task(void) {
                                      accel_x, accel_y, accel_z,
                                      gyro_x, gyro_y, gyro_z);
     
+    // Emit liveness independently of inbound parser activity so the host can
+    // verify the serial TX path even when commands or heartbeat pings are absent.
+    binary_protocol_send_heartbeat(&protocol_ctx);
+
     // Send telemetry burst
     binary_protocol_send_telemetry_burst(&protocol_ctx);
     
@@ -191,7 +197,7 @@ void binary_protocol_telemetry_task(void) {
  * Called when DMA transfer completes (for circular buffer, this indicates buffer wrap)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART2) {
+    if (huart->Instance == USART3) {
         // DMA circular buffer handling is automatic
         // The main loop will process the data via binary_protocol_process_dma()
     }
@@ -201,7 +207,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  * @brief UART TX Complete callback
  */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART2) {
+    if (huart->Instance == USART3) {
         binary_protocol_tx_complete(&protocol_ctx);
     }
 }

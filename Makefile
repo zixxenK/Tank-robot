@@ -7,7 +7,7 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 FIRMWARE_DIR := $(REPO_ROOT)/firmware/stm32_chassis
 HOST_WS := $(REPO_ROOT)/host_ws
 
-.PHONY: help stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
+.PHONY: help stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
 
 help:
 	@echo "Targets:"
@@ -18,6 +18,7 @@ help:
 	@echo "  host-launch    Launch Rock64 bringup from active host workspace"
 	@echo "  host-sim       One-shot install deps + build + Gazebo telemetry launch"
 	@echo "  host-hardware  One-shot build + hardware bringup launch"
+	@echo "  host-motor-test One-shot build + hardware bringup + raised-track motor test"
 	@echo "  host-teleop    One-shot build + keyboard teleop launch"
 	@echo "  host-teleop-ps5 One-shot build + PS5 teleop launch"
 	@echo "  onecmd         One-command Gazebo telemetry launch from the host workspace"
@@ -49,6 +50,15 @@ host-sim:
 
 host-hardware:
 	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode hardware --no-install-deps
+
+host-motor-test:
+	@cd "$(HOST_WS)" && \
+		source /opt/ros/$${ROS_DISTRO:-humble}/setup.bash && \
+		if [ -f install/setup.bash ]; then source install/setup.bash; fi && \
+		ros2 launch robot_bringup rock64_bringup.launch.py \
+			host_workspace:="$(HOST_WS)" \
+			use_teleop:=false \
+			run_motor_bringup_test:=true
 
 host-teleop:
 	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode teleop --teleop keyboard --no-install-deps

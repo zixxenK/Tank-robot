@@ -897,6 +897,11 @@ class STM32HardenedBridge(Node):
                     self.get_logger().info("Serial reconnection successful")
             return
 
+        # Process any queued frames before gating on heartbeat state.
+        # Heartbeat responses have to be consumed here so the bridge can
+        # transition out of the initial emergency-stop state.
+        self._process_received_frames()
+
         heartbeat_age = now - self._last_heartbeat_time
         if not self._firmware_alive or heartbeat_age > self._heartbeat_timeout:
             if self._firmware_alive:
