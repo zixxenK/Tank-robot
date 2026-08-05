@@ -107,28 +107,6 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
   MX_USART6_UART_Init();
-  
-  /* Initialize interrupts */
-  MX_NVIC_Init();
-  /* USER CODE BEGIN 2 */
-  // Initialize ROS2-STM32 integration subsystems
-  // Note: IMU, Battery, and Status are initialized inside binary_protocol_integration_init_packed()
-  binary_protocol_integration_init_packed();
-  
-  // Additional initialization if needed
-  // Motor control is initialized by binary_protocol_integration_init_packed()
-  
-  // --- TEMPORARY HARDWARE SERIAL TEST ---
-  uint8_t test_data[] = "STM32_USART1_TEST\r\n";
-  while (1) 
-  {
-      HAL_UART_Transmit(&huart1, test_data, sizeof(test_data)-1, 100);
-      HAL_Delay(500); // Wait half a second
-  }
-  // --------------------------------------
-  
-  /* USER CODE END 2 */
-  
   MX_SPI2_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
@@ -146,6 +124,17 @@ int main(void)
   MX_TIM12_Init();
   MX_ADC1_Init();
 
+  /* Initialize interrupts */
+  MX_NVIC_Init();
+  /* USER CODE BEGIN 2 */
+  // Initialize ROS2-STM32 integration subsystems
+  // Note: IMU, Battery, and Status are initialized inside binary_protocol_integration_init_packed()
+  binary_protocol_integration_init_packed();
+
+  // Motor control is initialized by binary_protocol_integration_init_packed()
+
+  /* USER CODE END 2 */
+
   /* Init scheduler */
   osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
   MX_FREERTOS_Init();
@@ -157,10 +146,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  char *test_msg = "ROCK64_RANGER_ALIVE\r\n";
-  while (1) {
-      HAL_UART_Transmit(&huart1, (uint8_t*)test_msg, strlen(test_msg), HAL_MAX_DELAY);
-      HAL_Delay(1000);
+  while (1)
+  {
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+    osDelay(10);
   }
   /* USER CODE END 3 */
 }

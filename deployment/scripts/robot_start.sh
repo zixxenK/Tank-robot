@@ -64,7 +64,9 @@ fi
 
 # ── Source ROS2 workspace ──────────────────────────────────────────────────
 # shellcheck source=/dev/null
+set +u
 source "${SCRIPT_DIR}/source_host_ws.sh"
+set -u
 
 # ── Launch ─────────────────────────────────────────────────────────────────
 echo "[robot_start] Launching hardware bringup..."

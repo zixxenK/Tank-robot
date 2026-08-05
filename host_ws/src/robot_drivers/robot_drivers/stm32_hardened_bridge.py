@@ -12,6 +12,8 @@ Features:
 - Graceful port reconnection
 - CRC-8 validation
 - Proper endianness handling
+- Thread-safe shared state
+- Transition-gated logging to prevent spam
 """
 
 import struct
@@ -71,262 +73,22 @@ MOTOR_SUBCMD_EMERGENCY_STOP = 0x02
 
 # Reflected CRC-8/MAXIM table retained for wire compatibility.
 CRC8_TABLE = [
-    0,
-    94,
-    188,
-    226,
-    97,
-    63,
-    221,
-    131,
-    194,
-    156,
-    126,
-    32,
-    163,
-    253,
-    31,
-    65,
-    157,
-    195,
-    33,
-    127,
-    252,
-    162,
-    64,
-    30,
-    95,
-    1,
-    227,
-    189,
-    62,
-    96,
-    130,
-    220,
-    35,
-    125,
-    159,
-    193,
-    66,
-    28,
-    254,
-    160,
-    225,
-    191,
-    93,
-    3,
-    128,
-    222,
-    60,
-    98,
-    190,
-    224,
-    2,
-    92,
-    223,
-    129,
-    99,
-    61,
-    124,
-    34,
-    192,
-    158,
-    29,
-    67,
-    161,
-    255,
-    70,
-    24,
-    250,
-    164,
-    39,
-    121,
-    155,
-    197,
-    132,
-    218,
-    56,
-    102,
-    229,
-    187,
-    89,
-    7,
-    219,
-    133,
-    103,
-    57,
-    186,
-    228,
-    6,
-    88,
-    25,
-    71,
-    165,
-    251,
-    120,
-    38,
-    196,
-    154,
-    101,
-    59,
-    217,
-    135,
-    4,
-    90,
-    184,
-    230,
-    167,
-    249,
-    27,
-    69,
-    198,
-    152,
-    122,
-    36,
-    248,
-    166,
-    68,
-    26,
-    153,
-    199,
-    37,
-    123,
-    58,
-    100,
-    134,
-    216,
-    91,
-    5,
-    231,
-    185,
-    140,
-    210,
-    48,
-    110,
-    237,
-    179,
-    81,
-    15,
-    78,
-    16,
-    242,
-    172,
-    47,
-    113,
-    147,
-    205,
-    17,
-    79,
-    173,
-    243,
-    112,
-    46,
-    204,
-    146,
-    211,
-    141,
-    111,
-    49,
-    178,
-    236,
-    14,
-    80,
-    175,
-    241,
-    19,
-    77,
-    206,
-    144,
-    114,
-    44,
-    109,
-    51,
-    209,
-    143,
-    12,
-    82,
-    176,
-    238,
-    50,
-    108,
-    142,
-    208,
-    83,
-    13,
-    239,
-    177,
-    240,
-    174,
-    76,
-    18,
-    145,
-    207,
-    45,
-    115,
-    202,
-    148,
-    118,
-    40,
-    171,
-    245,
-    23,
-    73,
-    8,
-    86,
-    180,
-    234,
-    105,
-    55,
-    213,
-    139,
-    87,
-    9,
-    235,
-    181,
-    54,
-    104,
-    138,
-    212,
-    149,
-    203,
-    41,
-    119,
-    244,
-    170,
-    72,
-    22,
-    233,
-    183,
-    85,
-    11,
-    136,
-    214,
-    52,
-    106,
-    43,
-    117,
-    151,
-    201,
-    74,
-    20,
-    246,
-    168,
-    116,
-    42,
-    200,
-    150,
-    21,
-    75,
-    169,
-    247,
-    182,
-    232,
-    10,
-    84,
-    215,
-    137,
-    107,
-    53,
+    0, 94, 188, 226, 97, 63, 221, 131, 194, 156, 126, 32, 163, 253, 31, 65,
+    157, 195, 33, 127, 252, 162, 64, 30, 95, 1, 227, 189, 62, 96, 130, 220,
+    35, 125, 159, 193, 66, 28, 254, 160, 225, 191, 93, 3, 128, 222, 60, 98,
+    190, 224, 2, 92, 223, 129, 99, 61, 124, 34, 192, 158, 29, 67, 161, 255,
+    70, 24, 250, 164, 39, 121, 155, 197, 132, 218, 56, 102, 229, 187, 89, 7,
+    219, 133, 103, 57, 186, 228, 6, 88, 25, 71, 165, 251, 120, 38, 196, 154,
+    101, 59, 217, 135, 4, 90, 184, 230, 167, 249, 27, 69, 198, 152, 122, 36,
+    248, 166, 68, 26, 153, 199, 37, 123, 58, 100, 134, 216, 91, 5, 231, 185,
+    140, 210, 48, 110, 237, 179, 81, 15, 78, 16, 242, 172, 47, 113, 147, 205,
+    17, 79, 173, 243, 112, 46, 204, 146, 211, 141, 111, 49, 178, 236, 14, 80,
+    175, 241, 19, 77, 206, 144, 114, 44, 109, 51, 209, 143, 12, 82, 176, 238,
+    50, 108, 142, 208, 83, 13, 239, 177, 240, 174, 76, 18, 145, 207, 45, 115,
+    202, 148, 118, 40, 171, 245, 23, 73, 8, 86, 180, 234, 105, 55, 213, 139,
+    87, 9, 235, 181, 54, 104, 138, 212, 149, 203, 41, 119, 244, 170, 72, 22,
+    233, 183, 85, 11, 136, 214, 52, 106, 43, 117, 151, 201, 74, 20, 246, 168,
+    116, 42, 200, 150, 21, 75, 169, 247, 182, 232, 10, 84, 215, 137, 107, 53,
 ]
 
 
@@ -609,6 +371,9 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("wheel_separation", 0.3)  # meters
         self.declare_parameter("wheel_radius", 0.06)  # meters
         self.declare_parameter("encoder_ticks_per_rev", 1000)
+        self.declare_parameter("battery_min_voltage", 9.0)
+        self.declare_parameter("battery_max_voltage", 12.0)
+        self.declare_parameter("startup_grace_period", 2.0)
 
         # Get parameter values
         self._serial_port = self.get_parameter("serial_port").value
@@ -644,28 +409,42 @@ class STM32HardenedBridge(Node):
         self._encoder_ticks_per_rev = int(
             self.get_parameter("encoder_ticks_per_rev").value
         )
+        self._battery_min_v = float(
+            self.get_parameter("battery_min_voltage").value
+        )
+        self._battery_max_v = float(
+            self.get_parameter("battery_max_voltage").value
+        )
+        self._startup_grace = float(
+            self.get_parameter("startup_grace_period").value
+        )
 
-        # State variables
+        # State variables — protected by _state_lock for thread safety
+        self._state_lock = threading.Lock()
         self._target_lin = 0.0
         self._target_ang = 0.0
         self._cmd_lin = 0.0
         self._cmd_ang = 0.0
         self._last_cmd_vel_time = 0.0
         self._last_send_time = time.monotonic()
-        self._last_sent_pair = (None, None)
+        self._last_sent_pair: Optional[Tuple[int, int]] = (None, None)
         self._last_heartbeat_time = 0.0
         self._last_encoder_time = 0.0
         self._connection_loss_time = 0.0
         self._reconnect_attempt_time = 0.0
         self._firmware_alive = False
         self._motion_armed = False
+        self._estop_active = False  # Tracks whether we are currently in e-stop
+        self._node_start_time = time.monotonic()
 
         # Odometry state
+        self._odom_lock = threading.Lock()
         self._x = 0.0
         self._y = 0.0
         self._theta = 0.0
         self._prev_left_enc = 0
         self._prev_right_enc = 0
+        self._prev_odom_time: Optional[float] = None
 
         # Telemetry data
         self._telemetry = TelemetryData()
@@ -676,7 +455,9 @@ class STM32HardenedBridge(Node):
         self._serial_lock = threading.Lock()
         self._rx_buffer = CircularBuffer(BUFFER_SIZE)
         self._frame_parser = FrameParser()
-        self._frame_queue = queue.Queue(maxsize=100)
+        self._frame_queue: queue.Queue[Tuple[int, bytes]] = queue.Queue(
+            maxsize=100
+        )
 
         # Threading
         self._running = True
@@ -788,6 +569,8 @@ class STM32HardenedBridge(Node):
 
                 self._rx_buffer.clear()
                 self._frame_parser.reset()
+
+            with self._state_lock:
                 self._connection_loss_time = 0.0
                 self._target_lin = 0.0
                 self._target_ang = 0.0
@@ -798,16 +581,18 @@ class STM32HardenedBridge(Node):
                 self._last_sent_pair = (None, None)
                 self._firmware_alive = False
                 self._motion_armed = False
+                self._estop_active = False
 
-                self.get_logger().info(
-                    f"Connected to {self._serial_port} @ {self._baud_rate}"
-                )
+            self.get_logger().info(
+                f"Connected to {self._serial_port} @ {self._baud_rate}"
+            )
             self._send_emergency_stop()
             return True
 
         except serial.SerialException as e:
             self.get_logger().error(f"Serial connection failed: {e}")
-            self._connection_loss_time = time.monotonic()
+            with self._state_lock:
+                self._connection_loss_time = time.monotonic()
             return False
 
     def _serial_read_loop(self):
@@ -834,10 +619,13 @@ class STM32HardenedBridge(Node):
 
             except serial.SerialException as e:
                 self.get_logger().error(f"Serial read error: {e}")
-                self._connection_loss_time = time.monotonic()
+                with self._state_lock:
+                    self._connection_loss_time = time.monotonic()
                 time.sleep(0.1)
             except Exception as e:
-                self.get_logger().error(f"Unexpected error in read loop: {e}")
+                self.get_logger().error(
+                    f"Unexpected error in read loop: {e}"
+                )
                 time.sleep(0.1)
 
     def _frame_process_loop(self):
@@ -865,7 +653,9 @@ class STM32HardenedBridge(Node):
                             )
 
             except Exception as e:
-                self.get_logger().error(f"Error in frame process loop: {e}")
+                self.get_logger().error(
+                    f"Error in frame process loop: {e}"
+                )
                 time.sleep(0.01)
 
     def _cmd_vel_callback(self, msg: Twist):
@@ -874,16 +664,18 @@ class STM32HardenedBridge(Node):
         angular = float(msg.angular.z)
         if not (math.isfinite(linear) and math.isfinite(angular)):
             self.get_logger().error("Rejected non-finite safe velocity")
-            self._target_lin = 0.0
-            self._target_ang = 0.0
-            self._motion_armed = False
+            with self._state_lock:
+                self._target_lin = 0.0
+                self._target_ang = 0.0
+                self._motion_armed = False
             self._send_emergency_stop()
             return
 
-        self._target_lin = linear
-        self._target_ang = angular
-        self._last_cmd_vel_time = time.monotonic()
-        self._motion_armed = self._firmware_alive
+        with self._state_lock:
+            self._target_lin = linear
+            self._target_ang = angular
+            self._last_cmd_vel_time = time.monotonic()
+            self._motion_armed = self._firmware_alive
 
     def _command_loop(self):
         """Run the command loop and enforce communication timeouts."""
@@ -891,55 +683,93 @@ class STM32HardenedBridge(Node):
 
         # Check connection status and attempt reconnection
         if self._ser is None or not self._ser.is_open:
-            if now - self._reconnect_attempt_time > self._reconnect_interval:
-                self._reconnect_attempt_time = now
+            with self._state_lock:
+                reconnect_due = (
+                    now - self._reconnect_attempt_time
+                    > self._reconnect_interval
+                )
+            if reconnect_due:
+                with self._state_lock:
+                    self._reconnect_attempt_time = now
                 if self._connect_serial():
                     self.get_logger().info("Serial reconnection successful")
             return
 
         # Process any queued frames before gating on heartbeat state.
-        # Heartbeat responses have to be consumed here so the bridge can
-        # transition out of the initial emergency-stop state.
         self._process_received_frames()
 
-        heartbeat_age = now - self._last_heartbeat_time
-        if not self._firmware_alive or heartbeat_age > self._heartbeat_timeout:
-            if self._firmware_alive:
+        with self._state_lock:
+            heartbeat_age = now - self._last_heartbeat_time
+            firmware_alive = self._firmware_alive
+            motion_armed = self._motion_armed
+            last_cmd_time = self._last_cmd_vel_time
+            target_lin = self._target_lin
+            target_ang = self._target_ang
+            cmd_lin = self._cmd_lin
+            cmd_ang = self._cmd_ang
+            last_send = self._last_send_time
+            last_sent = self._last_sent_pair
+            estop_active = self._estop_active
+            node_start = self._node_start_time
+
+        # Startup grace period — don't enforce heartbeat until it expires
+        in_grace = (now - node_start) < self._startup_grace
+
+        heartbeat_expired = (
+            not firmware_alive or heartbeat_age > self._heartbeat_timeout
+        )
+
+        if heartbeat_expired and not in_grace:
+            if firmware_alive:
                 self.get_logger().warn(
                     f"Heartbeat timeout: {heartbeat_age:.2f}s"
                 )
-            self._firmware_alive = False
-            self._motion_armed = False
-            self._send_emergency_stop()
+            with self._state_lock:
+                self._firmware_alive = False
+                self._motion_armed = False
+            if not estop_active:
+                self._send_emergency_stop()
+            else:
+                self._send_emergency_stop(silent=True)
             return
 
-        if not self._motion_armed:
-            self._send_emergency_stop()
+        if not motion_armed:
+            if not estop_active:
+                self._send_emergency_stop()
+            else:
+                self._send_emergency_stop(silent=True)
             return
 
         # Check command timeout
-        cmd_age = now - self._last_cmd_vel_time
+        cmd_age = now - last_cmd_time
         stale = cmd_age > self._cmd_timeout
 
         if stale:
             # No recent commands, send stop
-            self._send_emergency_stop()
+            if not estop_active:
+                self._send_emergency_stop()
+            else:
+                self._send_emergency_stop(silent=True)
             return
 
         # Apply slew rate limiting
-        dt = now - self._last_send_time
+        dt = now - last_send
         self._last_send_time = now
 
-        self._cmd_lin = self._slew_limit(
-            self._cmd_lin, self._target_lin, self._linear_slew_rate, dt
+        new_lin = self._slew_limit(
+            cmd_lin, target_lin, self._linear_slew_rate, dt
         )
-        self._cmd_ang = self._slew_limit(
-            self._cmd_ang, self._target_ang, self._angular_slew_rate, dt
+        new_ang = self._slew_limit(
+            cmd_ang, target_ang, self._angular_slew_rate, dt
         )
 
+        with self._state_lock:
+            self._cmd_lin = new_lin
+            self._cmd_ang = new_ang
+
         # Convert to differential drive
-        left_vel = self._cmd_lin - self._cmd_ang
-        right_vel = self._cmd_lin + self._cmd_ang
+        left_vel = new_lin - new_ang
+        right_vel = new_lin + new_ang
 
         # Normalize to prevent saturation
         max_mag = max(1.0, abs(left_vel), abs(right_vel))
@@ -961,12 +791,11 @@ class STM32HardenedBridge(Node):
         )
 
         # Send if changed
-        if (left_speed, right_speed) != self._last_sent_pair:
+        if (left_speed, right_speed) != last_sent:
             self._send_motor_command(left_speed, right_speed)
-            self._last_sent_pair = (left_speed, right_speed)
-
-        # Process received frames
-        self._process_received_frames()
+            with self._state_lock:
+                self._last_sent_pair = (left_speed, right_speed)
+                self._estop_active = False
 
     def _slew_limit(
         self, current: float, target: float, rate: float, dt: float
@@ -991,11 +820,19 @@ class STM32HardenedBridge(Node):
 
         self._send_frame(FUNC_MOTOR, bytes(payload))
 
-    def _send_emergency_stop(self):
-        """Send emergency stop command."""
-        self.get_logger().warn("Sending emergency stop")
+    def _send_emergency_stop(self, silent: bool = False):
+        """Send emergency stop command.
+
+        Args:
+            silent: If True, do not emit a log message. Used to avoid
+                spamming logs when the bridge remains in the stopped state.
+        """
+        if not silent:
+            self.get_logger().warn("Sending emergency stop")
         self._send_frame(FUNC_MOTOR, bytes([MOTOR_SUBCMD_EMERGENCY_STOP, 0]))
-        self._last_sent_pair = (0, 0)
+        with self._state_lock:
+            self._last_sent_pair = (0, 0)
+            self._estop_active = True
 
     def _send_heartbeat(self):
         """Send heartbeat ping."""
@@ -1012,9 +849,10 @@ class STM32HardenedBridge(Node):
                 self._ser.write(frame)
         except serial.SerialException as e:
             self.get_logger().error(f"Serial write failed: {e}")
-            self._connection_loss_time = time.monotonic()
-            self._firmware_alive = False
-            self._motion_armed = False
+            with self._state_lock:
+                self._connection_loss_time = time.monotonic()
+                self._firmware_alive = False
+                self._motion_armed = False
 
     def _build_frame(self, function_code: int, payload: bytes = b"") -> bytes:
         """Build a complete frame with header, payload, and CRC."""
@@ -1039,10 +877,13 @@ class STM32HardenedBridge(Node):
         """Handle a received frame based on function code."""
         try:
             if function_code == FUNC_HEARTBEAT:
-                self._last_heartbeat_time = time.monotonic()
-                if not self._firmware_alive:
+                now = time.monotonic()
+                with self._state_lock:
+                    was_alive = self._firmware_alive
+                    self._last_heartbeat_time = now
+                    self._firmware_alive = True
+                if not was_alive:
                     self.get_logger().info("STM32 heartbeat established")
-                self._firmware_alive = True
 
             elif function_code == FUNC_ACK:
                 self.get_logger().debug(f"Received ACK: {payload.hex()}")
@@ -1086,7 +927,8 @@ class STM32HardenedBridge(Node):
                 self._telemetry.encoder_right = right_enc
                 self._telemetry.timestamp = time.monotonic()
 
-            self._last_encoder_time = time.monotonic()
+            with self._state_lock:
+                self._last_encoder_time = time.monotonic()
 
         except struct.error as e:
             self.get_logger().error(f"Error parsing encoder data: {e}")
@@ -1139,80 +981,126 @@ class STM32HardenedBridge(Node):
         """Publish telemetry data to ROS2 topics."""
         now = time.monotonic()
 
+        # Copy telemetry under lock, then publish outside the lock
         with self._telemetry_lock:
-            # Check if telemetry is fresh
             if now - self._telemetry.timestamp > self._encoder_timeout:
                 return  # Stale data
+            tel = TelemetryData(
+                encoder_left=self._telemetry.encoder_left,
+                encoder_right=self._telemetry.encoder_right,
+                battery_voltage=self._telemetry.battery_voltage,
+                battery_current=self._telemetry.battery_current,
+                imu_accel=self._telemetry.imu_accel,
+                imu_gyro=self._telemetry.imu_gyro,
+                timestamp=self._telemetry.timestamp,
+            )
 
-            # Publish encoder data
-            encoder_msg = Int32MultiArray()
-            encoder_msg.data = [
-                self._telemetry.encoder_left,
-                self._telemetry.encoder_right,
-            ]
-            self._encoder_pub.publish(encoder_msg)
+        stamp = self.get_clock().now().to_msg()
 
-            # Publish joint states
-            joint_msg = JointState()
-            joint_msg.header.stamp = self.get_clock().now().to_msg()
-            joint_msg.name = ["left_wheel_joint", "right_wheel_joint"]
-            joint_msg.position = [
-                float(self._telemetry.encoder_left),
-                float(self._telemetry.encoder_right),
-            ]
-            joint_msg.velocity = [
-                0.0,
-                0.0,
-            ]  # Would need to calculate from delta
-            self._joint_state_pub.publish(joint_msg)
+        # Publish encoder data
+        encoder_msg = Int32MultiArray()
+        encoder_msg.data = [tel.encoder_left, tel.encoder_right]
+        self._encoder_pub.publish(encoder_msg)
 
-            # Publish battery data
-            if self._telemetry.battery_voltage > 0:
-                battery_msg = BatteryState()
-                battery_msg.header.stamp = self.get_clock().now().to_msg()
-                battery_msg.voltage = self._telemetry.battery_voltage
-                # Handle NaN from STM32 when current sensor is not available
-                if math.isnan(self._telemetry.battery_current):
-                    battery_msg.current = 0.0  # Use 0.0 as placeholder for unavailable current
-                else:
-                    battery_msg.current = self._telemetry.battery_current
+        # Publish joint states with velocity estimation
+        joint_msg = JointState()
+        joint_msg.header.stamp = stamp
+        joint_msg.name = ["left_wheel_joint", "right_wheel_joint"]
+        joint_msg.position = [
+            float(tel.encoder_left),
+            float(tel.encoder_right),
+        ]
+
+        # Compute wheel velocities from encoder deltas
+        with self._odom_lock:
+            prev_left = self._prev_left_enc
+            prev_right = self._prev_right_enc
+            prev_time = self._prev_odom_time
+
+        if prev_time is not None:
+            dt = tel.timestamp - prev_time
+            if dt > 0.0:
+                d_left = tel.encoder_left - prev_left
+                d_right = tel.encoder_right - prev_right
+                meters_per_tick = (
+                    2.0 * math.pi * self._wheel_radius
+                ) / float(self._encoder_ticks_per_rev)
+                joint_msg.velocity = [
+                    float(d_left) * meters_per_tick / dt,
+                    float(d_right) * meters_per_tick / dt,
+                ]
+            else:
+                joint_msg.velocity = [0.0, 0.0]
+        else:
+            joint_msg.velocity = [0.0, 0.0]
+
+        self._joint_state_pub.publish(joint_msg)
+
+        # Publish battery data
+        if tel.battery_voltage > 0:
+            battery_msg = BatteryState()
+            battery_msg.header.stamp = stamp
+            battery_msg.voltage = tel.battery_voltage
+            # Handle NaN from STM32 when current sensor is not available
+            if math.isnan(tel.battery_current):
+                battery_msg.current = 0.0
+            else:
+                battery_msg.current = tel.battery_current
+            span = self._battery_max_v - self._battery_min_v
+            if span > 0.0:
                 battery_msg.percentage = min(
                     1.0,
-                    max(0.0, (self._telemetry.battery_voltage - 9.0) / 3.0),
+                    max(
+                        0.0,
+                        (tel.battery_voltage - self._battery_min_v) / span,
+                    ),
                 )
-                self._battery_pub.publish(battery_msg)
+            else:
+                battery_msg.percentage = 0.0
+            self._battery_pub.publish(battery_msg)
 
-            # Publish IMU data
-            if self._telemetry.imu_accel != (0.0, 0.0, 0.0):
-                imu_msg = Imu()
-                imu_msg.header.stamp = self.get_clock().now().to_msg()
-                imu_msg.header.frame_id = "imu_link"
+        # Publish IMU data
+        if tel.imu_accel != (0.0, 0.0, 0.0):
+            imu_msg = Imu()
+            imu_msg.header.stamp = stamp
+            imu_msg.header.frame_id = "imu_link"
 
-                # Populate linear acceleration
-                imu_msg.linear_acceleration.x = self._telemetry.imu_accel[0]
-                imu_msg.linear_acceleration.y = self._telemetry.imu_accel[1]
-                imu_msg.linear_acceleration.z = self._telemetry.imu_accel[2]
+            imu_msg.linear_acceleration.x = tel.imu_accel[0]
+            imu_msg.linear_acceleration.y = tel.imu_accel[1]
+            imu_msg.linear_acceleration.z = tel.imu_accel[2]
 
-                # Populate angular velocity
-                imu_msg.angular_velocity.x = self._telemetry.imu_gyro[0]
-                imu_msg.angular_velocity.y = self._telemetry.imu_gyro[1]
-                imu_msg.angular_velocity.z = self._telemetry.imu_gyro[2]
+            imu_msg.angular_velocity.x = tel.imu_gyro[0]
+            imu_msg.angular_velocity.y = tel.imu_gyro[1]
+            imu_msg.angular_velocity.z = tel.imu_gyro[2]
 
-                self._imu_pub.publish(imu_msg)
+            self._imu_pub.publish(imu_msg)
 
-            # Calculate and publish odometry
-            self._update_odometry()
+        # Calculate and publish odometry
+        self._update_odometry(tel)
 
-    def _update_odometry(self):
+    def _update_odometry(self, tel: TelemetryData):
         """Calculate and publish differential drive odometry from encoders."""
-        left_enc = self._telemetry.encoder_left
-        right_enc = self._telemetry.encoder_right
+        left_enc = tel.encoder_left
+        right_enc = tel.encoder_right
+        now = tel.timestamp
+
+        with self._odom_lock:
+            prev_left = self._prev_left_enc
+            prev_right = self._prev_right_enc
+            prev_time = self._prev_odom_time
+
+            # Update stored encoders immediately
+            self._prev_left_enc = left_enc
+            self._prev_right_enc = right_enc
+            self._prev_odom_time = now
+
+        if prev_time is None:
+            # First sample — nothing to differentiate yet
+            return
 
         # Calculate delta ticks
-        d_left = left_enc - self._prev_left_enc
-        d_right = right_enc - self._prev_right_enc
-        self._prev_left_enc = left_enc
-        self._prev_right_enc = right_enc
+        d_left = left_enc - prev_left
+        d_right = right_enc - prev_right
 
         # Convert ticks to distance (meters)
         meters_per_tick = (2.0 * math.pi * self._wheel_radius) / float(
@@ -1224,16 +1112,26 @@ class STM32HardenedBridge(Node):
         d_center = (dist_left + dist_right) / 2.0
         d_theta = (dist_right - dist_left) / self._wheel_separation
 
-        # Update pose
-        self._x += d_center * math.cos(self._theta + d_theta / 2.0)
-        self._y += d_center * math.sin(self._theta + d_theta / 2.0)
-        self._theta += d_theta
-        self._theta = math.atan2(
-            math.sin(self._theta), math.cos(self._theta)
-        )  # Normalize to [-pi, pi]
+        # Use actual elapsed time for velocity, not a hardcoded constant
+        dt = now - prev_time
+        if dt <= 0.0:
+            return
+
+        with self._odom_lock:
+            # Update pose
+            self._x += d_center * math.cos(self._theta + d_theta / 2.0)
+            self._y += d_center * math.sin(self._theta + d_theta / 2.0)
+            self._theta += d_theta
+            self._theta = math.atan2(
+                math.sin(self._theta), math.cos(self._theta)
+            )
+
+            x = self._x
+            y = self._y
+            theta = self._theta
 
         # Quaternion from yaw
-        q_x, q_y, q_z, q_w = self._yaw_to_quaternion(self._theta)
+        q_x, q_y, q_z, q_w = self._yaw_to_quaternion(theta)
 
         # Publish odometry message
         odom_msg = Odometry()
@@ -1241,18 +1139,16 @@ class STM32HardenedBridge(Node):
         odom_msg.header.frame_id = "odom"
         odom_msg.child_frame_id = "base_link"
 
-        odom_msg.pose.pose.position.x = self._x
-        odom_msg.pose.pose.position.y = self._y
+        odom_msg.pose.pose.position.x = x
+        odom_msg.pose.pose.position.y = y
         odom_msg.pose.pose.position.z = 0.0
         odom_msg.pose.pose.orientation.x = q_x
         odom_msg.pose.pose.orientation.y = q_y
         odom_msg.pose.pose.orientation.z = q_z
         odom_msg.pose.pose.orientation.w = q_w
 
-        # Simple velocity estimation
-        dt = 0.1  # telemetry interval
-        odom_msg.twist.twist.linear.x = d_center / dt if dt > 0 else 0.0
-        odom_msg.twist.twist.angular.z = d_theta / dt if dt > 0 else 0.0
+        odom_msg.twist.twist.linear.x = d_center / dt
+        odom_msg.twist.twist.angular.z = d_theta / dt
 
         self._odom_pub.publish(odom_msg)
 
@@ -1283,6 +1179,17 @@ class STM32HardenedBridge(Node):
         for k, v in stats.items():
             status.values.append(KeyValue(key=k, value=str(v)))
 
+        with self._state_lock:
+            status.values.append(
+                KeyValue(key="firmware_alive", value=str(self._firmware_alive))
+            )
+            status.values.append(
+                KeyValue(key="motion_armed", value=str(self._motion_armed))
+            )
+            status.values.append(
+                KeyValue(key="estop_active", value=str(self._estop_active))
+            )
+
         diag_array.status.append(status)
         self._diagnostics_pub.publish(diag_array)
 
@@ -1294,6 +1201,18 @@ class STM32HardenedBridge(Node):
     def destroy_node(self):
         """Clean shutdown of background threads and serial port."""
         self._running = False
+
+        # Cancel ROS2 timers first to stop callbacks during teardown
+        for timer_attr in (
+            "_command_timer",
+            "_heartbeat_timer",
+            "_diagnostics_timer",
+            "_telemetry_timer",
+        ):
+            timer = getattr(self, timer_attr, None)
+            if timer is not None:
+                timer.cancel()
+
         if self._read_thread and self._read_thread.is_alive():
             self._read_thread.join(timeout=1.0)
         if self._process_thread and self._process_thread.is_alive():
