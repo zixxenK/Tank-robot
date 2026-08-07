@@ -2,7 +2,7 @@
 """
 Run the STM32 self-test once over ROS topics.
 
-Publishes /stm32/self_test once and waits for /stm32/self_test_result.
+Publishes /stm32/self_test trigger and waits for /stm32/self_test_result.
 Returns exit code 0 on pass, 1 on fail/timeout.
 """
 
@@ -11,16 +11,16 @@ from typing import Optional
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Bool
-from std_msgs.msg import Empty
+from std_msgs.msg import Bool, Empty
 
 
 class STM32SelftestCLI(Node):
     def __init__(self) -> None:
         super().__init__("stm32_selftest_cli")
 
-        self.declare_parameter("timeout_s", 15.0)
-        self._timeout_s = float(self.get_parameter("timeout_s").value)
+        self.declare_parameter("timeout_s", 30.0)
+        timeout_param = self.get_parameter("timeout_s").value
+        self._timeout_s = float(timeout_param) if timeout_param is not None else 30.0
 
         self._result: Optional[bool] = None
         self._pub = self.create_publisher(Empty, "/stm32/self_test", 10)
@@ -38,13 +38,14 @@ class STM32SelftestCLI(Node):
         end_time = time.monotonic() + max(self._timeout_s, 0.1)
 
         # Give publisher/subscriber graph a brief moment to connect.
-        warmup_end = time.monotonic() + 0.3
+        warmup_end = time.monotonic() + 0.5
         while rclpy.ok() and time.monotonic() < warmup_end:
             rclpy.spin_once(self, timeout_sec=0.05)
 
         self.get_logger().info("Triggering STM32 self-test")
         self._pub.publish(Empty())
 
+        # Wait for result
         while rclpy.ok() and time.monotonic() < end_time:
             rclpy.spin_once(self, timeout_sec=0.1)
             if self._result is not None:

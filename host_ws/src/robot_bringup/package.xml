@@ -11,6 +11,9 @@
 
   <exec_depend>robot_teleop</exec_depend>
   <exec_depend>robot_drivers</exec_depend>
+  <exec_depend>perception</exec_depend>
+  <exec_depend>navigation</exec_depend>
+  <exec_depend>terrain_adaptation</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>rosgraph_msgs</exec_depend>

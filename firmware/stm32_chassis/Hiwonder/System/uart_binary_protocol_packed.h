@@ -35,6 +35,7 @@ typedef enum {
     FUNC_ENCODER          = 0x10,
     FUNC_BATTERY          = 0x11,
     FUNC_IMU              = 0x12,
+    FUNC_SELF_TEST        = 0x13,
     FUNC_HEARTBEAT        = 0xF0,
     FUNC_ACK              = 0xF1,
     FUNC_ERROR            = 0xFF
@@ -121,6 +122,23 @@ typedef struct __attribute__((packed)) {
     IMUTelemetry imu;
     uint32_t timestamp_ms;    // System timestamp
 } CompleteTelemetry;
+
+/**
+ * @brief Self-test result payload (matches Python: struct.pack('<BBH', status, test_id, error_code))
+ * 
+ * Python: struct.pack('<BBH', status, test_id, error_code)
+ * C layout: uint8_t + uint8_t + uint16_t = 4 bytes
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t overall_status;   // 0=pass, 1=fail, 2=running
+    uint8_t test_id;          // Current test identifier
+    uint16_t error_code;      // Specific error code for failed test
+} SelfTestResult;
+
+/**
+ * @brief Self-test request payload (empty for trigger)
+ * Self-test is triggered by FUNC_SELF_TEST with empty payload
+ */
 
 // ============================================================================
 // PARSER STATE MACHINE
@@ -307,6 +325,14 @@ void binary_protocol_process_byte(BinaryProtocolContext *ctx, uint8_t byte);
  * @param payload_len Payload length
  */
 void binary_protocol_process_frame(BinaryProtocolContext *ctx, uint8_t func, uint8_t *payload, uint8_t payload_len);
+
+/**
+ * @brief Run comprehensive self-test sequence
+ * Tests motors, encoders, IMU, battery, and communication
+ * @param ctx Protocol context
+ * @return Self-test result structure
+ */
+SelfTestResult binary_protocol_run_self_test(BinaryProtocolContext *ctx);
 
 #ifdef __cplusplus
 }

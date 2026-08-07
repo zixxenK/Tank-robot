@@ -33,7 +33,7 @@ from rclpy.qos import (
     QoSReliabilityPolicy,
 )
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool, Int32MultiArray
+from std_msgs.msg import Bool, Int32MultiArray, Empty
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import BatteryState, Imu, JointState
 from nav_msgs.msg import Odometry
@@ -53,6 +53,7 @@ FUNC_MOTOR = 0x03
 FUNC_ENCODER = 0x10
 FUNC_BATTERY = 0x11
 FUNC_IMU = 0x12
+FUNC_SELF_TEST = 0x13
 FUNC_HEARTBEAT = 0xF0
 FUNC_ACK = 0xF1
 FUNC_ERROR = 0xFF
@@ -62,6 +63,7 @@ VALID_FUNCTION_CODES = {
     FUNC_ENCODER,
     FUNC_BATTERY,
     FUNC_IMU,
+    FUNC_SELF_TEST,
     FUNC_HEARTBEAT,
     FUNC_ACK,
     FUNC_ERROR,
@@ -511,6 +513,12 @@ class STM32HardenedBridge(Node):
         self._diagnostics_pub = self.create_publisher(
             DiagnosticArray, "/stm32/diagnostics", 10
         )
+        self._self_test_result_pub = self.create_publisher(
+            Bool, "/stm32/self_test_result", 10
+        )
+        self._self_test_trigger_sub = self.create_subscription(
+            Empty, "/stm32/self_test", self._self_test_trigger_callback, 10
+        )
 
     def _setup_timers(self):
         """Set up ROS2 timers."""
@@ -848,6 +856,15 @@ class STM32HardenedBridge(Node):
         """Send heartbeat ping."""
         self._send_frame(FUNC_HEARTBEAT, b"")
 
+    def trigger_self_test(self):
+        """Trigger firmware self-test sequence."""
+        self._send_frame(FUNC_SELF_TEST, b"")
+        self.get_logger().info("Self-test triggered")
+
+    def _self_test_trigger_callback(self, msg: Empty):
+        """Callback for self-test trigger topic."""
+        self.trigger_self_test()
+
     def _send_frame(self, function_code: int, payload: bytes = b""):
         """Send a complete frame with CRC."""
         if self._ser is None or not self._ser.is_open:
@@ -911,6 +928,9 @@ class STM32HardenedBridge(Node):
 
             elif function_code == FUNC_IMU:
                 self._parse_imu_telemetry(payload)
+
+            elif function_code == FUNC_SELF_TEST:
+                self._parse_self_test_result(payload)
 
             else:
                 self.get_logger().warn(
@@ -986,6 +1006,54 @@ class STM32HardenedBridge(Node):
 
         except struct.error as e:
             self.get_logger().error(f"Error parsing IMU data: {e}")
+
+    def _parse_self_test_result(self, payload: bytes):
+        """Parse self-test result payload."""
+        if len(payload) < 4:  # status (1) + test_id (1) + error_code (2)
+            self.get_logger().warn(
+                f"Invalid self-test payload length: {len(payload)}"
+            )
+            return
+
+        try:
+            overall_status = struct.unpack("<B", payload[0:1])[0]
+            test_id = struct.unpack("<B", payload[1:2])[0]
+            error_code = struct.unpack("<H", payload[2:4])[0]
+
+            # Map status codes to strings
+            status_map = {0: "PASS", 1: "FAIL", 2: "RUNNING"}
+            status_str = status_map.get(overall_status, "UNKNOWN")
+
+            # Map test IDs to strings
+            test_map = {
+                0: "IDLE",
+                1: "MOTOR_LEFT",
+                2: "MOTOR_RIGHT",
+                3: "ENCODER_LEFT",
+                4: "ENCODER_RIGHT",
+                5: "IMU",
+                6: "BATTERY",
+                7: "COMPLETE"
+            }
+            test_str = test_map.get(test_id, f"UNKNOWN({test_id})")
+
+            if overall_status == 1:
+                self.get_logger().error(
+                    f"Self-test FAIL: {test_str} error_code=0x{error_code:04X}"
+                )
+            elif overall_status == 0:
+                self.get_logger().info(f"Self-test PASS: {test_str}")
+            else:
+                self.get_logger().info(f"Self-test RUNNING: {test_str}")
+
+            # Publish to self-test result topic
+            from std_msgs.msg import Bool
+            result_msg = Bool()
+            result_msg.data = (overall_status == 0)
+            self._self_test_result_pub.publish(result_msg)
+
+        except struct.error as e:
+            self.get_logger().error(f"Error parsing self-test data: {e}")
 
     def _publish_telemetry(self):
         """Publish telemetry data to ROS2 topics."""
