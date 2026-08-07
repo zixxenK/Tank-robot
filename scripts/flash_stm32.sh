@@ -45,12 +45,12 @@ echo "[flash] Flashing ${ELF_FILE} via ST-Link..."
 # Prefer st-flash if available, it's more reliable
 if command -v st-flash >/dev/null 2>&1; then
   echo "[flash] Using st-flash tool..."
-  HEX_FILE="${BUILD_DIR}/rock64_ranger_fw.hex"
-  if [[ ! -f "${HEX_FILE}" ]]; then
-    echo "[flash] ERROR: Hex file not found at ${HEX_FILE}"
+  ELF_FILE="${BUILD_DIR}/rock64_ranger_fw.elf"
+  if [[ ! -f "${ELF_FILE}" ]]; then
+    echo "[flash] ERROR: ELF file not found at ${ELF_FILE}"
     exit 1
   fi
-  st-flash write "${HEX_FILE}" 0x8000000
+  st-flash --reset write "${ELF_FILE}" 0x8000000
 else
   echo "[flash] st-flash not found, using OpenOCD..."
   if ! command -v openocd >/dev/null 2>&1; then
