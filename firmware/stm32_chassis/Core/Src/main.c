@@ -121,6 +121,7 @@ int main(void)
   MX_TIM12_Init();
   MX_ADC1_Init();
   MX_TIM14_Init();
+  MX_TIM2_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();

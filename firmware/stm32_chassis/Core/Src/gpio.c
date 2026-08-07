@@ -40,8 +40,6 @@
         * EXTI
      PC3   ------> SPI2_MOSI
      PB13   ------> SPI2_SCK
-     PA15   ------> S_TIM2_CH1_ETR
-     PB3   ------> S_TIM2_CH2
 */
 void MX_GPIO_Init(void)
 {
@@ -63,7 +61,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_SYS_GPIO_Port, LED_SYS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, LCD_BLK_Pin|LCD_CS_Pin|LCD_RES_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, LCD_BLK_Pin|LCD_CS_Pin|LCD_RES_Pin|MOTOR_ENABLE_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET);
@@ -113,8 +111,10 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LCD_BLK_Pin LCD_CS_Pin LCD_DC_Pin LCD_RES_Pin */
-  GPIO_InitStruct.Pin = LCD_BLK_Pin|LCD_CS_Pin|LCD_DC_Pin|LCD_RES_Pin;
+  /*Configure GPIO pins : LCD_BLK_Pin LCD_CS_Pin LCD_DC_Pin LCD_RES_Pin
+                           MOTOR_ENABLE_Pin */
+  GPIO_InitStruct.Pin = LCD_BLK_Pin|LCD_CS_Pin|LCD_DC_Pin|LCD_RES_Pin
+                          |MOTOR_ENABLE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -140,28 +140,6 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PA15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_15;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : MOTOR_ENABLE_Pin */
-  GPIO_InitStruct.Pin = MOTOR_ENABLE_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(MOTOR_ENABLE_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PB3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : KEY2_Pin KEY1_Pin */
   GPIO_InitStruct.Pin = KEY2_Pin|KEY1_Pin;
