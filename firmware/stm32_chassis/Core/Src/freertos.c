@@ -26,6 +26,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "uart_binary_protocol_integration_packed.h"
+#include "imu_integration.h"
+#include "battery_integration.h"
+#include "status_integration.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -480,7 +483,10 @@ __weak void imu_task_entry(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    // Process IMU data at 50Hz
+    float accel[3], gyro[3];
+    IMU_Update(accel, gyro);
+    osDelay(20);  // 50Hz = 20ms delay
   }
   /* USER CODE END imu_task_entry */
 }
@@ -570,9 +576,13 @@ __weak void app_task_entry(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    // Process binary protocol communication
+    // Process binary protocol communication (incoming commands, motor control)
     binary_protocol_main_task();
-    osDelay(1);
+    
+    // Send telemetry data (encoder, battery, IMU) at ~50Hz
+    binary_protocol_telemetry_task();
+    
+    osDelay(20);  // 50Hz for main processing loop
   }
   /* USER CODE END app_task_entry */
 }
@@ -631,7 +641,14 @@ __weak void buzzer_timer_callback(void *argument)
 __weak void battery_check_timer_callback(void *argument)
 {
   /* USER CODE BEGIN battery_check_timer_callback */
-
+  // Update battery monitoring at 1Hz
+  Battery_Update();
+  
+  // Check for low battery condition
+  if (Battery_IsLowVoltage()) {
+    Status_LowBatteryBeep();
+    Status_SetLEDWarning();
+  }
   /* USER CODE END battery_check_timer_callback */
 }
 

@@ -62,12 +62,11 @@ void binary_protocol_integration_init_packed(void) {
     Status_StartupSequence();
     
     // Initialize protocol with packed structures
-    // Using USART2 (PD5/PD6) without DMA for Rock64 host link at 1Mbaud
-    // DMA disabled temporarily to debug startup issues
+    // Using USART2 (PD5/PD6) with DMA for Rock64 host link at 1Mbaud
     binary_protocol_init_packed(&protocol_ctx,
                                &huart2,           // USART2 for Rock64 host link (PD5/PD6)
-                               NULL,              // No DMA for USART2 (disabled for debugging)
-                               NULL,              // No DMA for USART2 (disabled for debugging)
+                               &hdma_usart2_rx,   // DMA for USART2 RX
+                               &hdma_usart2_tx,   // DMA for USART2 TX
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
     
@@ -200,7 +199,7 @@ void binary_protocol_telemetry_task(void) {
  * Called when DMA transfer completes (for circular buffer, this indicates buffer wrap)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
+    if (huart->Instance == USART2) {
         // DMA circular buffer handling is automatic
         // The main loop will process the data via binary_protocol_process_dma()
     }
@@ -210,7 +209,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  * @brief UART TX Complete callback
  */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
+    if (huart->Instance == USART2) {
         binary_protocol_tx_complete(&protocol_ctx);
     }
 }
