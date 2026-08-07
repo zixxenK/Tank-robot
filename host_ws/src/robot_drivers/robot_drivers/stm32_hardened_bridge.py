@@ -795,7 +795,13 @@ class STM32HardenedBridge(Node):
             self._send_motor_command(left_speed, right_speed)
             with self._state_lock:
                 self._last_sent_pair = (left_speed, right_speed)
+                # Clear e-stop latch whenever we successfully send motion commands
                 self._estop_active = False
+        else:
+            # Even if speed unchanged, clear latch if we're actively commanding motion
+            with self._state_lock:
+                if (left_speed, right_speed) != (0, 0):
+                    self._estop_active = False
 
     def _slew_limit(
         self, current: float, target: float, rate: float, dt: float

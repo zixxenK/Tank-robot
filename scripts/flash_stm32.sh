@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# flash_stm32.sh — Flash STM32F407VGTx using ST-Link + OpenOCD
+# flash_stm32.sh — Flash STM32F407VGTx using ST-Link
+# Prefers st-flash tool, falls back to OpenOCD if not available
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,16 +26,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if ! command -v openocd >/dev/null 2>&1; then
-  echo "[flash] ERROR: openocd not found in PATH"
-  exit 1
-fi
-
 if [[ "${DO_BUILD}" == true ]]; then
   echo "[flash] Building firmware..."
   cd "${FIRMWARE_DIR}"
-  cmake --preset Release
-  cmake --build --preset Release -j4
+  rm -rf build/Release
+  cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -G 'Unix Makefiles'
+  cmake --build build/Release -j4
 fi
 
 if [[ ! -f "${ELF_FILE}" ]]; then
@@ -43,21 +40,38 @@ if [[ ! -f "${ELF_FILE}" ]]; then
   exit 1
 fi
 
-echo "[flash] Flashing ${ELF_FILE} via ST-Link/OpenOCD..."
+echo "[flash] Flashing ${ELF_FILE} via ST-Link..."
 
-BIN_FILE="${BUILD_DIR}/rock64_ranger_fw.bin"
-PROGRAM_CMD="program \"${BIN_FILE}\" 0x8000000"
-if [[ "${DO_VERIFY}" == true ]]; then
-  PROGRAM_CMD+=" verify"
+# Prefer st-flash if available, it's more reliable
+if command -v st-flash >/dev/null 2>&1; then
+  echo "[flash] Using st-flash tool..."
+  HEX_FILE="${BUILD_DIR}/rock64_ranger_fw.hex"
+  if [[ ! -f "${HEX_FILE}" ]]; then
+    echo "[flash] ERROR: Hex file not found at ${HEX_FILE}"
+    exit 1
+  fi
+  st-flash write "${HEX_FILE}" 0x8000000
+else
+  echo "[flash] st-flash not found, using OpenOCD..."
+  if ! command -v openocd >/dev/null 2>&1; then
+    echo "[flash] ERROR: openocd not found in PATH"
+    exit 1
+  fi
+  
+  BIN_FILE="${BUILD_DIR}/rock64_ranger_fw.bin"
+  PROGRAM_CMD="program \"${BIN_FILE}\" 0x8000000"
+  if [[ "${DO_VERIFY}" == true ]]; then
+    PROGRAM_CMD+=" verify"
+  fi
+  PROGRAM_CMD+=" reset"
+  
+  OPENOCD_CMD="init"
+  if [[ "${DO_ERASE}" == true ]]; then
+    OPENOCD_CMD+="; stm32f4x mass_erase 0"
+  fi
+  OPENOCD_CMD+="; ${PROGRAM_CMD}; shutdown"
+  
+  openocd -f "${SCRIPT_DIR}/openocd_stm32f407.cfg" -c "${OPENOCD_CMD}"
 fi
-PROGRAM_CMD+=" reset"
-
-OPENOCD_CMD="init"
-if [[ "${DO_ERASE}" == true ]]; then
-  OPENOCD_CMD+="; stm32f4x mass_erase 0"
-fi
-OPENOCD_CMD+="; ${PROGRAM_CMD}; shutdown"
-
-openocd -f "${SCRIPT_DIR}/openocd_stm32f407.cfg" -c "${OPENOCD_CMD}"
 
 echo "[flash] Flash complete"
