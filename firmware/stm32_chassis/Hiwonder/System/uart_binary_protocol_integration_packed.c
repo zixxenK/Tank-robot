@@ -62,11 +62,12 @@ void binary_protocol_integration_init_packed(void) {
     Status_StartupSequence();
     
     // Initialize protocol with packed structures
-    // Using USART2 (PD5/PD6) with DMA for Rock64 host link at 1Mbaud
+    // Using USART2 (PD5/PD6) without DMA for Rock64 host link at 1Mbaud
+    // DMA disabled temporarily to debug startup issues
     binary_protocol_init_packed(&protocol_ctx,
                                &huart2,           // USART2 for Rock64 host link (PD5/PD6)
-                               &hdma_usart2_rx,   // DMA for USART2 RX
-                               &hdma_usart2_tx,   // DMA for USART2 TX
+                               NULL,              // No DMA for USART2 (disabled for debugging)
+                               NULL,              // No DMA for USART2 (disabled for debugging)
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
     
