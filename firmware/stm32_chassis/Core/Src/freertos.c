@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "uart_binary_protocol_integration_packed.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -570,6 +570,8 @@ __weak void app_task_entry(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    // Process binary protocol communication
+    binary_protocol_main_task();
     osDelay(1);
   }
   /* USER CODE END app_task_entry */
