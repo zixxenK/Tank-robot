@@ -368,9 +368,9 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("angular_slew_rate", 6.0)
         self.declare_parameter("encoder_timeout", 1.0)
         self.declare_parameter("enable_telemetry", True)
-        self.declare_parameter("wheel_separation", 0.3)  # meters
-        self.declare_parameter("wheel_radius", 0.06)  # meters
-        self.declare_parameter("encoder_ticks_per_rev", 1000)
+        self.declare_parameter("wheel_separation", 0.194)  # meters (track width)
+        self.declare_parameter("wheel_radius", 0.065)  # meters
+        self.declare_parameter("encoder_ticks_per_rev", 3960)  # 11 PPR * 4 edges * 90:1 gearbox
         self.declare_parameter("battery_min_voltage", 9.0)
         self.declare_parameter("battery_max_voltage", 12.0)
         self.declare_parameter("startup_grace_period", 2.0)
@@ -586,7 +586,7 @@ class STM32HardenedBridge(Node):
             self.get_logger().info(
                 f"Connected to {self._serial_port} @ {self._baud_rate}"
             )
-            self._send_emergency_stop()
+            self._send_emergency_stop()  # Initial safety stop, not an emergency
             return True
 
         except serial.SerialException as e:
@@ -728,14 +728,14 @@ class STM32HardenedBridge(Node):
                 self._firmware_alive = False
                 self._motion_armed = False
             if not estop_active:
-                self._send_emergency_stop()
+                self._send_emergency_stop(emergency=True)  # Heartbeat timeout is an emergency
             else:
-                self._send_emergency_stop(silent=True)
+                self._send_emergency_stop(silent=True, emergency=True)
             return
 
         if not motion_armed:
             if not estop_active:
-                self._send_emergency_stop()
+                self._send_emergency_stop()  # Not armed is not an emergency
             else:
                 self._send_emergency_stop(silent=True)
             return
@@ -745,7 +745,7 @@ class STM32HardenedBridge(Node):
         stale = cmd_age > self._cmd_timeout
 
         if stale:
-            # No recent commands, send stop
+            # No recent commands, send stop (normal idle, not emergency)
             if not estop_active:
                 self._send_emergency_stop()
             else:
@@ -826,19 +826,23 @@ class STM32HardenedBridge(Node):
 
         self._send_frame(FUNC_MOTOR, bytes(payload))
 
-    def _send_emergency_stop(self, silent: bool = False):
+    def _send_emergency_stop(self, silent: bool = False, emergency: bool = False):
         """Send emergency stop command.
 
         Args:
             silent: If True, do not emit a log message. Used to avoid
                 spamming logs when the bridge remains in the stopped state.
+            emergency: If True, this is an actual emergency condition, not just
+                normal idle/timeout. Only set _estop_active latch for true emergencies.
         """
         if not silent:
             self.get_logger().warn("Sending emergency stop")
         self._send_frame(FUNC_MOTOR, bytes([MOTOR_SUBCMD_EMERGENCY_STOP, 0]))
         with self._state_lock:
             self._last_sent_pair = (0, 0)
-            self._estop_active = True
+            # Only latch e-stop state for actual emergencies, not normal idle/timeout
+            if emergency:
+                self._estop_active = True
 
     def _send_heartbeat(self):
         """Send heartbeat ping."""
