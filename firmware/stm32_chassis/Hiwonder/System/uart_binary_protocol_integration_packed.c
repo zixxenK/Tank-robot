@@ -9,7 +9,7 @@
  * 4. Actual motor control
  * 
  * HARDWARE CONFIGURATION:
- * - USART1: Rock64 host link at 115200 baud (PA9=DBG_TX, PA10=DBG_RX)
+ * - USART2: Rock64 host link at 1Mbaud (PD5=MASTER_TX, PD6=MASTER_RX)
  * - TIM2: Motor 2 quadrature encoder; never reconfigured here
  */
 
@@ -32,6 +32,8 @@ extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 extern DMA_HandleTypeDef hdma_usart3_tx;
+
+extern UART_HandleTypeDef huart2;  // USART2 for Rock64 host link (PD5/PD6)
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
@@ -60,11 +62,11 @@ void binary_protocol_integration_init_packed(void) {
     Status_StartupSequence();
     
     // Initialize protocol with packed structures
-    // Using USART1 (PA9/PA10) without DMA for Rock64 host link
+    // Using USART2 (PD5/PD6) with DMA for Rock64 host link at 1Mbaud
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart1,           // USART1 for Rock64 host link (PA9/PA10)
-                               NULL,              // No DMA for USART1
-                               NULL,              // No DMA for USART1
+                               &huart2,           // USART2 for Rock64 host link (PD5/PD6)
+                               &hdma_usart2_rx,   // DMA for USART2 RX
+                               &hdma_usart2_tx,   // DMA for USART2 TX
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
     
