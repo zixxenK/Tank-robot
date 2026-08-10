@@ -47,12 +47,6 @@ class ObjectDetector(Node):
         self.declare_parameter("enable_debug", True)
         self.declare_parameter("min_confidence", 0.5)
         self.declare_parameter("max_objects", 10)
-        self.declare_parameter("color_ranges", [
-            {"name": "red", "lower": [0, 100, 100], "upper": [10, 255, 255]},
-            {"name": "green", "lower": [40, 50, 50], "upper": [80, 255, 255]},
-            {"name": "blue", "lower": [100, 100, 100], "upper": [130, 255, 255]},
-            {"name": "yellow", "lower": [20, 100, 100], "upper": [30, 255, 255]},
-        ])
 
         self._input_topic = self.get_parameter("input_topic").value
         self._output_topic = self.get_parameter("output_topic").value
@@ -60,7 +54,14 @@ class ObjectDetector(Node):
         self._enable_debug = self.get_parameter("enable_debug").value
         self._min_confidence = self.get_parameter("min_confidence").value
         self._max_objects = self.get_parameter("max_objects").value
-        self._color_ranges = self.get_parameter("color_ranges").value
+        
+        # Default color ranges (hardcoded for simplicity)
+        self._color_ranges = [
+            {"name": "red", "lower": [0, 100, 100], "upper": [10, 255, 255]},
+            {"name": "green", "lower": [40, 50, 50], "upper": [80, 255, 255]},
+            {"name": "blue", "lower": [100, 100, 100], "upper": [130, 255, 255]},
+            {"name": "yellow", "lower": [20, 100, 100], "upper": [30, 255, 255]},
+        ]
 
         # CV Bridge
         self._cv_bridge = CvBridge()

@@ -30,7 +30,7 @@ def generate_launch_description():
     )
     use_camera_arg = DeclareLaunchArgument(
         'use_camera',
-        default_value='true',
+        default_value='false',
         description='Launch camera bridge for perception'
     )
     
