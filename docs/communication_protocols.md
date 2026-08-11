@@ -5,7 +5,7 @@
 - Peripheral: STM32 USART2
 - Pins: PD5 TX, PD6 RX
 - Host device: `/dev/rock64_stm32`
-- Baud: 115200, 8N1
+- Baud: 1000000 (1Mbaud), 8N1
 - RX: DMA1 Stream5, circular
 - TX: DMA1 Stream6, normal-mode queued DMA
 
