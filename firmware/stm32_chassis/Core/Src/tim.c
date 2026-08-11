@@ -35,7 +35,6 @@ TIM_HandleTypeDef htim10;
 TIM_HandleTypeDef htim11;
 TIM_HandleTypeDef htim12;
 TIM_HandleTypeDef htim13;
-TIM_HandleTypeDef htim14;
 
 /* TIM1 init function */
 void MX_TIM1_Init(void)
@@ -136,7 +135,7 @@ void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 65535;
+  htim2.Init.Period = 60000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
@@ -549,32 +548,6 @@ void MX_TIM13_Init(void)
   /* USER CODE END TIM13_Init 2 */
 
 }
-/* TIM14 init function */
-void MX_TIM14_Init(void)
-{
-
-  /* USER CODE BEGIN TIM14_Init 0 */
-
-  /* USER CODE END TIM14_Init 0 */
-
-  /* USER CODE BEGIN TIM14_Init 1 */
-
-  /* USER CODE END TIM14_Init 1 */
-  htim14.Instance = TIM14;
-  htim14.Init.Prescaler = 0;
-  htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim14.Init.Period = 65535;
-  htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM14_Init 2 */
-
-  /* USER CODE END TIM14_Init 2 */
-
-}
 
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
 {
@@ -656,24 +629,9 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
   /* USER CODE END TIM13_MspInit 0 */
     /* TIM13 clock enable */
     __HAL_RCC_TIM13_CLK_ENABLE();
-
-    /* TIM13 interrupt Init */
-    HAL_NVIC_SetPriority(TIM8_UP_TIM13_IRQn, 15, 0);
-    HAL_NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);
   /* USER CODE BEGIN TIM13_MspInit 1 */
 
   /* USER CODE END TIM13_MspInit 1 */
-  }
-  else if(tim_baseHandle->Instance==TIM14)
-  {
-  /* USER CODE BEGIN TIM14_MspInit 0 */
-
-  /* USER CODE END TIM14_MspInit 0 */
-    /* TIM14 clock enable */
-    __HAL_RCC_TIM14_CLK_ENABLE();
-  /* USER CODE BEGIN TIM14_MspInit 1 */
-
-  /* USER CODE END TIM14_MspInit 1 */
   }
 }
 
@@ -709,6 +667,9 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* tim_encoderHandle)
     GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+    /* TIM2 interrupt Init */
+    HAL_NVIC_SetPriority(TIM2_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(TIM2_IRQn);
   /* USER CODE BEGIN TIM2_MspInit 1 */
 
   /* USER CODE END TIM2_MspInit 1 */
@@ -975,17 +936,6 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 
   /* USER CODE END TIM13_MspDeInit 1 */
   }
-  else if(tim_baseHandle->Instance==TIM14)
-  {
-  /* USER CODE BEGIN TIM14_MspDeInit 0 */
-
-  /* USER CODE END TIM14_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_TIM14_CLK_DISABLE();
-  /* USER CODE BEGIN TIM14_MspDeInit 1 */
-
-  /* USER CODE END TIM14_MspDeInit 1 */
-  }
 }
 
 void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* tim_encoderHandle)
@@ -1007,6 +957,8 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* tim_encoderHandle)
 
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_3);
 
+    /* TIM2 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(TIM2_IRQn);
   /* USER CODE BEGIN TIM2_MspDeInit 1 */
 
   /* USER CODE END TIM2_MspDeInit 1 */
@@ -1076,4 +1028,3 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* tim_encoderHandle)
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
-

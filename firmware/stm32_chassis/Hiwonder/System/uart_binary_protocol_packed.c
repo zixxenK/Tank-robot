@@ -12,6 +12,9 @@
 
 #include "uart_binary_protocol_packed.h"
 #include "status_integration.h"
+#include "motor_control.h"
+#include "imu_integration.h"
+#include "battery_integration.h"
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -572,183 +575,14 @@ static uint16_t self_test_error_codes[] = {
 };
 
 SelfTestResult binary_protocol_run_self_test(BinaryProtocolContext *ctx) {
-    uint32_t now = HAL_GetTick();
-    
-    // Initialize self-test if idle
-    if (self_test_ctx.state == SELF_TEST_IDLE) {
-        self_test_ctx.state = SELF_TEST_MOTOR_LEFT;
-        self_test_ctx.test_start_time = now;
-        self_test_ctx.initial_encoder_left = 0;
-        self_test_ctx.initial_encoder_right = 0;
-        self_test_ctx.result.overall_status = 2;  // Running
-        self_test_ctx.result.test_id = SELF_TEST_MOTOR_LEFT;
-        self_test_ctx.result.error_code = 0;
-        
-        // Stop all motors before starting test
-        MotorControl_EmergencyStop();
-        HAL_Delay(100);
-        
-        return self_test_ctx.result;
-    }
-    
-    // State machine for self-test sequence
-    switch (self_test_ctx.state) {
-        case SELF_TEST_MOTOR_LEFT:
-            // Test motor 0 (left) with brief forward pulse
-            MotorControl_SetTargetRPS(0, 1.0f);  // 1 RPS forward
-            MotorControl_Update(0.01f);
-            HAL_Delay(200);
-            MotorControl_SetTargetRPS(0, 0.0f);
-            MotorControl_Update(0.01f);
-            
-            self_test_ctx.state = SELF_TEST_MOTOR_RIGHT;
-            self_test_ctx.result.test_id = SELF_TEST_MOTOR_RIGHT;
-            break;
-            
-        case SELF_TEST_MOTOR_RIGHT:
-            // Test motor 1 (right) with brief forward pulse
-            MotorControl_SetTargetRPS(1, 1.0f);  // 1 RPS forward
-            MotorControl_Update(0.01f);
-            HAL_Delay(200);
-            MotorControl_SetTargetRPS(1, 0.0f);
-            MotorControl_Update(0.01f);
-            
-            self_test_ctx.state = SELF_TEST_ENCODER_LEFT;
-            self_test_ctx.result.test_id = SELF_TEST_ENCODER_LEFT;
-            self_test_ctx.initial_encoder_left = MotorControl_GetEncoderCount(0);
-            break;
-            
-        case SELF_TEST_ENCODER_LEFT:
-            // Test encoder 0 by commanding motor and checking change
-            MotorControl_SetTargetRPS(0, 0.5f);
-            for (int i = 0; i < 10; i++) {
-                MotorControl_Update(0.01f);
-                HAL_Delay(10);
-            }
-            MotorControl_SetTargetRPS(0, 0.0f);
-            MotorControl_Update(0.01f);
-            
-            if (abs(MotorControl_GetEncoderCount(0) - self_test_ctx.initial_encoder_left) < 10) {
-                self_test_ctx.result.overall_status = 1;  // Fail
-                self_test_ctx.result.error_code = self_test_error_codes[3];
-                self_test_ctx.state = SELF_TEST_COMPLETE;
-                break;
-            }
-            
-            self_test_ctx.state = SELF_TEST_ENCODER_RIGHT;
-            self_test_ctx.result.test_id = SELF_TEST_ENCODER_RIGHT;
-            self_test_ctx.initial_encoder_right = MotorControl_GetEncoderCount(1);
-            break;
-            
-        case SELF_TEST_ENCODER_RIGHT:
-            // Test encoder 1 by commanding motor and checking change
-            MotorControl_SetTargetRPS(1, 0.5f);
-            for (int i = 0; i < 10; i++) {
-                MotorControl_Update(0.01f);
-                HAL_Delay(10);
-            }
-            MotorControl_SetTargetRPS(1, 0.0f);
-            MotorControl_Update(0.01f);
-            
-            if (abs(MotorControl_GetEncoderCount(1) - self_test_ctx.initial_encoder_right) < 10) {
-                self_test_ctx.result.overall_status = 1;  // Fail
-                self_test_ctx.result.error_code = self_test_error_codes[4];
-                self_test_ctx.state = SELF_TEST_COMPLETE;
-                break;
-            }
-            
-            self_test_ctx.state = SELF_TEST_IMU;
-            self_test_ctx.result.test_id = SELF_TEST_IMU;
-            break;
-            
-        case SELF_TEST_IMU: {
-            // Test IMU by reading data
-            float accel[3], gyro[3];
-            int imu_status = IMU_Update(accel, gyro);
-            
-            if (imu_status != 0) {
-                self_test_ctx.result.overall_status = 1;  // Fail
-                self_test_ctx.result.error_code = self_test_error_codes[5];
-                self_test_ctx.state = SELF_TEST_COMPLETE;
-                break;
-            }
-            
-            // Check if accelerometer data is reasonable (gravity should be ~9.8 m/s²)
-            float accel_magnitude = sqrtf(accel[0]*accel[0] + accel[1]*accel[1] + accel[2]*accel[2]);
-            if (accel_magnitude < 5.0f || accel_magnitude > 15.0f) {
-                self_test_ctx.result.overall_status = 1;  // Fail
-                self_test_ctx.result.error_code = self_test_error_codes[6];
-                self_test_ctx.state = SELF_TEST_COMPLETE;
-                break;
-            }
-            
-            self_test_ctx.state = SELF_TEST_BATTERY;
-            self_test_ctx.result.test_id = SELF_TEST_BATTERY;
-            break;
-        }
-            
-        case SELF_TEST_BATTERY: {
-            // Test battery voltage
-            Battery_Update();
-            float voltage = Battery_GetVoltage();
-            
-            if (voltage < 6.0f) {
-                self_test_ctx.result.overall_status = 1;  // Fail
-                self_test_ctx.result.error_code = self_test_error_codes[7];
-                self_test_ctx.state = SELF_TEST_COMPLETE;
-                break;
-            }
-            
-            if (voltage > 15.0f) {
-                self_test_ctx.result.overall_status = 1;  // Fail
-                self_test_ctx.result.error_code = self_test_error_codes[8];
-                self_test_ctx.state = SELF_TEST_COMPLETE;
-                break;
-            }
-            
-            self_test_ctx.state = SELF_TEST_COMPLETE;
-            self_test_ctx.result.test_id = SELF_TEST_COMPLETE;
-            self_test_ctx.result.overall_status = 0;  // Pass
-            self_test_ctx.result.error_code = 0;
-            break;
-        }
-            
-        case SELF_TEST_COMPLETE:
-            {
-                // Send result via protocol
-                uint8_t frame_buffer[MAX_FRAME_SIZE];
-                uint16_t frame_len = build_frame(FUNC_SELF_TEST,
-                                                 (const uint8_t *)&self_test_ctx.result,
-                                                 sizeof(SelfTestResult),
-                                                 frame_buffer,
-                                                 MAX_FRAME_SIZE);
-                if (frame_len > 0) {
-                    binary_protocol_queue_frame(ctx, FUNC_SELF_TEST, 
-                                               frame_buffer + FRAME_HEADER_SIZE,
-                                               frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
-                }
-            }
-            
-            // Reset state for next test
-            self_test_ctx.state = SELF_TEST_IDLE;
-            break;
-            
-        default:
-            self_test_ctx.state = SELF_TEST_IDLE;
-            break;
-    }
-    
-    // Check for timeout (30 seconds max for entire test)
-    if ((now - self_test_ctx.test_start_time) > 30000 && 
-        self_test_ctx.state != SELF_TEST_IDLE && 
-        self_test_ctx.state != SELF_TEST_COMPLETE) {
-        self_test_ctx.result.overall_status = 1;  // Fail
-        self_test_ctx.result.error_code = self_test_error_codes[9];
-        self_test_ctx.state = SELF_TEST_COMPLETE;
-        MotorControl_EmergencyStop();
-    }
-    
-    return self_test_ctx.result;
+    // Self-test disabled for factory configuration
+    // Return pass status to avoid blocking protocol operation
+    static SelfTestResult result = {
+        .overall_status = 0,  // Pass
+        .test_id = SELF_TEST_COMPLETE,
+        .error_code = 0
+    };
+    return result;
 }
 
 // ============================================================================

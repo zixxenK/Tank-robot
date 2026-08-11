@@ -1,15 +1,15 @@
 /**
  * @file uart_binary_protocol_integration_packed.c
  * @brief Production integration example for packed binary protocol
- * 
+ *
  * This file integrates the packed binary protocol with:
- * 1. DMA circular reception on USART3
+ * 1. DMA circular reception on USART2
  * 2. HAL tick based command and heartbeat timeouts
  * 3. FreeRTOS task integration
  * 4. Actual motor control
- * 
+ *
  * HARDWARE CONFIGURATION:
- * - USART3: Rock64 host link at 1Mbaud (PD8=MASTER_TX, PD9=MASTER_RX) - factory config
+ * - USART2: Rock64 host link at 115200 baud (PD5=BLE_TX, PD6=BLE_RX) - factory config
  * - TIM2: Motor 2 quadrature encoder; never reconfigured here
  */
 
@@ -33,7 +33,7 @@ extern DMA_HandleTypeDef hdma_usart2_tx;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 extern DMA_HandleTypeDef hdma_usart3_tx;
 
-extern UART_HandleTypeDef huart3;  // USART3 for Rock64 host link (PD8/PD9) - factory config
+extern UART_HandleTypeDef huart2;  // USART2 for Rock64 host link (PD5/PD6) - factory config
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
@@ -62,17 +62,15 @@ void binary_protocol_integration_init_packed(void) {
     Status_StartupSequence();
     
     // Initialize protocol with packed structures
-    // Using USART3 (PD8/PD9) with DMA for Rock64 host link at 1Mbaud (factory config)
+    // Using USART2 (PD5/PD6) with DMA for Rock64 host link at 115200 baud (factory config)
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart3,           // USART3 for Rock64 host link (PD8/PD9)
-                               &hdma_usart3_rx,   // DMA for USART3 RX
-                               &hdma_usart3_tx,   // DMA for USART3 TX
+                               &huart2,           // USART2 for Rock64 host link (PD5/PD6)
+                               &hdma_usart2_rx,   // DMA for USART2 RX
+                               &hdma_usart2_tx,   // DMA for USART2 TX
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
-    
-    if (!Watchdog_Init()) {
-        Error_Handler();
-    }
+
+    Watchdog_Init();
 }
 
 // ============================================================================
@@ -199,7 +197,7 @@ void binary_protocol_telemetry_task(void) {
  * Called when DMA transfer completes (for circular buffer, this indicates buffer wrap)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART3) {
+    if (huart->Instance == USART2) {
         // DMA circular buffer handling is automatic
         // The main loop will process the data via binary_protocol_process_dma()
     }
@@ -209,7 +207,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  * @brief UART TX Complete callback
  */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART3) {
+    if (huart->Instance == USART2) {
         binary_protocol_tx_complete(&protocol_ctx);
     }
 }
@@ -259,7 +257,7 @@ void binary_protocol_task(void *argument) {
 /**
  * @brief Call this from your main() while loop
  * Example:
- * 
+ *
  * int main(void) {
  *     HAL_Init();
  *     SystemClock_Config();
@@ -267,9 +265,9 @@ void binary_protocol_task(void *argument) {
  *     MX_USART2_UART_Init();
  *     MX_DMA_Init();
  *     MX_TIM2_Init();
- *     
+ *
  *     binary_protocol_integration_init_packed();
- *     
+ *
  *     while (1) {
  *         binary_protocol_main_task();
  *         HAL_Delay(10);  // 10ms loop

@@ -301,7 +301,7 @@ void buzzer_timer_callback(void *argument);
 void battery_check_timer_callback(void *argument);
 void IMU_read_timer_callback(void *argument);
 
-extern void MX_USB_DEVICE_Init(void);
+extern void MX_USB_HOST_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* Hook prototypes */
@@ -350,22 +350,22 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the semaphores(s) */
   /* creation of packet_tx_idle */
-  packet_tx_idleHandle = osSemaphoreNew(1, 0, &packet_tx_idle_attributes);
+  packet_tx_idleHandle = osSemaphoreNew(1, 1, &packet_tx_idle_attributes);
 
   /* creation of packet_rx_not_empty */
-  packet_rx_not_emptyHandle = osSemaphoreNew(1, 0, &packet_rx_not_empty_attributes);
+  packet_rx_not_emptyHandle = osSemaphoreNew(1, 1, &packet_rx_not_empty_attributes);
 
   /* creation of mpu6050_data_ready */
-  mpu6050_data_readyHandle = osSemaphoreNew(1, 0, &mpu6050_data_ready_attributes);
+  mpu6050_data_readyHandle = osSemaphoreNew(1, 1, &mpu6050_data_ready_attributes);
 
   /* creation of sbus_data_ready_01_ */
-  sbus_data_ready_01_Handle = osSemaphoreNew(1, 0, &sbus_data_ready_01__attributes);
+  sbus_data_ready_01_Handle = osSemaphoreNew(1, 1, &sbus_data_ready_01__attributes);
 
   /* creation of spi_tx_finished */
-  spi_tx_finishedHandle = osSemaphoreNew(1, 0, &spi_tx_finished_attributes);
+  spi_tx_finishedHandle = osSemaphoreNew(1, 1, &spi_tx_finished_attributes);
 
   /* creation of bluetooth_tx_idle */
-  bluetooth_tx_idleHandle = osSemaphoreNew(1, 0, &bluetooth_tx_idle_attributes);
+  bluetooth_tx_idleHandle = osSemaphoreNew(1, 1, &bluetooth_tx_idle_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -459,8 +459,8 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-  /* init code for USB_DEVICE */
-  MX_USB_DEVICE_Init();
+  /* init code for USB_HOST */
+  MX_USB_HOST_Init();
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
   for(;;)
