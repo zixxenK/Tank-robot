@@ -713,17 +713,19 @@ SelfTestResult binary_protocol_run_self_test(BinaryProtocolContext *ctx) {
         }
             
         case SELF_TEST_COMPLETE:
-            // Send result via protocol
-            uint8_t frame_buffer[MAX_FRAME_SIZE];
-            uint16_t frame_len = build_frame(FUNC_SELF_TEST,
-                                             (const uint8_t *)&self_test_ctx.result,
-                                             sizeof(SelfTestResult),
-                                             frame_buffer,
-                                             MAX_FRAME_SIZE);
-            if (frame_len > 0) {
-                binary_protocol_queue_frame(ctx, FUNC_SELF_TEST, 
-                                           frame_buffer + FRAME_HEADER_SIZE,
-                                           frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
+            {
+                // Send result via protocol
+                uint8_t frame_buffer[MAX_FRAME_SIZE];
+                uint16_t frame_len = build_frame(FUNC_SELF_TEST,
+                                                 (const uint8_t *)&self_test_ctx.result,
+                                                 sizeof(SelfTestResult),
+                                                 frame_buffer,
+                                                 MAX_FRAME_SIZE);
+                if (frame_len > 0) {
+                    binary_protocol_queue_frame(ctx, FUNC_SELF_TEST, 
+                                               frame_buffer + FRAME_HEADER_SIZE,
+                                               frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
+                }
             }
             
             // Reset state for next test
