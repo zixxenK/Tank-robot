@@ -27,6 +27,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
+#include "usbd_cdc_if.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -62,6 +63,7 @@ extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart5;
 extern UART_HandleTypeDef huart6;
+extern USBD_HandleTypeDef hUsbDeviceHS;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,32 +130,19 @@ int main(void)
   MX_TIM14_Init();
   MX_TIM2_Init();
   MX_IWDG_Init();
+  MX_USB_DEVICE_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
   
-  // Test all USART ports to find which one is connected to the USB-C port
+  // Initialize USB CDC
+  MX_USB_DEVICE_Init();
+  HAL_Delay(100);
+  
+  // Test USB CDC
   uint8_t test_data[] = {0xAA, 0x55, 0x42};
-  
-  // Test USART1
-  HAL_UART_Transmit(&huart1, test_data, 3, 1000);
-  HAL_Delay(100);
-  
-  // Test USART2
-  HAL_UART_Transmit(&huart2, test_data, 3, 1000);
-  HAL_Delay(100);
-  
-  // Test USART3
-  HAL_UART_Transmit(&huart3, test_data, 3, 1000);
-  HAL_Delay(100);
-  
-  // Test UART5
-  HAL_UART_Transmit(&huart5, test_data, 3, 1000);
-  HAL_Delay(100);
-  
-  // Test USART6
-  HAL_UART_Transmit(&huart6, test_data, 3, 1000);
+  CDC_Transmit_HS(test_data, 3);
   
   // Initialize ROS2-STM32 integration subsystems
   // Note: IMU, Battery, and Status are initialized inside binary_protocol_integration_init_packed()
