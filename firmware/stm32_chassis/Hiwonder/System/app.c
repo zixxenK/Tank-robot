@@ -21,7 +21,6 @@
 #include "pwm_servo.h"
 #include "serial_servo.h"
 #include "uart_binary_protocol_integration_packed.h"
-#include "usbd_cdc_if.h"
 #include <string.h>
 
 /* 云台舵机限位参数 */
@@ -166,11 +165,11 @@ void app_task_entry(void *argument)
 	// 循环  : RTOS任务中的循环，必须要有osDelay或者其他系统阻塞函数，否则会导致系统异常
     for(;;) {
         
-        // USB CDC test - send test bytes via USB CDC
-        static uint32_t usb_test_counter = 0;
-        if (usb_test_counter++ % 100 == 0) {
-            uint8_t usb_test = 0xCC;  // 0xCC for USB CDC test
-            CDC_Transmit_HS(&usb_test, 1);
+        // USART2 test - send test bytes via USART2 (for CH340 adapter)
+        static uint32_t usart_test_counter = 0;
+        if (usart_test_counter++ % 100 == 0) {
+            uint8_t usart_test = 0x42;  // 0x42 for USART2 test
+            HAL_UART_Transmit(&huart2, &usart_test, 1, 100);
         }
         
         //接收 运动控制队列 中的信息，若获取超100ms，则视为不成功，并使电机停止，跳过 这次循环

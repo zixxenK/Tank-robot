@@ -124,7 +124,6 @@ int main(void)
   MX_TIM14_Init();
   MX_TIM2_Init();
   MX_IWDG_Init();
-  MX_USB_DEVICE_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
