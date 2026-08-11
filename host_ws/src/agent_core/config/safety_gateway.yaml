@@ -9,6 +9,7 @@
     agent_heartbeat_timeout: 0.1
     output_rate_hz: 50.0
     monitor_battery: true
+    battery_startup_grace_period: 5.0
     battery_timeout: 1.0
     minimum_battery_voltage: 10.5
     critical_battery_voltage: 9.5

@@ -113,6 +113,7 @@ class TelemetryData:
     imu_accel: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     imu_gyro: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     timestamp: float = 0.0
+    battery_received: bool = False  # Track if we've ever received a battery frame
 
 
 class CircularBuffer:
@@ -979,6 +980,7 @@ class STM32HardenedBridge(Node):
                 self._telemetry.battery_voltage = voltage
                 self._telemetry.battery_current = current
                 self._telemetry.timestamp = time.monotonic()
+                self._telemetry.battery_received = True
 
         except struct.error as e:
             self.get_logger().error(f"Error parsing battery data: {e}")
@@ -1115,7 +1117,7 @@ class STM32HardenedBridge(Node):
         self._joint_state_pub.publish(joint_msg)
 
         # Publish battery data
-        if tel.battery_voltage > 0:
+        if tel.battery_received:
             battery_msg = BatteryState()
             battery_msg.header.stamp = stamp
             battery_msg.voltage = tel.battery_voltage
