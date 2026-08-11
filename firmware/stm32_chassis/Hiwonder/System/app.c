@@ -169,8 +169,10 @@ void app_task_entry(void *argument)
         // 参数2 : 待放入对象的地址 （这里为char类型地址）
         // 参数3 : 消息优先级
         // 参数4 : 超时设定（可设置等待获取时间）
-        if(osMessageQueueGet(moving_ctrl_queueHandle, &msg, &msg_prio, 100) != osOK) {
+        if(osMessageQueueGet(moving_ctrl_queueHandle, &msg, &msg_prio, 10) != osOK) {
             chassis->stop(chassis);
+            // Small delay to prevent CPU hogging
+            osDelay(1);
             continue;
         }
 
