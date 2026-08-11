@@ -15,6 +15,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // ============================================================================
 // CRC-8-CCITT LOOKUP TABLE
