@@ -57,7 +57,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern UART_HandleTypeDef huart2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,6 +128,11 @@ int main(void)
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
+  
+  // Basic USART2 test before FreeRTOS starts
+  uint8_t test_data[] = {0xAA, 0x55, 0x42};
+  HAL_UART_Transmit(&huart2, test_data, 3, 1000);
+  
   // Initialize ROS2-STM32 integration subsystems
   // Note: IMU, Battery, and Status are initialized inside binary_protocol_integration_init_packed()
   binary_protocol_integration_init_packed();
