@@ -57,7 +57,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart3;
+extern UART_HandleTypeDef huart5;
+extern UART_HandleTypeDef huart6;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,9 +133,27 @@ int main(void)
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
   
-  // Basic USART2 test before FreeRTOS starts
+  // Test all USART ports to find which one is connected to the USB-C port
   uint8_t test_data[] = {0xAA, 0x55, 0x42};
+  
+  // Test USART1
+  HAL_UART_Transmit(&huart1, test_data, 3, 1000);
+  HAL_Delay(100);
+  
+  // Test USART2
   HAL_UART_Transmit(&huart2, test_data, 3, 1000);
+  HAL_Delay(100);
+  
+  // Test USART3
+  HAL_UART_Transmit(&huart3, test_data, 3, 1000);
+  HAL_Delay(100);
+  
+  // Test UART5
+  HAL_UART_Transmit(&huart5, test_data, 3, 1000);
+  HAL_Delay(100);
+  
+  // Test USART6
+  HAL_UART_Transmit(&huart6, test_data, 3, 1000);
   
   // Initialize ROS2-STM32 integration subsystems
   // Note: IMU, Battery, and Status are initialized inside binary_protocol_integration_init_packed()
