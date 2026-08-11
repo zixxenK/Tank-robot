@@ -105,12 +105,6 @@ void app_task_entry(void *argument)
 	//IMU定时器句柄
 	extern osTimerId_t IMU_read_timerHandle;
 	
-    // USART handles for testing
-    extern UART_HandleTypeDef huart1;
-    extern UART_HandleTypeDef huart2;
-    extern UART_HandleTypeDef huart3;
-    extern UART_HandleTypeDef huart5;
-	
     //运动控制的队列句柄
     //手柄的信号是在 gampad_handle.c 中USBH_HID_EventCallback()回调函数中压入
     //在用户入口函数中取出控制小车运动
@@ -165,12 +159,9 @@ void app_task_entry(void *argument)
 	// 循环  : RTOS任务中的循环，必须要有osDelay或者其他系统阻塞函数，否则会导致系统异常
     for(;;) {
         
-        // USART2 test - send test bytes via USART2 (for CH340 adapter)
-        static uint32_t usart_test_counter = 0;
-        if (usart_test_counter++ % 100 == 0) {
-            uint8_t usart_test = 0x42;  // 0x42 for USART2 test
-            HAL_UART_Transmit(&huart2, &usart_test, 1, 100);
-        }
+        // Process binary protocol DMA buffer and send telemetry
+        binary_protocol_main_task();
+        binary_protocol_telemetry_task();  // Send sensor data to Rock64
         
         //接收 运动控制队列 中的信息，若获取超100ms，则视为不成功，并使电机停止，跳过 这次循环
         //osMessageQueueGet() 取出队列中的消息
