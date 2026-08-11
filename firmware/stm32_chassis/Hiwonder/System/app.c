@@ -105,6 +105,9 @@ void app_task_entry(void *argument)
 	//IMU定时器句柄
 	extern osTimerId_t IMU_read_timerHandle;
 	
+    // USART2 handle for Rock64 communication
+    extern UART_HandleTypeDef huart2;
+	
     //运动控制的队列句柄
     //手柄的信号是在 gampad_handle.c 中USBH_HID_EventCallback()回调函数中压入
     //在用户入口函数中取出控制小车运动
@@ -162,6 +165,13 @@ void app_task_entry(void *argument)
         // Process binary protocol DMA buffer and send telemetry
         binary_protocol_main_task();
         binary_protocol_telemetry_task();  // Send sensor data to Rock64
+        
+        // Simple USART2 test - send test byte
+        static uint32_t test_counter = 0;
+        if (test_counter++ % 100 == 0) {
+            uint8_t test_byte = 0xAA;
+            HAL_UART_Transmit(&huart2, &test_byte, 1, 100);
+        }
         
         //接收 运动控制队列 中的信息，若获取超100ms，则视为不成功，并使电机停止，跳过 这次循环
         //osMessageQueueGet() 取出队列中的消息
