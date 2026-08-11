@@ -159,6 +159,9 @@ void app_task_entry(void *argument)
 	// 循环  : RTOS任务中的循环，必须要有osDelay或者其他系统阻塞函数，否则会导致系统异常
     for(;;) {
         
+        // Process binary protocol DMA buffer and send telemetry
+        binary_protocol_main_task();
+        
         //接收 运动控制队列 中的信息，若获取超100ms，则视为不成功，并使电机停止，跳过 这次循环
         //osMessageQueueGet() 取出队列中的消息
         // 参数1 : 消息队列句柄
