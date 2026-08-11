@@ -109,6 +109,7 @@ void app_task_entry(void *argument)
     extern UART_HandleTypeDef huart1;
     extern UART_HandleTypeDef huart2;
     extern UART_HandleTypeDef huart3;
+    extern UART_HandleTypeDef huart5;
 	
     //运动控制的队列句柄
     //手柄的信号是在 gampad_handle.c 中USBH_HID_EventCallback()回调函数中压入
@@ -182,6 +183,10 @@ void app_task_entry(void *argument)
             // Test USART3 @ 115200
             uint8_t uart3_test = 0x33;  // 0x33 for USART3
             HAL_UART_Transmit(&huart3, &uart3_test, 1, 100);
+            
+            // Test UART5 @ 100000
+            uint8_t uart5_test = 0x55;  // 0x55 for UART5
+            HAL_UART_Transmit(&huart5, &uart5_test, 1, 100);
         }
         
         //接收 运动控制队列 中的信息，若获取超100ms，则视为不成功，并使电机停止，跳过 这次循环
