@@ -21,6 +21,7 @@
 #include "pwm_servo.h"
 #include "serial_servo.h"
 #include "uart_binary_protocol_integration_packed.h"
+#include "usbd_cdc_if.h"
 #include <string.h>
 
 /* 云台舵机限位参数 */
@@ -165,28 +166,11 @@ void app_task_entry(void *argument)
 	// 循环  : RTOS任务中的循环，必须要有osDelay或者其他系统阻塞函数，否则会导致系统异常
     for(;;) {
         
-        // USART port testing - try different ports and baud rates
-        static uint32_t test_counter = 0;
-        static uint8_t usart_test_byte = 0;
-        
-        if (test_counter++ % 100 == 0) {
-            usart_test_byte++;
-            
-            // Test USART1 @ 115200
-            uint8_t uart1_test = 0x11;  // 0x11 for USART1
-            HAL_UART_Transmit(&huart1, &uart1_test, 1, 100);
-            
-            // Test USART2 @ 1000000
-            uint8_t uart2_test = 0x22;  // 0x22 for USART2
-            HAL_UART_Transmit(&huart2, &uart2_test, 1, 100);
-            
-            // Test USART3 @ 115200
-            uint8_t uart3_test = 0x33;  // 0x33 for USART3
-            HAL_UART_Transmit(&huart3, &uart3_test, 1, 100);
-            
-            // Test UART5 @ 100000
-            uint8_t uart5_test = 0x55;  // 0x55 for UART5
-            HAL_UART_Transmit(&huart5, &uart5_test, 1, 100);
+        // USB CDC test - send test bytes via USB CDC
+        static uint32_t usb_test_counter = 0;
+        if (usb_test_counter++ % 100 == 0) {
+            uint8_t usb_test = 0xCC;  // 0xCC for USB CDC test
+            CDC_Transmit_HS(&usb_test, 1);
         }
         
         //接收 运动控制队列 中的信息，若获取超100ms，则视为不成功，并使电机停止，跳过 这次循环
