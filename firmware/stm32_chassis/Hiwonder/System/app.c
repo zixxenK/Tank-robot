@@ -161,6 +161,7 @@ void app_task_entry(void *argument)
         
         // Process binary protocol DMA buffer and send telemetry
         binary_protocol_main_task();
+        binary_protocol_telemetry_task();  // Send sensor data to Rock64
         
         //接收 运动控制队列 中的信息，若获取超100ms，则视为不成功，并使电机停止，跳过 这次循环
         //osMessageQueueGet() 取出队列中的消息
