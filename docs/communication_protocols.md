@@ -2,12 +2,12 @@
 
 ## Physical Link
 
-- Peripheral: STM32 USART2
-- Pins: PD5 TX, PD6 RX
+- Peripheral: STM32 USART3 (factory configuration)
+- Pins: PD8 TX, PD9 RX (MASTER_TX/MASTER_RX)
 - Host device: `/dev/rock64_stm32`
 - Baud: 1000000 (1Mbaud), 8N1
-- RX: DMA1 Stream5, circular
-- TX: DMA1 Stream6, normal-mode queued DMA
+- RX: DMA1 Stream1, circular
+- TX: DMA1 Stream3, normal-mode queued DMA
 
 ## Frame
 

@@ -27,7 +27,6 @@
 #include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
-#include "usbd_cdc_if.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -130,19 +129,10 @@ int main(void)
   MX_TIM14_Init();
   MX_TIM2_Init();
   MX_IWDG_Init();
-  MX_USB_DEVICE_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  
-  // Initialize USB CDC
-  MX_USB_DEVICE_Init();
-  HAL_Delay(100);
-  
-  // Test USB CDC
-  uint8_t test_data[] = {0xAA, 0x55, 0x42};
-  CDC_Transmit_HS(test_data, 3);
   
   // Initialize ROS2-STM32 integration subsystems
   // Note: IMU, Battery, and Status are initialized inside binary_protocol_integration_init_packed()
