@@ -196,13 +196,16 @@ void binary_protocol_init_packed(BinaryProtocolContext *ctx,
     ctx->last_command_time = HAL_GetTick();
     ctx->last_heartbeat_time = HAL_GetTick();
 
-    // Start DMA circular reception
+    // Start DMA circular reception if available
     if (huart && hdma_rx) {
         // Configure DMA for circular mode
         hdma_rx->Instance->CR |= DMA_SxCR_CIRC;  // Enable circular mode
 
         // Start DMA reception
         HAL_UART_Receive_DMA(huart, (uint8_t*)ctx->rx_buffer, RX_BUFFER_SIZE);
+    } else {
+        // No DMA available - will use polling mode
+        ctx->rx_write_pos = 0;
     }
 }
 
@@ -211,19 +214,27 @@ void binary_protocol_init_packed(BinaryProtocolContext *ctx,
 // ============================================================================
 
 void binary_protocol_process_dma(BinaryProtocolContext *ctx) {
-    // Calculate available data in circular buffer
-    // DMA write position is: RX_BUFFER_SIZE - DMA counter
-    uint16_t dma_write_pos = RX_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(ctx->rx_dma_handle);
+    if (ctx->rx_dma_handle) {
+        // DMA mode - calculate available data in circular buffer
+        // DMA write position is: RX_BUFFER_SIZE - DMA counter
+        uint16_t dma_write_pos = RX_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(ctx->rx_dma_handle);
 
-    // Process all available bytes
-    while (ctx->rx_read_pos != dma_write_pos) {
-        uint8_t byte = ctx->rx_buffer[ctx->rx_read_pos];
+        // Process all available bytes
+        while (ctx->rx_read_pos != dma_write_pos) {
+            uint8_t byte = ctx->rx_buffer[ctx->rx_read_pos];
 
-        // Process byte through state machine
-        binary_protocol_process_byte(ctx, byte);
+            // Process byte through state machine
+            binary_protocol_process_byte(ctx, byte);
 
-        // Advance read position (with wraparound)
-        ctx->rx_read_pos = (ctx->rx_read_pos + 1) % RX_BUFFER_SIZE;
+            // Advance read position (with wraparound)
+            ctx->rx_read_pos = (ctx->rx_read_pos + 1) % RX_BUFFER_SIZE;
+        }
+    } else {
+        // Polling mode - read single byte
+        uint8_t byte;
+        if (HAL_UART_Receive(ctx->uart_handle, &byte, 1, 0) == HAL_OK) {
+            binary_protocol_process_byte(ctx, byte);
+        }
     }
 }
 
