@@ -20,6 +20,7 @@
 #include "u8g2_porting.h"
 #include "pwm_servo.h"
 #include "serial_servo.h"
+#include "uart_binary_protocol_integration_packed.h"
 #include <string.h>
 
 /* 云台舵机限位参数 */
@@ -119,6 +120,9 @@ void app_task_entry(void *argument)
     /* ROS command handler initialization */
     // uart_ros_cmd_init();  // ROS command handler
     // uart_ros_integration_init();  // UART integration for ROS commands
+    
+    /* Binary protocol integration for USART2 Rock64 link */
+    binary_protocol_integration_init_packed();
 	
 	//注册按键回调函数，处理按键值
     button_register_callback(buttons[0], button_event_callback);
