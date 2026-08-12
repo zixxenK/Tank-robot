@@ -141,14 +141,16 @@ add_library(USB_Host_Library OBJECT)
 target_sources(USB_Host_Library PRIVATE ${USB_Host_Library_Src})
 target_link_libraries(USB_Host_Library PUBLIC stm32cubemx)
 
-# Add STM32CubeMX generated application sources to the project
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${MX_Application_Src})
+# Add STM32CubeMX generated application sources to the project (only if not standalone)
+if(NOT CMAKE_PROJECT_NAME STREQUAL "stm32cubemx")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${MX_Application_Src})
 
-# Link directories setup
-target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE ${MX_LINK_DIRS})
+    # Link directories setup
+    target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE ${MX_LINK_DIRS})
 
-# Add libraries to the project
-target_link_libraries(${CMAKE_PROJECT_NAME} ${MX_LINK_LIBS})
+    # Add libraries to the project
+    target_link_libraries(${CMAKE_PROJECT_NAME} ${MX_LINK_LIBS})
+endif()
 
 # Add the map file to the list of files to be removed with 'clean' target
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES ADDITIONAL_CLEAN_FILES ${CMAKE_PROJECT_NAME}.map)
