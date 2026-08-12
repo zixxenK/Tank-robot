@@ -108,9 +108,9 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
     COMMENT "Generating .bin and .hex flash images"
 )
 
-# Add flash target using ELF file (more reliable than BIN)
+# Add flash target using OpenOCD (most reliable)
 add_custom_target(flash
-    COMMAND st-flash --reset write ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.elf 0x08000000
+    COMMAND openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin verify reset exit 0x08000000"
     DEPENDS ${CMAKE_PROJECT_NAME}
-    COMMENT "Flashing firmware to STM32 via ST-Link using ELF file"
+    COMMENT "Flashing firmware to STM32 via OpenOCD"
 )
