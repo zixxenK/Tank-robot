@@ -3,16 +3,17 @@
  * @brief Production integration example for packed binary protocol
  *
  * This file integrates the packed binary protocol with:
- * 1. DMA circular reception on USART1
+ * 1. USART2 polling mode reception (no DMA)
  * 2. HAL tick based command and heartbeat timeouts
  * 3. FreeRTOS task integration
  * 4. Actual motor control
  *
  * HARDWARE CONFIGURATION:
- * - USART1: Rock64 host link at 115200 baud (PA9=DBG_TX, PA10=DBG_RX)
- *   Hardware Configuration: Host link connected via USART1 pins PA9/PA10
- *   with DMA circular RX and normal TX for reliable communication.
- * - USART2 (PD5/PD6, "BLE") is the factory Bluetooth port at 115200 baud.
+ * - USART2: Rock64 host link at 1,000,000 baud (PD5=BLE_TX, PD6=BLE_RX)
+ *   Hardware Configuration: Host link connected via USART2 pins PD5/PD6
+ *   via USB-C CDC (Rock64 USB 3.0 → STM32 USB-C).
+ *   Uses polling mode (no DMA) for communication.
+ * - USART1 (PA9/PA10, "DBG") is the debug console at 115200 baud.
  * - USART3 (PD8/PD9, "MASTER") is not used for the host link.
  * - TIM2: Motor 2 quadrature encoder; never reconfigured here
  */
@@ -32,10 +33,7 @@
 #include <string.h>
 #include <math.h>
 
-extern DMA_HandleTypeDef hdma_usart1_rx;
-extern DMA_HandleTypeDef hdma_usart1_tx;
-
-extern UART_HandleTypeDef huart1;  // USART1 - Rock64 host link (PA9/PA10)
+extern UART_HandleTypeDef huart2;  // USART2 - Rock64 host link (PD5/PD6)
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
@@ -64,12 +62,12 @@ void binary_protocol_integration_init_packed(void) {
     Status_StartupSequence();
     
     // Initialize protocol with packed structures
-    // USART1 (PA9/PA10) DMA circular RX + normal TX at 115200 baud,
+    // USART2 (PD5/PD6) polling mode at 1,000,000 baud,
     // matching stm32_hardened_bridge.py's default baud_rate parameter.
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart1,           // USART1 - Rock64 host link (PA9/PA10)
-                               &hdma_usart1_rx,   // DMA2_Stream2, circular RX
-                               &hdma_usart1_tx,   // DMA2_Stream7, normal TX
+                               &huart2,           // USART2 - Rock64 host link (PD5/PD6)
+                               NULL,              // No DMA - polling mode
+                               NULL,              // No DMA - polling mode
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
 
@@ -200,9 +198,8 @@ void binary_protocol_telemetry_task(void) {
  * Called when DMA transfer completes (for circular buffer, this indicates buffer wrap)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
-        // Circular DMA: HAL re-arms automatically. Buffer wrap is handled by
-        // binary_protocol_process_dma() via the DMA counter, not here.
+    if (huart->Instance == USART2) {
+        // Polling mode: RX complete handled by HAL_UART_Receive
     }
 }
 
@@ -210,7 +207,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  * @brief UART TX Complete callback
  */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
+    if (huart->Instance == USART2) {
         binary_protocol_tx_complete(&protocol_ctx);
     }
 }
