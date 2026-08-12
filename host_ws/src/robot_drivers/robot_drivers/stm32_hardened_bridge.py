@@ -360,7 +360,7 @@ class STM32HardenedBridge(Node):
 
         # Parameters
         self.declare_parameter("serial_port", "/dev/rock64_stm32")
-        self.declare_parameter("baud_rate", 1000000)  # 1Mbaud to match STM32 USART2 (PD5/PD6)
+        self.declare_parameter("baud_rate", 115200)  # 115200 baud to match STM32 USART1 (PA9/PA10)
         self.declare_parameter("max_speed", 255)
         self.declare_parameter("command_rate_hz", 50.0)
         self.declare_parameter("cmd_timeout", 0.25)
