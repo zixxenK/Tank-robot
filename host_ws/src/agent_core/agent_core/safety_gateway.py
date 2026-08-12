@@ -145,6 +145,7 @@ class SafetyGatewayNode(Node):
         self._battery_voltage: Optional[float] = None
         self._battery_time: Optional[float] = None
         self._battery_recovery_since: Optional[float] = None
+        self._battery_warning_logged = False
 
         self._last_output: Command = (0.0, 0.0)
         self._last_publish_time = now
@@ -467,14 +468,16 @@ class SafetyGatewayNode(Node):
                     now - self._node_start_time
                     < self._battery_startup_grace
                 )
-                if not in_grace:
+                if not in_grace and not self._battery_warning_logged:
                     self.get_logger().warn("Battery data unavailable - ADC not configured in firmware. Continuing without battery check.")
+                    self._battery_warning_logged = True
                     # return None, "battery_unavailable"  # DISABLED
                 # Inside the grace period: fall through and allow normal
                 # command selection below. "battery_pending" is informational
                 # only, never a hard stop, so it is not returned here.
-            elif now - self._battery_time > self._battery_timeout:
+            elif now - self._battery_time > self._battery_timeout and not self._battery_warning_logged:
                 self.get_logger().warn("Battery data stale - ADC not configured in firmware. Continuing without battery check.")
+                self._battery_warning_logged = True
                 # return None, "battery_stale"  # DISABLED
 
         if self._teleop_time is not None and (
