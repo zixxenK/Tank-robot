@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
+
+# Project declaration for standalone builds
+if(NOT CMAKE_PROJECT_NAME)
+    project(stm32cubemx)
+endif()
+
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 # STM32CubeMX generated symbols (macros)
@@ -110,7 +116,9 @@ set(MX_LINK_DIRS
 set(MX_LINK_LIBS 
     STM32_Drivers
     ${TOOLCHAIN_LINK_LIBRARIES}
-    FreeRTOS	USB_Host_Library	
+    FreeRTOS
+	USB_Host_Library
+	
 )
 # Interface library for includes and symbols
 add_library(stm32cubemx INTERFACE)
