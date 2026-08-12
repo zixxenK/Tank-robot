@@ -110,6 +110,13 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
 
 # Add flash target
 add_custom_target(flash
+    COMMAND openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin verify reset exit 0x08000000"
+    DEPENDS ${CMAKE_PROJECT_NAME}
+    COMMENT "Flashing firmware to STM32 via OpenOCD"
+)
+
+# Alternative flash target using st-flash (less reliable)
+add_custom_target(flash_stlink
     COMMAND st-flash write ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin 0x08000000
     DEPENDS ${CMAKE_PROJECT_NAME}
     COMMENT "Flashing firmware to STM32 via ST-Link"
