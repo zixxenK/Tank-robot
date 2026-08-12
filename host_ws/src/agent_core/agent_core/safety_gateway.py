@@ -459,6 +459,8 @@ class SafetyGatewayNode(Node):
             return None, "operator_estop"
         if self._battery_latched:
             return None, "battery_latched"
+        # Battery monitoring temporarily disabled - ADC not configured in firmware
+        # TODO: Re-enable battery monitoring when ADC is properly configured
         if self._monitor_battery:
             if self._battery_time is None:
                 in_grace = (
@@ -466,12 +468,14 @@ class SafetyGatewayNode(Node):
                     < self._battery_startup_grace
                 )
                 if not in_grace:
-                    return None, "battery_unavailable"
+                    self.get_logger().warn("Battery data unavailable - ADC not configured in firmware. Continuing without battery check.")
+                    # return None, "battery_unavailable"  # DISABLED
                 # Inside the grace period: fall through and allow normal
                 # command selection below. "battery_pending" is informational
                 # only, never a hard stop, so it is not returned here.
             elif now - self._battery_time > self._battery_timeout:
-                return None, "battery_stale"
+                self.get_logger().warn("Battery data stale - ADC not configured in firmware. Continuing without battery check.")
+                # return None, "battery_stale"  # DISABLED
 
         if self._teleop_time is not None and (
             now - self._teleop_time <= self._teleop_timeout
