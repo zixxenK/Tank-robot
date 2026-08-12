@@ -60,6 +60,7 @@ void DMA1_Stream4_IRQHandler(void);
 void TIM2_IRQHandler(void);
 void TIM3_IRQHandler(void);
 void TIM4_IRQHandler(void);
+void USART1_IRQHandler(void);
 void USART3_IRQHandler(void);
 void EXTI15_10_IRQHandler(void);
 void TIM8_BRK_TIM12_IRQHandler(void);
@@ -69,6 +70,8 @@ void DMA1_Stream7_IRQHandler(void);
 void TIM5_IRQHandler(void);
 void UART5_IRQHandler(void);
 void TIM7_IRQHandler(void);
+void DMA2_Stream2_IRQHandler(void);
+void DMA2_Stream7_IRQHandler(void);
 void USART6_IRQHandler(void);
 void OTG_HS_IRQHandler(void);
 /* USER CODE BEGIN EFP */
