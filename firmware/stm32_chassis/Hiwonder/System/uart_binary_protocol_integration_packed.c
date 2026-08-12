@@ -9,8 +9,11 @@
  * 4. Actual motor control
  *
  * HARDWARE CONFIGURATION:
- * - USART1: Rock64 host link at 115200 baud (PA9=DBG_TX, PA10=DBG_RX) - factory config
- * - USB-C connection: Rock64 USB 3.0 → STM32 USB-C (exposes UART1/UART2 via CDC)
+ * - USART1: Rock64 host link at 115200 baud (PA9=DBG_TX, PA10=DBG_RX)
+ *   Hardware Configuration: Host link connected via USART1 pins PA9/PA10
+ *   with DMA circular RX and normal TX for reliable communication.
+ * - USART2 (PD5/PD6, "BLE") is the factory Bluetooth port at 115200 baud.
+ * - USART3 (PD8/PD9, "MASTER") is not used for the host link.
  * - TIM2: Motor 2 quadrature encoder; never reconfigured here
  */
 
@@ -29,12 +32,10 @@
 #include <string.h>
 #include <math.h>
 
-extern DMA_HandleTypeDef hdma_usart2_rx;
-extern DMA_HandleTypeDef hdma_usart2_tx;
-extern DMA_HandleTypeDef hdma_usart3_rx;
-extern DMA_HandleTypeDef hdma_usart3_tx;
+extern DMA_HandleTypeDef hdma_usart1_rx;
+extern DMA_HandleTypeDef hdma_usart1_tx;
 
-extern UART_HandleTypeDef huart1;  // USART1 for Rock64 host link (PA9/PA10) - factory config
+extern UART_HandleTypeDef huart1;  // USART1 - Rock64 host link (PA9/PA10)
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
@@ -63,12 +64,12 @@ void binary_protocol_integration_init_packed(void) {
     Status_StartupSequence();
     
     // Initialize protocol with packed structures
-    // Using USART1 (PA9/PA10) without DMA for Rock64 host link at 115200 baud (factory config)
-    // USB-C connection: Rock64 USB 3.0 → STM32 USB-C (exposes UART1 via CDC as /dev/ttyACM1)
+    // USART1 (PA9/PA10) DMA circular RX + normal TX at 115200 baud,
+    // matching stm32_hardened_bridge.py's default baud_rate parameter.
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart1,           // USART1 for Rock64 host link (PA9/PA10)
-                               NULL,              // No DMA for USART1 RX (factory config)
-                               NULL,              // No DMA for USART1 TX (factory config)
+                               &huart1,           // USART1 - Rock64 host link (PA9/PA10)
+                               &hdma_usart1_rx,   // DMA2_Stream2, circular RX
+                               &hdma_usart1_tx,   // DMA2_Stream7, normal TX
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
 
@@ -200,8 +201,8 @@ void binary_protocol_telemetry_task(void) {
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart->Instance == USART1) {
-        // USART1 doesn't have DMA, so this won't be called
-        // Protocol will use polling mode instead
+        // Circular DMA: HAL re-arms automatically. Buffer wrap is handled by
+        // binary_protocol_process_dma() via the DMA counter, not here.
     }
 }
 

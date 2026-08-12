@@ -131,10 +131,10 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | Present but configured as plain `GPIO_Output` in the .ioc, **not** bound to a timer channel — needs remapping onto TIM1 or TIM9 for real hardware PWM |
 | Serial bus servo port | USART6 (PC6 TX / PC7 RX) + PE7/PE8 as TX/RX bus-direction-enable | Matches Hiwonder's half-duplex bus-servo driver topology exactly |
 | SBUS input | UART5 RX (PD2), 100000 baud, 9-bit, even parity, 2 stop bits | Standard SBUS framing, matches |
-| Bluetooth UART | USART2 (PD5 TX / PD6 RX), 9600 baud | **REPURPOSED:** Now used for Rock64 link at 1,000,000 baud (not Bluetooth) |
+| Bluetooth UART | USART2 (PD5 TX / PD6 RX), 115200 baud | Bluetooth module interface (factory configuration) |
 | Onboard IMU | I2C2 (PB10 SCL / PB11 SDA) + EXTI on PB12 (`IMU_ITR`) | FreeRTOS config has an `mpu6050_data_ready` semaphore — confirms MPU6050, matching the reference board exactly |
 | Display | SPI2 TX-only (PC3 MOSI / PB13 SCK) + PD11–14 as LCD_BLK/CS/DC/RES | Reference board uses SPI OLED; project uses a color LCD instead (ST7735-class 4-wire) |
-| Master/host link | USART2 (PD5 TX / PD6 RX) at 1,000,000 baud, labeled BLE_TX/BLE_RX | This is the high-speed link to the Rock64 (not present on the reference board, which uses USB) |
+| Master/host link | USART1 (PA9 TX / PA10 RX) at 115200 baud, labeled DBG_TX/DBG_RX | This is the high-speed link to the Rock64 (not present on the reference board, which uses USB) |
 | Battery sense | ADC1 IN8 on PB0, labeled BATTERY | Standard voltage-divider ADC monitoring |
 | Motor enable | PD3, `GPIO_Input`, labeled MOTOR_ENABLE | Matches reference board's separate motor-enable switch |
 
@@ -265,7 +265,7 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 | PD5 | USART2_TX (BLE_TX) | Rock64 SBC | High-speed link to main compute (1,000,000 baud) |
 | PD6 | USART2_RX (BLE_RX) | Rock64 SBC | High-speed link from main compute |
 
-**Note:** USART2 is repurposed from Bluetooth to Rock64 connection. Bluetooth functionality is not currently used in this configuration. The original reference board used USART2 for a Bluetooth module at 9600 baud, but this project uses it for the high-speed Rock64 link.
+**Note:** USART2 is repurposed from Bluetooth to Rock64 connection. Bluetooth functionality is not currently used in this configuration. The original reference board used USART2 for a Bluetooth module at 115200 baud, but this project uses it for the high-speed Rock64 link.
 
 #### SBUS RC Input
 | Pin | Signal | Component | Rationale |

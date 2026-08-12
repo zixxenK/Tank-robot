@@ -19,6 +19,6 @@ ninja -C build
 ```
 
 ## Hardware Interface
-- USART2 (PD5/PD6) @ 1Mbaud - Rock64 host communication
-- DMA circular buffer for USART2 RX/TX
+- USART1 (PA9/PA10) @ 115200 baud - Rock64 host communication
+- DMA circular buffer for USART1 RX/TX
 - Packed binary protocol for motor commands and telemetry

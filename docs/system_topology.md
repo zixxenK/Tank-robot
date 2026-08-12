@@ -17,7 +17,7 @@ PS5 / keyboard                           Autonomous agent
                 stm32_hardened_bridge
           heartbeat | reconnect | serial timeout
                           |
-                USART2 packed binary
+                USART1 packed binary
                           |
                        STM32F407
        command timeout | IWDG | PID | PWM | encoders

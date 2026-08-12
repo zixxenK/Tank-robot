@@ -16,7 +16,7 @@ E-stop + battery telemetry ─────────────────> 
                                                v
                                   stm32_hardened_bridge
                                                v
-                                  USART2 packed binary
+                                  USART1 packed binary
                                                v
                                         STM32F407
 ```
@@ -39,7 +39,7 @@ docs/                     Current architecture and validation documents
 ```
 
 There is one ROS workspace (`host_ws`) and one STM32 transport (packed binary
-on USART2). Legacy ASCII bridges, duplicate workspaces, and placeholder
+on USART1). Legacy ASCII bridges, duplicate workspaces, and placeholder
 micro-ROS paths have been removed.
 
 ## STM32 Build

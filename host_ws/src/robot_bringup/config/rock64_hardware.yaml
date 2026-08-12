@@ -20,7 +20,7 @@
 
     # Legacy serial bridge (optional fallback)
     serial_port: /dev/rock64_stm32
-    baud_rate: 1000000  # 1Mbaud to match STM32 USART2 configuration
+    baud_rate: 115200  # 115200 baud to match STM32 USART1 configuration
     max_speed: 255
     command_rate_hz: 50.0
     cmd_timeout: 0.25
