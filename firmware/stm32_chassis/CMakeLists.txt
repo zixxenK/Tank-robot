@@ -107,3 +107,10 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
         ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.hex
     COMMENT "Generating .bin and .hex flash images"
 )
+
+# Add flash target
+add_custom_target(flash
+    COMMAND st-flash write ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin 0x08000000
+    DEPENDS ${CMAKE_PROJECT_NAME}
+    COMMENT "Flashing firmware to STM32 via ST-Link"
+)
