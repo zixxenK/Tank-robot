@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FIRMWARE_DIR="${REPO_ROOT}/firmware/stm32_chassis"
 BUILD_DIR="${FIRMWARE_DIR}/build/Release"
-ELF_FILE="${BUILD_DIR}/RosRobotControllerM4.elf"
+BIN_FILE="${BUILD_DIR}/RosRobotControllerM4.bin"
 
 DO_BUILD=false
 DO_VERIFY=false
@@ -34,23 +34,18 @@ if [[ "${DO_BUILD}" == true ]]; then
   cmake --build build/Release -j4
 fi
 
-if [[ ! -f "${ELF_FILE}" ]]; then
-  echo "[flash] ERROR: Firmware not found at ${ELF_FILE}"
+if [[ ! -f "${BIN_FILE}" ]]; then
+  echo "[flash] ERROR: Firmware not found at ${BIN_FILE}"
   echo "[flash] Run with --build to generate it first"
   exit 1
 fi
 
-echo "[flash] Flashing ${ELF_FILE} via ST-Link..."
+echo "[flash] Flashing ${BIN_FILE} via ST-Link..."
 
 # Prefer st-flash if available, it's more reliable
 if command -v st-flash >/dev/null 2>&1; then
   echo "[flash] Using st-flash tool..."
-  ELF_FILE="${BUILD_DIR}/RosRobotControllerM4.elf"
-  if [[ ! -f "${ELF_FILE}" ]]; then
-    echo "[flash] ERROR: ELF file not found at ${ELF_FILE}"
-    exit 1
-  fi
-  st-flash --reset write "${ELF_FILE}" 0x8000000
+  st-flash --reset write "${BIN_FILE}" 0x08000000
 else
   echo "[flash] st-flash not found, using OpenOCD..."
   if ! command -v openocd >/dev/null 2>&1; then
@@ -59,17 +54,17 @@ else
   fi
   
   BIN_FILE="${BUILD_DIR}/RosRobotControllerM4.bin"
-  PROGRAM_CMD="program \"${BIN_FILE}\" 0x8000000"
+  PROGRAM_CMD="program \"${BIN_FILE}\""
   if [[ "${DO_VERIFY}" == true ]]; then
     PROGRAM_CMD+=" verify"
   fi
-  PROGRAM_CMD+=" reset"
+  PROGRAM_CMD+=" reset exit 0x08000000"
   
   OPENOCD_CMD="init"
   if [[ "${DO_ERASE}" == true ]]; then
     OPENOCD_CMD+="; stm32f4x mass_erase 0"
   fi
-  OPENOCD_CMD+="; ${PROGRAM_CMD}; shutdown"
+  OPENOCD_CMD+="; ${PROGRAM_CMD}"
   
   openocd -f "${SCRIPT_DIR}/openocd_stm32f407.cfg" -c "${OPENOCD_CMD}"
 fi
