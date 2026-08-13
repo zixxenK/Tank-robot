@@ -126,6 +126,8 @@ int main(void)
   MX_CRC_Init();
   MX_TIM12_Init();
   MX_ADC1_Init();
+  /* Factory IOC: USB_DEVICE CDC_HS over USB_OTG_HS (PB14/PB15). */
+  MX_USB_DEVICE_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();

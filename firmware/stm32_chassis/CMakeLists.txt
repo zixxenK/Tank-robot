@@ -109,8 +109,13 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
 )
 
 # Add flash target using OpenOCD (most reliable)
+set(OPENOCD_TRANSPORT "hla_swd" CACHE STRING
+    "OpenOCD ST-Link transport (Rock64=hla_swd, newer desktop=swd)")
 add_custom_target(flash
-    COMMAND openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin verify reset exit 0x08000000"
+    COMMAND openocd -f interface/stlink.cfg
+        -c "transport select ${OPENOCD_TRANSPORT}"
+        -f target/stm32f4x.cfg
+        -c "program ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin verify reset exit 0x08000000"
     DEPENDS ${CMAKE_PROJECT_NAME}
     COMMENT "Flashing firmware to STM32 via OpenOCD"
 )
