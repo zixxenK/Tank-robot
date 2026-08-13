@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # flash_stm32.sh — Flash STM32F407VGTx using ST-Link
-# Prefers st-flash tool, falls back to OpenOCD if not available
+# Uses OpenOCD with verification when available; st-flash is the fallback.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,31 +42,30 @@ fi
 
 echo "[flash] Flashing ${BIN_FILE} via ST-Link..."
 
-# Prefer st-flash if available, it's more reliable
-if command -v st-flash >/dev/null 2>&1; then
-  echo "[flash] Using st-flash tool..."
-  st-flash --reset write "${BIN_FILE}" 0x08000000
-else
-  echo "[flash] st-flash not found, using OpenOCD..."
-  if ! command -v openocd >/dev/null 2>&1; then
-    echo "[flash] ERROR: openocd not found in PATH"
-    exit 1
-  fi
-  
-  BIN_FILE="${BUILD_DIR}/RosRobotControllerM4.bin"
-  PROGRAM_CMD="program \"${BIN_FILE}\""
+if command -v openocd >/dev/null 2>&1; then
+  echo "[flash] Using OpenOCD..."
+  # Rock64 OpenOCD 0.11 uses hla_swd. Override this for a newer desktop
+  # build with: OPENOCD_TRANSPORT=swd ./scripts/flash_stm32.sh ...
+  OPENOCD_TRANSPORT="${OPENOCD_TRANSPORT:-hla_swd}"
+  PROGRAM_CMD="program \"${BIN_FILE}\" 0x08000000"
   if [[ "${DO_VERIFY}" == true ]]; then
     PROGRAM_CMD+=" verify"
   fi
-  PROGRAM_CMD+=" reset exit 0x08000000"
-  
-  OPENOCD_CMD="init"
+  PROGRAM_CMD+=" reset shutdown"
+
+  OPENOCD_CMD="transport select ${OPENOCD_TRANSPORT}; init"
   if [[ "${DO_ERASE}" == true ]]; then
     OPENOCD_CMD+="; stm32f4x mass_erase 0"
   fi
   OPENOCD_CMD+="; ${PROGRAM_CMD}"
-  
+
   openocd -f "${SCRIPT_DIR}/openocd_stm32f407.cfg" -c "${OPENOCD_CMD}"
+elif command -v st-flash >/dev/null 2>&1; then
+  echo "[flash] OpenOCD not found; using st-flash fallback..."
+  st-flash --reset write "${BIN_FILE}" 0x08000000
+else
+  echo "[flash] ERROR: neither openocd nor st-flash is available"
+  exit 1
 fi
 
 echo "[flash] Flash complete"

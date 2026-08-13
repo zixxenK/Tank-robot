@@ -82,7 +82,7 @@ $programCmd = ('program "{0}" 0x8000000' -f $binFile.Replace('\', '/'))
 if ($Verify) { $programCmd += " verify" }
 $programCmd += " reset"
 
-$cmds = @("init")
+$cmds = @("transport select swd", "init")
 if ($Erase) {
   $cmds += "stm32f4x mass_erase 0"
 }
