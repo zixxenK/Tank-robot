@@ -23,6 +23,9 @@ def _gateway() -> SafetyGatewayNode:
     gateway._agent_timeout = 0.1
     gateway._agent_heartbeat_time = None
     gateway._heartbeat_timeout = 0.1
+    gateway._node_start_time = 0.0
+    gateway._battery_startup_grace = 5.0
+    gateway._battery_warning_logged = False
     return gateway
 
 
@@ -72,6 +75,39 @@ def test_estop_and_battery_latch_override_commands() -> None:
     gateway._operator_estop = False
     gateway._battery_latched = True
     assert gateway._select_command(10.05) == (None, "battery_latched")
+
+
+def test_missing_battery_blocks_commands_after_startup_grace() -> None:
+    gateway = _gateway()
+    gateway._monitor_battery = True
+    gateway._teleop_command = (0.2, 0.0)
+    gateway._teleop_time = 10.0
+
+    command, reason = gateway._select_command(10.05)
+    assert command is None
+    assert reason == "battery_unavailable"
+
+
+def test_missing_battery_is_pending_during_startup_grace() -> None:
+    gateway = _gateway()
+    gateway._monitor_battery = True
+    gateway._node_start_time = 10.0
+
+    command, reason = gateway._select_command(10.05)
+    assert command is None
+    assert reason == "battery_pending"
+
+
+def test_stale_battery_blocks_commands() -> None:
+    gateway = _gateway()
+    gateway._monitor_battery = True
+    gateway._battery_time = 8.0
+    gateway._teleop_command = (0.2, 0.0)
+    gateway._teleop_time = 10.0
+
+    command, reason = gateway._select_command(10.05)
+    assert command is None
+    assert reason == "battery_stale"
 
 
 def test_battery_latch_reset_requires_stable_recovery() -> None:

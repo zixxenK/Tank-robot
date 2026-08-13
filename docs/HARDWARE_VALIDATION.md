@@ -35,7 +35,9 @@ Record before flashing:
 
 ## Rock64 Integration
 
-1. Verify `/dev/rock64_stm32` resolves to the intended USB-UART device.
+1. Verify `/dev/rock64_stm32` resolves to the STM32 native USB CDC
+   `/dev/ttyACM*` device, with USB identity `0483:5740`; do not use a USB-UART
+   adapter or `/dev/ttyUSB*` for this link.
 2. Launch with no transport overrides.
 3. Confirm the active graph contains `safety_gateway`, `ps5_ros_bridge`, and
    `stm32_hardened_bridge` and no raw-command hardware subscriber.

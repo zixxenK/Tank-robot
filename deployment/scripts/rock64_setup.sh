@@ -3,7 +3,7 @@
 #
 # Usage:
 #   sudo bash rock64_setup.sh [--ros-distro humble|auto]
-#                             [--serial-port /dev/ttyUSB0]
+#                             [--serial-port /dev/rock64_stm32]
 #                             [--camera-ip 192.168.1.125]
 set -euo pipefail
 
@@ -120,9 +120,9 @@ apt-get install -y --no-install-recommends \
 # ── Create udev rule for STM32 serial port ────────────────────────────────
 echo "[setup] Installing udev rule for STM32 serial port..."
 cat > /etc/udev/rules.d/99-rock64-stm32.rules <<'EOF'
-# Rock64 Ranger — QinHeng CH552 USB-CDC UART (1a86:55d4) for STM32 motor controller
-# Creates stable symlink /dev/rock64_stm32 and suppresses ModemManager interference.
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", \
+# Rock64 Ranger — native STM32 USB CDC (0483:5740) for the factory controller.
+# Creates a stable alias to the underlying /dev/ttyACM* node.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", \
   SYMLINK+="rock64_stm32", GROUP="dialout", MODE="0664", \
   ENV{ID_MM_PORT_IGNORE}="1"
 EOF

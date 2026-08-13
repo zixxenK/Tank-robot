@@ -8,10 +8,9 @@ ROCK64_IP=192.168.1.159
 
 # ── Hardware ───────────────────────────────────────────────────────────────
 # Serial port for STM32 motor controller.
-# The udev rule (99-rock64-stm32.rules) creates a stable symlink:
-#   /dev/rock64_stm32  ->  /dev/ttyACMx  (VID:1a86 PID:55d4)
-# Use the persistent by-id path as an alternative to the symlink:
-#   /dev/serial/by-id/usb-1a86_USB_Single_Serial_5C67041071-if00
+# The udev rule (99-rock64-stm32.rules) creates a stable symlink to the
+# native STM32 USB CDC node:
+#   /dev/rock64_stm32  ->  /dev/ttyACMx  (VID:0483 PID:5740)
 SERIAL_PORT=/dev/rock64_stm32
 
 # IP address of the ESP32-S3 camera node on station (client) WiFi

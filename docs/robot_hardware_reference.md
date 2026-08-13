@@ -134,7 +134,7 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Bluetooth UART | USART2 (PD5 TX / PD6 RX), 115200 baud | Bluetooth module interface (factory configuration) |
 | Onboard IMU | I2C2 (PB10 SCL / PB11 SDA) + EXTI on PB12 (`IMU_ITR`) | FreeRTOS config has an `mpu6050_data_ready` semaphore — confirms MPU6050, matching the reference board exactly |
 | Display | SPI2 TX-only (PC3 MOSI / PB13 SCK) + PD11–14 as LCD_BLK/CS/DC/RES | Reference board uses SPI OLED; project uses a color LCD instead (ST7735-class 4-wire) |
-| Master/host link | USART1 (PA9 TX / PA10 RX) at 115200 baud, labeled DBG_TX/DBG_RX | This is the high-speed link to the Rock64 (not present on the reference board, which uses USB) |
+| Master/host link | Native USB CDC HS device on PB14/PB15 | This is the Rock64 link from `RosRobotControllerM4factory.ioc`; Linux exposes it as `ttyACM*` |
 | Battery sense | ADC1 IN8 on PB0, labeled BATTERY | Standard voltage-divider ADC monitoring |
 | Motor enable | PD3, `GPIO_Input`, labeled MOTOR_ENABLE | Matches reference board's separate motor-enable switch |
 
@@ -231,8 +231,8 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 ### USB
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PB14 | USB_OTG_HS_DM | USB HOST port | USB data minus for high-speed USB host |
-| PB15 | USB_OTG_HS_DP | USB HOST port | USB data plus for high-speed USB host |
+| PB14 | USB_OTG_HS_DM | USB CDC device | Native USB CDC data minus to the Rock64 |
+| PB15 | USB_OTG_HS_DP | USB CDC device | Native USB CDC data plus to the Rock64 |
 
 ### Analog/ADC
 | Pin | Signal | Component | Rationale |

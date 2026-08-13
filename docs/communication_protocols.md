@@ -2,12 +2,12 @@
 
 ## Physical Link
 
-- Peripheral: STM32 USART1 (factory configuration)
-- Pins: PA9 TX, PA10 RX (DBG_TX/DBG_RX)
-- Host device: `/dev/rock64_stm32`
-- Baud: 115200, 8N1
-- RX: DMA2 Stream2, circular
-- TX: DMA2 Stream7, normal-mode queued DMA
+- Peripheral: STM32 USB_DEVICE CDC_HS (factory configuration)
+- Pins: PB14 USB_OTG_HS_DM, PB15 USB_OTG_HS_DP
+- Host device: native STM32 USB CDC, exposed by Linux as `/dev/ttyACM*` and
+  addressed through the udev alias `/dev/rock64_stm32`.
+- Line coding: ignored by USB CDC; the binary frame stream is unchanged
+- RX/TX: USB CDC callbacks with application-task ring buffering
 
 ## Frame
 

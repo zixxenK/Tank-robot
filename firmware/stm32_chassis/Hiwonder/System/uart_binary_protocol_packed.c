@@ -93,17 +93,24 @@ static uint16_t build_frame(uint8_t func,
 }
 
 static void binary_protocol_start_tx(BinaryProtocolContext *ctx) {
-    if (ctx == NULL || ctx->uart_handle == NULL || ctx->tx_busy ||
-        ctx->tx_tail == ctx->tx_head) {
+    if (ctx == NULL || ctx->tx_busy || ctx->tx_tail == ctx->tx_head ||
+        (ctx->uart_handle == NULL && ctx->transmit_callback == NULL)) {
         return;
     }
 
     ProtocolTxFrame *frame = &ctx->tx_queue[ctx->tx_tail];
     ctx->tx_busy = true;
 
-    if (HAL_UART_Transmit_DMA(ctx->uart_handle,
-                              frame->data,
-                              frame->length) != HAL_OK) {
+    uint8_t result;
+    if (ctx->transmit_callback != NULL) {
+        result = ctx->transmit_callback(frame->data, frame->length);
+    } else {
+        result = (uint8_t)HAL_UART_Transmit_DMA(ctx->uart_handle,
+                                                frame->data,
+                                                frame->length);
+    }
+
+    if (result != HAL_OK) {
         ctx->tx_busy = false;
         ctx->stats.tx_errors++;
     }
@@ -160,6 +167,14 @@ void binary_protocol_tx_complete(BinaryProtocolContext *ctx) {
                              TX_FRAME_QUEUE_DEPTH);
     ctx->tx_busy = false;
     binary_protocol_start_tx(ctx);
+}
+
+void binary_protocol_set_transmit_callback(BinaryProtocolContext *ctx,
+                                           ProtocolTransmitCallback callback) {
+    if (ctx == NULL) {
+        return;
+    }
+    ctx->transmit_callback = callback;
 }
 
 // ============================================================================
@@ -230,11 +245,40 @@ void binary_protocol_process_dma(BinaryProtocolContext *ctx) {
             ctx->rx_read_pos = (ctx->rx_read_pos + 1) % RX_BUFFER_SIZE;
         }
     } else {
-        // Polling mode - read single byte
-        uint8_t byte;
-        if (HAL_UART_Receive(ctx->uart_handle, &byte, 1, 0) == HAL_OK) {
-            binary_protocol_process_byte(ctx, byte);
+        if (ctx->uart_handle != NULL) {
+            // UART polling mode - read a single byte.
+            uint8_t byte;
+            if (HAL_UART_Receive(ctx->uart_handle, &byte, 1, 0) == HAL_OK) {
+                binary_protocol_process_byte(ctx, byte);
+            }
+        } else {
+            // Callback-based transport mode - drain bytes queued by the
+            // transport callback from normal task context.
+            while (ctx->rx_read_pos != ctx->rx_write_pos) {
+                uint8_t byte = ctx->rx_buffer[ctx->rx_read_pos];
+                ctx->rx_read_pos = (uint16_t)((ctx->rx_read_pos + 1U) %
+                                               RX_BUFFER_SIZE);
+                binary_protocol_process_byte(ctx, byte);
+            }
         }
+    }
+}
+
+void binary_protocol_process_bytes(BinaryProtocolContext *ctx,
+                                   const uint8_t *data,
+                                   uint16_t length) {
+    if (ctx == NULL || data == NULL) {
+        return;
+    }
+    for (uint16_t index = 0; index < length; index++) {
+        uint16_t next_write = (uint16_t)((ctx->rx_write_pos + 1U) %
+                                         RX_BUFFER_SIZE);
+        if (next_write == ctx->rx_read_pos) {
+            ctx->stats.buffer_overruns++;
+            break;
+        }
+        ctx->rx_buffer[ctx->rx_write_pos] = data[index];
+        ctx->rx_write_pos = next_write;
     }
 }
 

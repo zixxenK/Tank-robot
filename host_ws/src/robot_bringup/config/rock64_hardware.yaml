@@ -18,9 +18,11 @@
     left_topic: /tracks/left_cmd
     right_topic: /tracks/right_cmd
 
-    # Legacy serial bridge (optional fallback)
+    # Native STM32 USB CDC transport from RosRobotControllerM4factory.ioc.
+    # /dev/rock64_stm32 is a udev alias restricted to STM32 0483:5740 and
+    # resolves to the actual /dev/ttyACM* device.
     serial_port: /dev/rock64_stm32
-    baud_rate: 115200  # 115200 baud to match STM32 USART1 configuration
+    baud_rate: 115200  # ignored by USB CDC; retained for pyserial API
     max_speed: 255
     command_rate_hz: 50.0
     cmd_timeout: 0.25

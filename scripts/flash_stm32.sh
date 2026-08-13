@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FIRMWARE_DIR="${REPO_ROOT}/firmware/stm32_chassis"
 BUILD_DIR="${FIRMWARE_DIR}/build/Release"
-ELF_FILE="${BUILD_DIR}/rock64_ranger_fw.elf"
+ELF_FILE="${BUILD_DIR}/RosRobotControllerM4.elf"
 
 DO_BUILD=false
 DO_VERIFY=false
@@ -45,7 +45,7 @@ echo "[flash] Flashing ${ELF_FILE} via ST-Link..."
 # Prefer st-flash if available, it's more reliable
 if command -v st-flash >/dev/null 2>&1; then
   echo "[flash] Using st-flash tool..."
-  ELF_FILE="${BUILD_DIR}/rock64_ranger_fw.elf"
+  ELF_FILE="${BUILD_DIR}/RosRobotControllerM4.elf"
   if [[ ! -f "${ELF_FILE}" ]]; then
     echo "[flash] ERROR: ELF file not found at ${ELF_FILE}"
     exit 1
@@ -58,7 +58,7 @@ else
     exit 1
   fi
   
-  BIN_FILE="${BUILD_DIR}/rock64_ranger_fw.bin"
+  BIN_FILE="${BUILD_DIR}/RosRobotControllerM4.bin"
   PROGRAM_CMD="program \"${BIN_FILE}\" 0x8000000"
   if [[ "${DO_VERIFY}" == true ]]; then
     PROGRAM_CMD+=" verify"

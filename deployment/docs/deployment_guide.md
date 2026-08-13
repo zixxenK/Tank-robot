@@ -5,7 +5,8 @@
 - Ubuntu 22.04
 - ROS 2 Humble
 - Canonical workspace: `host_ws`
-- STM32 transport: hardened packed binary on `/dev/rock64_stm32`
+- STM32 transport: hardened packed binary over native USB CDC on
+  `/dev/rock64_stm32` (the alias resolves to `/dev/ttyACM*`)
 
 ## Install
 

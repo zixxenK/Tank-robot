@@ -4,7 +4,7 @@
 
 import math
 import time
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TypeAlias
 
 import rclpy
 from geometry_msgs.msg import Twist
@@ -19,7 +19,7 @@ from sensor_msgs.msg import BatteryState
 from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
 
-Command = Tuple[float, float]
+Command: TypeAlias = Tuple[float, float]
 
 # reason -> (layer-1 immediate cause, [layer-2 root-cause candidates])
 # Keep entries actionable: name the exact topic/command to check, not just
@@ -460,25 +460,27 @@ class SafetyGatewayNode(Node):
             return None, "operator_estop"
         if self._battery_latched:
             return None, "battery_latched"
-        # Battery monitoring temporarily disabled - ADC not configured in firmware
-        # TODO: Re-enable battery monitoring when ADC is properly configured
         if self._monitor_battery:
             if self._battery_time is None:
                 in_grace = (
                     now - self._node_start_time
                     < self._battery_startup_grace
                 )
-                if not in_grace and not self._battery_warning_logged:
-                    self.get_logger().warn("Battery data unavailable - ADC not configured in firmware. Continuing without battery check.")
+                if in_grace:
+                    return None, "battery_pending"
+                if not self._battery_warning_logged:
+                    self.get_logger().warn(
+                        "Battery data unavailable; stopping commands."
+                    )
                     self._battery_warning_logged = True
-                    # return None, "battery_unavailable"  # DISABLED
-                # Inside the grace period: fall through and allow normal
-                # command selection below. "battery_pending" is informational
-                # only, never a hard stop, so it is not returned here.
-            elif now - self._battery_time > self._battery_timeout and not self._battery_warning_logged:
-                self.get_logger().warn("Battery data stale - ADC not configured in firmware. Continuing without battery check.")
-                self._battery_warning_logged = True
-                # return None, "battery_stale"  # DISABLED
+                return None, "battery_unavailable"
+            if now - self._battery_time > self._battery_timeout:
+                if not self._battery_warning_logged:
+                    self.get_logger().warn(
+                        "Battery data is stale; stopping commands."
+                    )
+                    self._battery_warning_logged = True
+                return None, "battery_stale"
 
         if self._teleop_time is not None and (
             now - self._teleop_time <= self._teleop_timeout

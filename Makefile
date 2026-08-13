@@ -7,10 +7,11 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 FIRMWARE_DIR := $(REPO_ROOT)/firmware/stm32_chassis
 HOST_WS := $(REPO_ROOT)/host_ws
 
-.PHONY: help stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
+.PHONY: help test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
 
 help:
 	@echo "Targets:"
+	@echo "  test            Run host unit tests with repository ROS stubs"
 	@echo "  stm32-config   Configure STM32 CMake build in firmware tree"
 	@echo "  stm32-build    Build STM32 firmware in firmware tree"
 	@echo "  stm32-flash    Flash STM32 firmware (requires OpenOCD/ST-Link)"
@@ -26,6 +27,14 @@ help:
 
 host-print:
 	@echo "HOST_WS=$(HOST_WS)"
+
+test:
+	@PYTHONPATH="$(REPO_ROOT)/stubs:$(HOST_WS)/src/agent_core:$(HOST_WS)/src/robot_drivers" \
+		python -m pytest \
+			"$(HOST_WS)/src/agent_core/test/test_safety_gateway.py" \
+			"$(HOST_WS)/src/agent_core/test/test_lmstudio_client.py" \
+			"$(HOST_WS)/src/agent_core/test/test_lmstudio_nodes.py" \
+			"$(HOST_WS)/src/robot_drivers/test/test_stm32_hardened_bridge.py" -q
 
 stm32-config:
 	@cd "$(FIRMWARE_DIR)" && cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake

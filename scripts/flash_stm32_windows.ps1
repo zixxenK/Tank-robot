@@ -72,7 +72,7 @@ if ($Build) {
   }
 }
 
-$binFile = Join-Path $buildDir "rock64_ranger_fw.bin"
+$binFile = Join-Path $buildDir "RosRobotControllerM4.bin"
 
 if (-not (Test-Path $binFile)) {
   throw "Firmware binary not found at $binFile. Run with -Build first."

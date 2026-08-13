@@ -40,7 +40,7 @@ get_device_info() {
 
 # Scan all possible serial devices
 echo "Scanning for serial devices..."
-for device in /dev/ttyACM* /dev/ttyUSB*; do
+for device in /dev/ttyACM*; do
     if [[ -e "$device" ]]; then
         echo ""
         get_device_info "$device"
@@ -51,22 +51,24 @@ echo ""
 echo "Step 2: Identify Robot Controller Device"
 echo "----------------------------------------------"
 
-# Try to find CH341 first (your current device)
+# The factory IOC uses only the native STM32 USB CDC device (VID:PID 0483:5740).
+# Do not bind the robot link to a USB-UART adapter or ttyUSB device.
 ROBOT_DEVICE=""
-for device in /dev/ttyACM* /dev/ttyUSB*; do
+for device in /dev/ttyACM*; do
     if [[ -e "$device" ]]; then
         udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
-        if echo "$udev_info" | grep -q "1a86"; then
+        if echo "$udev_info" | grep -q "ID_VENDOR_ID=0483" && echo "$udev_info" | grep -q "ID_MODEL_ID=5740"; then
             ROBOT_DEVICE="$device"
-            echo "✅ Found CH341 device: $ROBOT_DEVICE"
+            echo "Found native STM32 USB CDC device: $ROBOT_DEVICE"
             break
         fi
     fi
 done
 
-# Fallback to STM32 native
+# No fallback to generic serial devices is permitted.
+if false; then
 if [[ -z "$ROBOT_DEVICE" ]]; then
-    for device in /dev/ttyACM* /dev/ttyUSB*; do
+for device in /dev/ttyACM*; do
         if [[ -e "$device" ]]; then
                 udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
             if echo "$udev_info" | grep -q "0483"; then
@@ -77,14 +79,15 @@ if [[ -z "$ROBOT_DEVICE" ]]; then
         fi
     done
 fi
+fi
 
 # Ultimate fallback to first available device
 if [[ -z "$ROBOT_DEVICE" ]]; then
-    if [[ -e /dev/ttyACM0 ]]; then
+    if false; then
         ROBOT_DEVICE="/dev/ttyACM0"
         echo "⚠️  Using fallback device: $ROBOT_DEVICE"
-    elif [[ -e /dev/ttyUSB0 ]]; then
-        ROBOT_DEVICE="/dev/ttyUSB0"
+    elif false; then
+                ROBOT_DEVICE=""
         echo "⚠️  Using fallback device: $ROBOT_DEVICE"
     else
         echo "❌ No serial devices found!"

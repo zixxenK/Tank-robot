@@ -158,6 +158,9 @@ typedef struct {
     uint8_t data[MAX_FRAME_SIZE];
 } ProtocolTxFrame;
 
+typedef uint8_t (*ProtocolTransmitCallback)(uint8_t *data,
+                                            uint16_t length);
+
 // ============================================================================
 // PROTOCOL CONTEXT
 // ============================================================================
@@ -212,6 +215,7 @@ typedef struct {
     UART_HandleTypeDef *uart_handle;
     DMA_HandleTypeDef *rx_dma_handle;
     DMA_HandleTypeDef *tx_dma_handle;
+    ProtocolTransmitCallback transmit_callback;
 } BinaryProtocolContext;
 
 // ============================================================================
@@ -240,6 +244,13 @@ void binary_protocol_init_packed(BinaryProtocolContext *ctx,
  * @param ctx Protocol context
  */
 void binary_protocol_process_dma(BinaryProtocolContext *ctx);
+
+void binary_protocol_process_bytes(BinaryProtocolContext *ctx,
+                                   const uint8_t *data,
+                                   uint16_t length);
+
+void binary_protocol_set_transmit_callback(BinaryProtocolContext *ctx,
+                                           ProtocolTransmitCallback callback);
 
 /**
  * @brief Send heartbeat response

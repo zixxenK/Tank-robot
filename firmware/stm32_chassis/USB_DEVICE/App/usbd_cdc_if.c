@@ -21,6 +21,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
 
+/* The factory IOC selects USB_DEVICE CDC_HS as the host transport.  Keep the
+ * USB callback thin: copy received bytes into the protocol ring buffer and
+ * let the FreeRTOS application task do all parsing and motor work. */
+#include "uart_binary_protocol_integration_packed.h"
+
 /* USER CODE BEGIN INCLUDE */
 
 /* USER CODE END INCLUDE */
@@ -264,6 +269,16 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_HS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 11 */
+  if (Buf == NULL || Len == NULL)
+  {
+    return (USBD_FAIL);
+  }
+
+  if (*Len > 0U)
+  {
+    binary_protocol_usb_receive(Buf, (uint16_t)*Len);
+  }
+
   USBD_CDC_SetRxBuffer(&hUsbDeviceHS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceHS);
   return (USBD_OK);
@@ -281,6 +296,11 @@ uint8_t CDC_Transmit_HS(uint8_t* Buf, uint16_t Len)
 {
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 12 */
+  if (Buf == NULL || Len == 0U || hUsbDeviceHS.pClassData == NULL)
+  {
+    return USBD_BUSY;
+  }
+
   USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
   if (hcdc->TxState != 0){
     return USBD_BUSY;
@@ -310,6 +330,7 @@ static int8_t CDC_TransmitCplt_HS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
   UNUSED(Buf);
   UNUSED(Len);
   UNUSED(epnum);
+  binary_protocol_usb_tx_complete();
   /* USER CODE END 14 */
   return result;
 }

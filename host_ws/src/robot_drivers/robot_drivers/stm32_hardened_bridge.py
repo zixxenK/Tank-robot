@@ -359,8 +359,12 @@ class STM32HardenedBridge(Node):
         super().__init__("stm32_hardened_bridge")
 
         # Parameters
+        # The factory IOC exposes USB_DEVICE CDC_HS on PB14/PB15. Linux
+        # enumerates that native CDC interface as ttyACM, not a USB-UART
+        # ttyUSB device. The udev symlink is restricted to STM32 VID:PID
+        # 0483:5740 and resolves to the underlying ttyACM* node.
         self.declare_parameter("serial_port", "/dev/rock64_stm32")
-        self.declare_parameter("baud_rate", 115200)  # 115200 baud to match STM32 USART1 (PA9/PA10)
+        self.declare_parameter("baud_rate", 115200)  # ignored by USB CDC
         self.declare_parameter("max_speed", 255)
         self.declare_parameter("command_rate_hz", 50.0)
         self.declare_parameter("cmd_timeout", 0.25)
@@ -593,7 +597,8 @@ class STM32HardenedBridge(Node):
                 self._estop_active = False
 
             self.get_logger().info(
-                f"Connected to {self._serial_port} @ {self._baud_rate}"
+                f"Connected to native STM32 USB CDC {self._serial_port} "
+                f"(ttyACM, line setting {self._baud_rate})"
             )
             self._send_emergency_stop()  # Initial safety stop, not an emergency
             return True

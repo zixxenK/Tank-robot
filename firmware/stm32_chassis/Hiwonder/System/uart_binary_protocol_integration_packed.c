@@ -3,18 +3,19 @@
  * @brief Production integration example for packed binary protocol
  *
  * This file integrates the packed binary protocol with:
- * 1. DMA circular reception on USART1
+ * 1. USB CDC (Virtual Serial Port) for Rock64 communication
  * 2. HAL tick based command and heartbeat timeouts
  * 3. FreeRTOS task integration
  * 4. Actual motor control
  *
  * HARDWARE CONFIGURATION:
- * - USART1: Rock64 host link at 115200 baud (PA9=DBG_TX, PA10=DBG_RX)
- *   Hardware Configuration: Host link connected via USART1 pins PA9/PA10
- *   with DMA circular RX and normal TX for reliable communication.
- * - USART2 (PD5/PD6, "BLE") is the factory Bluetooth port at 115200 baud.
- * - USART3 (PD8/PD9, "MASTER") is not used for the host link.
- * - TIM2: Motor 2 quadrature encoder; never reconfigured here
+ * - USB_OTG_HS: Rock64 host link via USB CDC (Virtual Serial Port)
+ *   Hardware Configuration: Host connected via USB-C port to Rock64 USB
+ *   using CDC class for virtual serial communication.
+ * - USART2 (PD5/PD6, "BLE") remains the factory Bluetooth port.
+ * - USART3 (PD8/PD9, "MASTER") remains available for the factory bus.
+ * - TIM2/TIM3/TIM4/TIM5: factory quadrature encoder inputs; never
+ *   reconfigured here.
  */
 
 #include "uart_binary_protocol_packed.h"
@@ -29,13 +30,11 @@
 #include "main.h"
 #include "usart.h"
 #include "tim.h"
+#include "usbd_cdc_if.h"
 #include <string.h>
 #include <math.h>
 
-extern DMA_HandleTypeDef hdma_usart1_rx;
-extern DMA_HandleTypeDef hdma_usart1_tx;
-
-extern UART_HandleTypeDef huart1;  // USART1 - Rock64 host link (PA9/PA10)
+extern USBD_HandleTypeDef hUsbDeviceHS;
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
@@ -64,24 +63,34 @@ void binary_protocol_integration_init_packed(void) {
     Status_StartupSequence();
     
     // Initialize protocol with packed structures
-    // USART1 (PA9/PA10) DMA circular RX + normal TX at 115200 baud,
-    // matching stm32_hardened_bridge.py's default baud_rate parameter.
+    // USB CDC (Virtual Serial Port) for Rock64 host communication
+    // No DMA handles needed for USB CDC - uses callback-based transfers
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart1,           // USART1 - Rock64 host link (PA9/PA10)
-                               &hdma_usart1_rx,   // DMA2_Stream2, circular RX
-                               &hdma_usart1_tx,   // DMA2_Stream7, normal TX
+                               NULL,              // No UART handle for USB CDC
+                               NULL,              // No DMA RX handle for USB CDC
+                               NULL,              // No DMA TX handle for USB CDC
                                200,               // 200ms command timeout
                                500);              // 500ms heartbeat timeout
+    binary_protocol_set_transmit_callback(&protocol_ctx, CDC_Transmit_HS);
 
     Watchdog_Init();
 }
 
 // ============================================================================
-// DMA BUFFER PROCESSING (Call from main loop)
+// USB CDC BUFFER PROCESSING (Call from main loop)
 // ============================================================================
 
 void binary_protocol_process_dma_buffer(void) {
+    // Drain bytes queued by the USB callback from task context.
     binary_protocol_process_dma(&protocol_ctx);
+}
+
+void binary_protocol_usb_receive(const uint8_t *data, uint16_t length) {
+    binary_protocol_process_bytes(&protocol_ctx, data, length);
+}
+
+void binary_protocol_usb_tx_complete(void) {
+    binary_protocol_tx_complete(&protocol_ctx);
 }
 
 // ============================================================================
@@ -89,7 +98,6 @@ void binary_protocol_process_dma_buffer(void) {
 // ============================================================================
 
 void binary_protocol_main_task(void) {
-    // Process incoming DMA data
     binary_protocol_process_dma_buffer();
     
     // Check for timeouts
@@ -192,28 +200,10 @@ void binary_protocol_telemetry_task(void) {
 }
 
 // ============================================================================
-// UART INTERRUPT CALLBACKS
+// USB CDC transport callbacks are implemented in usbd_cdc_if.c.  The USB
+// receive callback copies bytes into the protocol ring buffer, and the USB TX
+// completion callback advances the queued frame.
 // ============================================================================
-
-/**
- * @brief UART RX Complete callback
- * Called when DMA transfer completes (for circular buffer, this indicates buffer wrap)
- */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
-        // Circular DMA: HAL re-arms automatically. Buffer wrap is handled by
-        // binary_protocol_process_dma() via the DMA counter, not here.
-    }
-}
-
-/**
- * @brief UART TX Complete callback
- */
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
-        binary_protocol_tx_complete(&protocol_ctx);
-    }
-}
 
 // ============================================================================
 // EMERGENCY STOP (External trigger)
@@ -265,7 +255,6 @@ void binary_protocol_task(void *argument) {
  *     HAL_Init();
  *     SystemClock_Config();
  *     MX_GPIO_Init();
- *     MX_USART2_UART_Init();
  *     MX_DMA_Init();
  *     MX_TIM2_Init();
  *

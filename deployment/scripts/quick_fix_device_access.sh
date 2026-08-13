@@ -19,7 +19,7 @@ REPO_ROOT="${REPO_ROOT:-/opt/rock64-robot}"
 cd "${REPO_ROOT}" || exit 1
 
 echo ""
-echo "Step 1: Fix udev rule for CH341 device..."
+echo "Step 1: Fix udev rule for native STM32 USB CDC..."
 echo "----------------------------------------------"
 
 # Backup existing rule
@@ -30,9 +30,9 @@ fi
 
 # Create corrected udev rule
 cat > /etc/udev/rules.d/99-ttyACM0.rules <<'EOF'
-# Tank Robot - CH341 USB-Serial device configuration
-# Creates /dev/rock64_stm32 symlink for QinHeng Electronics CH341
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="rock64_stm32", MODE="0666"
+# Tank Robot - native STM32 USB CDC device configuration
+# Creates /dev/rock64_stm32 symlink for the native STM32 USB CDC interface
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", SYMLINK+="rock64_stm32", MODE="0660", GROUP="dialout"
 ENV{ID_MM_PORT_IGNORE}="1"
 EOF
 
@@ -90,7 +90,7 @@ if [[ -e /dev/rock64_stm32 ]]; then
     ls -l /dev/rock64_stm32
 else
     echo "⚠️  WARNING: /dev/rock64_stm32 not found yet"
-    echo "This is normal if the CH341 device is not currently connected."
+    echo "This is normal if the STM32 native USB CDC device is not connected."
     echo "The symlink will be created automatically when the device is plugged in."
 fi
 
@@ -130,7 +130,7 @@ echo "Quick Fix Complete!"
 echo "=========================================="
 echo ""
 echo "Next steps:"
-echo "1. Reconnect the CH341 device to verify /dev/rock64_stm32 appears"
+echo "1. Reconnect the STM32 native USB CDC device to verify /dev/rock64_stm32 appears"
 echo "2. Apply STM32 firmware fixes (see above)"
 echo "3. Rebuild and flash firmware: make stm32-build && make stm32-flash"
 echo "4. Test manually: ros2 launch robot_bringup rock64_bringup.launch.py"

@@ -16,7 +16,7 @@ E-stop + battery telemetry ─────────────────> 
                                                v
                                   stm32_hardened_bridge
                                                v
-                                  USART1 packed binary
+                                  USB CDC packed binary
                                                v
                                         STM32F407
 ```
@@ -39,7 +39,8 @@ docs/                     Current architecture and validation documents
 ```
 
 There is one ROS workspace (`host_ws`) and one STM32 transport (packed binary
-on USART1). Legacy ASCII bridges, duplicate workspaces, and placeholder
+over the native USB CDC interface configured by
+`RosRobotControllerM4factory.ioc`). Legacy ASCII bridges, duplicate workspaces, and placeholder
 micro-ROS paths have been removed.
 
 ## STM32 Build
@@ -106,7 +107,8 @@ device does not exist.
 - Safety policy: `host_ws/src/agent_core/config/safety_gateway.yaml`
 - Hardware parameters: `host_ws/src/robot_bringup/config/rock64_hardware.yaml`
 - Deployment template: `deployment/systemd/systemd_config.conf.example`
-- Stable STM32 device: `/dev/rock64_stm32`
+- Stable STM32 device: `/dev/rock64_stm32` -> native `/dev/ttyACM*` (STM32
+  VID:PID `0483:5740`)
 
 A critical-battery stop is latched. It can be cleared only after fresh telemetry
 stays above the recovery threshold and the operator e-stop is clear:
