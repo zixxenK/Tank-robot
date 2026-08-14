@@ -18,18 +18,16 @@
     left_topic: /tracks/left_cmd
     right_topic: /tracks/right_cmd
 
-    # Native STM32 USB CDC transport from RosRobotControllerM4factory.ioc.
-    # /dev/rock64_stm32 is a udev alias restricted to STM32 0483:5740 and
-    # resolves to the actual /dev/ttyACM* device.
+    # Original Hiwonder WCH USB-UART master link: USART2 PD5/PD6, 1M 8N1.
     serial_port: /dev/rock64_stm32
-    baud_rate: 115200  # ignored by USB CDC; retained for pyserial API
+    baud_rate: 1000000
     max_speed: 255
     command_rate_hz: 50.0
     cmd_timeout: 0.25
+    enable_motor_test_services: true
+    motor_test_speed: 0.10
     linear_slew_rate: 3.0
     angular_slew_rate: 6.0
-    heartbeat_timeout: 0.5
-    heartbeat_interval: 0.1
     diagnostics_period: 0.5
     encoder_timeout: 1.0
     encoder_topic: /stm32/encoder_ticks

@@ -18,26 +18,26 @@ Record before flashing:
 1. Disconnect motor power while flashing.
 2. Clear the work area and raise all tracks.
 3. Flash the Release image and verify read-back.
-4. Confirm boot diagnostics and whether the previous reset was IWDG-caused.
-5. Send heartbeat and zero-speed packed frames before enabling motor power.
-6. Exercise each motor independently at the lowest effective command. For the
-   tread pair, motor 0 is the left tread and motor 1 is the right tread, which
-   maps to the M1/M2 motor-control board outputs.
+4. Confirm boot diagnostics and that PWM outputs are zero after boot.
+5. Send the emergency-stop and zero-speed packed frames before enabling motor
+   power. Heartbeat frames are not required by the canonical USART2 runtime.
+6. With tracks lifted, call `/stm32/motor_1/enable` and
+   `/stm32/motor_2/enable` as `std_srvs/SetBool` (`true`, then `false`) to
+   exercise each motor independently. Motor 0 is M1/left and motor 1 is
+   M2/right.
 7. Record expected direction, PWM channel, encoder timer, encoder sign, and
    ticks per output-shaft revolution for motors 0 through 3.
 8. Confirm Motor 2 uses TIM2 without its `ARR` or prescaler changing.
 9. Confirm Motor 4 reports TIM3 encoder movement.
-10. Stop host commands and verify the 200 ms firmware command timeout zeros
+10. Stop host commands and verify the 250 ms firmware command timeout zeros
     PWM directly.
-11. Stop heartbeats and verify the 500 ms heartbeat timeout zeros PWM.
-12. Inject a control-task stall longer than the configured IWDG interval;
-    confirm MCU reset and zero PWM during reset.
+11. Disconnect the Rock64 link and verify the firmware timeout zeros PWM.
 
 ## Rock64 Integration
 
-1. Verify `/dev/rock64_stm32` resolves to the STM32 native USB CDC
-   `/dev/ttyACM*` device, with USB identity `0483:5740`; do not use a USB-UART
-   adapter or `/dev/ttyUSB*` for this link.
+1. Verify `/dev/rock64_stm32` resolves to the Hiwonder WCH USB-UART
+   `/dev/ttyUSB*` device, with USB identity `1a86:55d4`, and configure it for
+   USART2 on PD5/PD6 at 1,000,000 8N1. ST-Link `0483:3748` is flash/debug only.
 2. Launch with no transport overrides.
 3. Confirm the active graph contains `safety_gateway`, `ps5_ros_bridge`, and
    `stm32_hardened_bridge` and no raw-command hardware subscriber.
@@ -50,8 +50,7 @@ Record before flashing:
 7. Hold voltage above recovery for the configured interval and call
    `/safety/reset_battery_latch`; confirm reset succeeds.
 8. Restart the bridge while a nonzero source command exists. Confirm reconnect
-   sends emergency stop and requires firmware heartbeat plus a fresh safe
-   command before motion.
+   sends emergency stop and requires a fresh safe command before motion.
 9. Verify encoder, battery, IMU, odometry, and diagnostic topics for freshness
    and plausible units.
 
@@ -72,7 +71,8 @@ make host-motor-test
 
 This starts the hardened bridge, keeps teleop disabled, and publishes the
 existing low-speed one-track-at-a-time sequence that validates M1/M2 direction
-before the floor test.
+before the floor test. The direct proof script
+`scripts/motor_start_stop_test.py --confirm` is also available before ROS 2.
 
 Record every measured parameter in the canonical configuration before raising
 limits. A failed item blocks deployment; restore the previous known firmware

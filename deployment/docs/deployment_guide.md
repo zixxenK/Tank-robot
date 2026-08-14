@@ -5,8 +5,8 @@
 - Ubuntu 22.04
 - ROS 2 Humble
 - Canonical workspace: `host_ws`
-- STM32 transport: hardened packed binary over native USB CDC on
-  `/dev/rock64_stm32` (the alias resolves to `/dev/ttyACM*`)
+- STM32 transport: hardened packed binary over the original Hiwonder WCH
+  USB-UART master link on `/dev/rock64_stm32` (USART2 PD5/PD6, 1,000,000 baud)
 
 ## Install
 

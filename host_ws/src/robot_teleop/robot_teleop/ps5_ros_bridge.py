@@ -111,8 +111,8 @@ class PS5RosBridge(Node):
         )
 
         # NOTE: this node has no deadman-switch of its own. If PS5 input stops,
-        # stm32_hardened_bridge's cmd_timeout/heartbeat_timeout (see its
-        # declare_parameter calls) is what actually stops the motors.
+        # stm32_hardened_bridge's command timeout and the STM32 command
+        # watchdog are what stop the motors if input stops.
         self._pub = self.create_publisher(Twist, "/cmd_vel", 10)
         self._axes = [0.0] * 8
         self._last_reconnect_attempt = 0.0

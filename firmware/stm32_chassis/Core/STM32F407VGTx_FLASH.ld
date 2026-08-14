@@ -5,7 +5,7 @@
 **
 **  Author      : STM32CubeIDE
 **
-**  Abstract    : Linker script for STM32F407VGTx Device
+**  Abstract    : Linker script for STM32F407VETx Device
 **
 **                Set memory size and stack size according to application requirements.
 **
@@ -43,7 +43,7 @@ MEMORY
 {
   RAM    (rw)     : ORIGIN = 0x20000000,   LENGTH = 128K
   CCMRAM (rw)     : ORIGIN = 0x10000000,   LENGTH = 64K
-  FLASH  (rx)     : ORIGIN = 0x08000000,   LENGTH = 1024K
+  FLASH  (rx)     : ORIGIN = 0x08000000,   LENGTH = 512K
 }
 
 PHDRS

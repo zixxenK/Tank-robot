@@ -46,7 +46,7 @@ else
   echo "MISSING: ${SERIAL_PORT} (expected off-hardware on local PC / WSL)"
 fi
 
-echo; echo "--- Network and native STM32 USB CDC hardware ---"
+echo; echo "--- Network and Hiwonder WCH USART2 hardware ---"
 ip -brief link 2>/dev/null || true
 if command -v nmcli >/dev/null 2>&1; then
   nmcli --terse --fields DEVICE,TYPE,STATE,CONNECTION device status || true

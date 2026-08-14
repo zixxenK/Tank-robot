@@ -19,7 +19,7 @@ REPO_ROOT="${REPO_ROOT:-/opt/rock64-robot}"
 cd "${REPO_ROOT}" || exit 1
 
 echo ""
-echo "Step 1: Fix udev rule for native STM32 USB CDC..."
+echo "Step 1: Install the canonical WCH USART2 udev rule..."
 echo "----------------------------------------------"
 
 # Backup existing rule
@@ -29,10 +29,9 @@ if [[ -f /etc/udev/rules.d/99-ttyACM0.rules ]]; then
 fi
 
 # Create corrected udev rule
-cat > /etc/udev/rules.d/99-ttyACM0.rules <<'EOF'
-# Tank Robot - native STM32 USB CDC device configuration
-# Creates /dev/rock64_stm32 symlink for the native STM32 USB CDC interface
-SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", SYMLINK+="rock64_stm32", MODE="0660", GROUP="dialout"
+cat > /etc/udev/rules.d/99-rock64-stm32.rules <<'EOF'
+# Tank Robot - WCH USB-UART to STM32 USART2 motor link
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="rock64_stm32", SYMLINK+="rock64_stm32_wch", MODE="0660", GROUP="dialout"
 ENV{ID_MM_PORT_IGNORE}="1"
 EOF
 
@@ -94,10 +93,10 @@ else
     echo "The symlink will be created automatically when the device is plugged in."
 fi
 
-# List available ACM devices
+# List available serial devices
 echo ""
-echo "Available ACM devices:"
-ls -l /dev/ttyACM* 2>/dev/null || echo "No ACM devices found"
+echo "Available serial devices:"
+ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "No serial devices found"
 
 echo ""
 echo "Step 4: Update systemd service configuration path..."
@@ -121,7 +120,7 @@ echo "----------------------------------------------"
 
 cat <<'EOF'
 The active STM32 firmware and host bridge use packed binary frames on USART2
-at 115200 baud. Complete docs/HARDWARE_VALIDATION.md before enabling motors.
+at 1000000 baud. Complete docs/HARDWARE_VALIDATION.md before enabling motors.
 EOF
 
 echo ""
@@ -130,7 +129,7 @@ echo "Quick Fix Complete!"
 echo "=========================================="
 echo ""
 echo "Next steps:"
-echo "1. Reconnect the STM32 native USB CDC device to verify /dev/rock64_stm32 appears"
+echo "1. Reconnect the WCH USB-UART device to verify /dev/rock64_stm32 appears"
 echo "2. Apply STM32 firmware fixes (see above)"
 echo "3. Rebuild and flash firmware: make stm32-build && make stm32-flash"
 echo "4. Test manually: ros2 launch robot_bringup rock64_bringup.launch.py"

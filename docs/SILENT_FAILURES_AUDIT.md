@@ -215,7 +215,7 @@ ros2 launch robot_bringup rock64_bringup.launch.py
 
 ### USART2/3 Configuration (FIXED)
 - **File:** `firmware/stm32_chassis/Core/Src/usart.c`, `uart_binary_protocol_integration_packed.c`
-- **Status:** USART2 correctly configured on PD5/PD6 at 115200 baud
+- **Status:** USART2 correctly configured on PD5/PD6 at 1,000,000 baud
 - **Verified:** Commit d720b48 "Fix USART2 configuration for CH340 adapter"
 
 ### Main.c Initialization Order (FIXED)

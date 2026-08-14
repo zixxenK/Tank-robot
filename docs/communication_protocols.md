@@ -2,12 +2,12 @@
 
 ## Physical Link
 
-- Peripheral: STM32 USB_DEVICE CDC_HS (factory configuration)
-- Pins: PB14 USB_OTG_HS_DM, PB15 USB_OTG_HS_DP
-- Host device: native STM32 USB CDC, exposed by Linux as `/dev/ttyACM*` and
-  addressed through the udev alias `/dev/rock64_stm32`.
-- Line coding: ignored by USB CDC; the binary frame stream is unchanged
-- RX/TX: USB CDC callbacks with application-task ring buffering
+- Peripheral: original Hiwonder WCH USB-UART bridge to STM32 USART2
+- Pins: PD5 `BLE_TX`/Rock64 TX, PD6 `BLE_RX`/Rock64 RX
+- Host device: WCH `1a86:55d4`, normally exposed by Linux as `/dev/ttyUSB*` and
+  addressed through `/dev/rock64_stm32`.
+- Line coding: 1,000,000 baud, 8 data bits, no parity, 1 stop bit
+- RX: USART2 circular DMA; TX: bounded blocking UART writes
 
 ## Frame
 
@@ -64,12 +64,11 @@ Emergency stop payload:
 ## Timeouts and Rearming
 
 - A valid motor-speed frame refreshes the command timestamp.
-- Heartbeats refresh only the heartbeat timestamp and cannot keep an old motor
-  command alive.
-- Command timeout or heartbeat timeout invokes immediate PWM/PID shutdown.
+- Heartbeat frames are reserved and ignored by the motor-only runtime.
+- A command timeout invokes immediate PWM/PID shutdown.
 - The host bridge sends an emergency stop after every connect/reconnect.
-- Motion is armed only after a valid firmware heartbeat and then a fresh safe
-  velocity command.
+- Motion is armed only after the serial port is open and a fresh safe velocity
+  command has arrived.
 
 ## ROS Topics
 
@@ -83,6 +82,11 @@ Emergency stop payload:
 | `/stm32/battery` | `sensor_msgs/BatteryState` | Hardened bridge | Safety gateway |
 | `/stm32/encoder_ticks` | `std_msgs/Int32MultiArray` | Hardened bridge | Diagnostics |
 | `/stm32/imu` | `sensor_msgs/Imu` | Hardened bridge | Consumers |
+
+For raised-track commissioning, the bridge additionally provides
+`/stm32/motor_1/enable` and `/stm32/motor_2/enable` as
+`std_srvs/SetBool`. These are the only supported independent M1/M2 proof
+controls; they do not add another serial transport.
 
 Velocity uses reliable, volatile, keep-last-1 QoS. Commands are deliberately
 not transient-local because a late subscriber must never replay stale nonzero

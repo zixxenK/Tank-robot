@@ -39,6 +39,11 @@ if [[ -f "${CONFIG_FILE}" ]]; then
   source "${CONFIG_FILE}"
 fi
 
+# The service must use the workspace beside this launcher. An inherited
+# HOST_WS_PATH from an older checkout can otherwise start a second, stale ROS
+# graph and stale serial bridge.
+export HOST_WS_PATH="${REPO_ROOT}/host_ws"
+
 # ── Environment detection & validation ────────────────────────────────────
 echo "[robot_start] Rock64 Ranger starting..."
 echo "[robot_start] Hostname : $(hostname)"

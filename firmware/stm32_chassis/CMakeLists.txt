@@ -115,7 +115,7 @@ add_custom_target(flash
     COMMAND openocd -f interface/stlink.cfg
         -c "transport select ${OPENOCD_TRANSPORT}"
         -f target/stm32f4x.cfg
-        -c "program ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin verify reset exit 0x08000000"
+        -c "program ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin 0x08000000 verify reset exit"
     DEPENDS ${CMAKE_PROJECT_NAME}
     COMMENT "Flashing firmware to STM32 via OpenOCD"
 )

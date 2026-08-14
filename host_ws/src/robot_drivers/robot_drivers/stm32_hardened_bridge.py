@@ -8,7 +8,7 @@ Features:
 - Robust binary frame parsing with circular buffer
 - Asynchronous serial communication with non-blocking I/O
 - Telemetry parsing (encoder, battery, IMU)
-- Timeout-based failsafes and heartbeat monitoring
+- Timeout-based command failsafe
 - Graceful port reconnection
 - CRC-8 validation
 - Proper endianness handling
@@ -33,7 +33,8 @@ from rclpy.qos import (
     QoSReliabilityPolicy,
 )
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool, Int32MultiArray, Empty
+from std_msgs.msg import Bool, Int32MultiArray, Empty, String
+from std_srvs.srv import SetBool
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import BatteryState, Imu, JointState
 from nav_msgs.msg import Odometry
@@ -359,17 +360,12 @@ class STM32HardenedBridge(Node):
         super().__init__("stm32_hardened_bridge")
 
         # Parameters
-        # The factory IOC exposes USB_DEVICE CDC_HS on PB14/PB15. Linux
-        # enumerates that native CDC interface as ttyACM, not a USB-UART
-        # ttyUSB device. The udev symlink is restricted to STM32 VID:PID
-        # 0483:5740 and resolves to the underlying ttyACM* node.
+        # Original Hiwonder/Rock64 link: WCH USB-UART -> USART2 PD5/PD6.
         self.declare_parameter("serial_port", "/dev/rock64_stm32")
-        self.declare_parameter("baud_rate", 115200)  # ignored by USB CDC
+        self.declare_parameter("baud_rate", 1000000)
         self.declare_parameter("max_speed", 255)
         self.declare_parameter("command_rate_hz", 50.0)
         self.declare_parameter("cmd_timeout", 0.25)
-        self.declare_parameter("heartbeat_interval", 0.1)
-        self.declare_parameter("heartbeat_timeout", 0.5)
         self.declare_parameter("reconnect_interval", 2.0)
         self.declare_parameter("linear_slew_rate", 3.0)
         self.declare_parameter("angular_slew_rate", 6.0)
@@ -381,6 +377,8 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("battery_min_voltage", 9.0)
         self.declare_parameter("battery_max_voltage", 12.0)
         self.declare_parameter("startup_grace_period", 2.0)
+        self.declare_parameter("enable_motor_test_services", True)
+        self.declare_parameter("motor_test_speed", 0.10)
 
         # Get parameter values
         self._serial_port = self.get_parameter("serial_port").value
@@ -390,12 +388,6 @@ class STM32HardenedBridge(Node):
             self.get_parameter("command_rate_hz").value
         )
         self._cmd_timeout = float(self.get_parameter("cmd_timeout").value)
-        self._heartbeat_interval = float(
-            self.get_parameter("heartbeat_interval").value
-        )
-        self._heartbeat_timeout = float(
-            self.get_parameter("heartbeat_timeout").value
-        )
         self._reconnect_interval = float(
             self.get_parameter("reconnect_interval").value
         )
@@ -425,6 +417,13 @@ class STM32HardenedBridge(Node):
         self._startup_grace = float(
             self.get_parameter("startup_grace_period").value
         )
+        self._enable_motor_test_services = bool(
+            self.get_parameter("enable_motor_test_services").value
+        )
+        self._motor_test_speed = max(
+            0.01,
+            min(1.0, float(self.get_parameter("motor_test_speed").value)),
+        )
 
         # State variables — protected by _state_lock for thread safety
         self._state_lock = threading.Lock()
@@ -435,13 +434,12 @@ class STM32HardenedBridge(Node):
         self._last_cmd_vel_time = 0.0
         self._last_send_time = time.monotonic()
         self._last_sent_pair: Optional[Tuple[int, int]] = (None, None)
-        self._last_heartbeat_time = 0.0
         self._last_encoder_time = 0.0
         self._connection_loss_time = 0.0
         self._reconnect_attempt_time = 0.0
-        self._firmware_alive = False
         self._motion_armed = False
         self._estop_active = False  # Tracks whether we are currently in e-stop
+        self._motor_test_targets: Optional[Tuple[float, float]] = None
         self._node_start_time = time.monotonic()
 
         # Odometry state
@@ -524,17 +522,33 @@ class STM32HardenedBridge(Node):
         self._self_test_trigger_sub = self.create_subscription(
             Empty, "/stm32/self_test", self._self_test_trigger_callback, 10
         )
+        self._test_direction_sub = self.create_subscription(
+            String,
+            "/stm32/test_direction",
+            self._test_direction_callback,
+            10,
+        )
+        if self._enable_motor_test_services:
+            self.create_service(
+                SetBool,
+                "/stm32/motor_1/enable",
+                self._motor_1_enable_callback,
+            )
+            self.create_service(
+                SetBool,
+                "/stm32/motor_2/enable",
+                self._motor_2_enable_callback,
+            )
+            self.get_logger().info(
+                "Motor proof controls ready: "
+                "/stm32/motor_1/enable and /stm32/motor_2/enable"
+            )
 
     def _setup_timers(self):
         """Set up ROS2 timers."""
         # Command loop
         period = 1.0 / max(self._command_rate_hz, 1.0)
         self._command_timer = self.create_timer(period, self._command_loop)
-
-        # Heartbeat
-        self._heartbeat_timer = self.create_timer(
-            self._heartbeat_interval, self._send_heartbeat
-        )
 
         # Diagnostics
         self._diagnostics_timer = self.create_timer(
@@ -590,15 +604,14 @@ class STM32HardenedBridge(Node):
                 self._cmd_lin = 0.0
                 self._cmd_ang = 0.0
                 self._last_cmd_vel_time = 0.0
-                self._last_heartbeat_time = 0.0
                 self._last_sent_pair = (None, None)
-                self._firmware_alive = False
                 self._motion_armed = False
                 self._estop_active = False
+                self._motor_test_targets = None
 
             self.get_logger().info(
-                f"Connected to native STM32 USB CDC {self._serial_port} "
-                f"(ttyACM, line setting {self._baud_rate})"
+                f"Connected to Hiwonder USART2 motor link "
+                f"{self._serial_port}"
             )
             self._send_emergency_stop()  # Initial safety stop, not an emergency
             return True
@@ -689,7 +702,71 @@ class STM32HardenedBridge(Node):
             self._target_lin = linear
             self._target_ang = angular
             self._last_cmd_vel_time = time.monotonic()
-            self._motion_armed = self._firmware_alive
+            # The firmware deliberately has no heartbeat protocol. A fresh
+            # safe velocity command arms motion only while the serial link is
+            # open; command freshness and the STM32 command timeout are the
+            # liveness mechanisms.
+            self._motion_armed = self._ser is not None and self._ser.is_open
+
+    def _set_motor_test_target(self, motor_index: int, enabled: bool, response):
+        """Set one motor for the explicit, independent M1/M2 proof test."""
+        with self._state_lock:
+            link_ready = self._ser is not None and self._ser.is_open
+            if not link_ready:
+                response.success = False
+                response.message = "STM32 serial link is not connected"
+                return response
+            current = self._motor_test_targets or (0.0, 0.0)
+            targets = list(current)
+            targets[motor_index] = self._motor_test_speed if enabled else 0.0
+            next_targets = tuple(targets)
+            self._motor_test_targets = (
+                next_targets
+                if any(abs(value) > 0.0 for value in next_targets)
+                else None
+            )
+
+        response.success = True
+        if enabled:
+            response.message = (
+                f"motor {motor_index + 1} start requested at "
+                f"{self._motor_test_speed:.2f} normalized speed"
+            )
+        else:
+            response.message = f"motor {motor_index + 1} stop requested"
+        return response
+
+    def _motor_1_enable_callback(self, request, response):
+        return self._set_motor_test_target(0, bool(request.data), response)
+
+    def _motor_2_enable_callback(self, request, response):
+        return self._set_motor_test_target(1, bool(request.data), response)
+
+    def _test_direction_callback(self, message: String):
+        """Accept one explicit commissioning command: forward/back/stop."""
+        direction = str(message.data).strip().lower()
+        if direction not in {"forward", "back", "stop"}:
+            self.get_logger().error(
+                "Rejected test direction; use exactly forward, back, or stop"
+            )
+            return
+
+        with self._state_lock:
+            if self._ser is None or not self._ser.is_open:
+                self.get_logger().error(
+                    "Rejected test direction: STM32 serial link is not connected"
+                )
+                return
+            if direction == "forward":
+                speed = self._motor_test_speed
+                self._motor_test_targets = (speed, speed)
+            elif direction == "back":
+                speed = -self._motor_test_speed
+                self._motor_test_targets = (speed, speed)
+            else:
+                self._motor_test_targets = None
+
+        self.get_logger().warn(f"Manual motor test command: {direction}")
 
     def _command_loop(self):
         """Run the command loop and enforce communication timeouts."""
@@ -709,12 +786,10 @@ class STM32HardenedBridge(Node):
                     self.get_logger().info("Serial reconnection successful")
             return
 
-        # Process any queued frames before gating on heartbeat state.
+        # Process any queued frames before applying the command timeout.
         self._process_received_frames()
 
         with self._state_lock:
-            heartbeat_age = now - self._last_heartbeat_time
-            firmware_alive = self._firmware_alive
             motion_armed = self._motion_armed
             last_cmd_time = self._last_cmd_vel_time
             target_lin = self._target_lin
@@ -724,27 +799,21 @@ class STM32HardenedBridge(Node):
             last_send = self._last_send_time
             last_sent = self._last_sent_pair
             estop_active = self._estop_active
-            node_start = self._node_start_time
+            motor_test_targets = self._motor_test_targets
 
-        # Startup grace period — don't enforce heartbeat until it expires
-        in_grace = (now - node_start) < self._startup_grace
-
-        heartbeat_expired = (
-            not firmware_alive or heartbeat_age > self._heartbeat_timeout
-        )
-
-        if heartbeat_expired and not in_grace:
-            if firmware_alive:
-                self.get_logger().warn(
-                    f"Heartbeat timeout: {heartbeat_age:.2f}s"
-                )
+        if motor_test_targets is not None:
+            # Maintenance proof mode owns M1/M2 until both are explicitly
+            # stopped. This prevents a centered PS5 command from racing the
+            # individual motor test.
+            self._send_motor_command(
+                int(motor_test_targets[0] * self._max_speed),
+                int(motor_test_targets[1] * self._max_speed),
+            )
             with self._state_lock:
-                self._firmware_alive = False
-                self._motion_armed = False
-            if not estop_active:
-                self._send_emergency_stop(emergency=True)  # Heartbeat timeout is an emergency
-            else:
-                self._send_emergency_stop(silent=True, emergency=True)
+                self._last_sent_pair = (
+                    int(motor_test_targets[0] * self._max_speed),
+                    int(motor_test_targets[1] * self._max_speed),
+                )
             return
 
         if not motion_armed:
@@ -804,18 +873,14 @@ class STM32HardenedBridge(Node):
             )
         )
 
-        # Send if changed
-        if (left_speed, right_speed) != last_sent:
-            self._send_motor_command(left_speed, right_speed)
-            with self._state_lock:
-                self._last_sent_pair = (left_speed, right_speed)
-                # Clear e-stop latch whenever we successfully send motion commands
-                self._estop_active = False
-        else:
-            # Even if speed unchanged, clear latch if we're actively commanding motion
-            with self._state_lock:
-                if (left_speed, right_speed) != (0, 0):
-                    self._estop_active = False
+        # Refresh the STM32 command timestamp at the configured command rate,
+        # even when the pair is unchanged. The firmware intentionally stops
+        # when fresh motor frames cease arriving.
+        self._send_motor_command(left_speed, right_speed)
+        with self._state_lock:
+            self._last_sent_pair = (left_speed, right_speed)
+            # Clear e-stop latch whenever we successfully send a command.
+            self._estop_active = False
 
     def _slew_limit(
         self, current: float, target: float, rate: float, dt: float
@@ -858,10 +923,6 @@ class STM32HardenedBridge(Node):
             if emergency:
                 self._estop_active = True
 
-    def _send_heartbeat(self):
-        """Send heartbeat ping."""
-        self._send_frame(FUNC_HEARTBEAT, b"")
-
     def trigger_self_test(self):
         """Trigger firmware self-test sequence."""
         self._send_frame(FUNC_SELF_TEST, b"")
@@ -884,7 +945,6 @@ class STM32HardenedBridge(Node):
             self.get_logger().error(f"Serial write failed: {e}")
             with self._state_lock:
                 self._connection_loss_time = time.monotonic()
-                self._firmware_alive = False
                 self._motion_armed = False
 
     def _build_frame(self, function_code: int, payload: bytes = b"") -> bytes:
@@ -910,13 +970,9 @@ class STM32HardenedBridge(Node):
         """Handle a received frame based on function code."""
         try:
             if function_code == FUNC_HEARTBEAT:
-                now = time.monotonic()
-                with self._state_lock:
-                    was_alive = self._firmware_alive
-                    self._last_heartbeat_time = now
-                    self._firmware_alive = True
-                if not was_alive:
-                    self.get_logger().info("STM32 heartbeat established")
+                # Heartbeat frames are intentionally ignored. Serial-open
+                # state and fresh motor commands are the only liveness inputs.
+                return
 
             elif function_code == FUNC_ACK:
                 self.get_logger().debug(f"Received ACK: {payload.hex()}")
@@ -1266,7 +1322,10 @@ class STM32HardenedBridge(Node):
 
         with self._state_lock:
             status.values.append(
-                KeyValue(key="firmware_alive", value=str(self._firmware_alive))
+                KeyValue(
+                    key="serial_link_open",
+                    value=str(self._ser is not None and self._ser.is_open),
+                )
             )
             status.values.append(
                 KeyValue(key="motion_armed", value=str(self._motion_armed))
@@ -1285,12 +1344,13 @@ class STM32HardenedBridge(Node):
 
     def destroy_node(self):
         """Clean shutdown of background threads and serial port."""
+        if self._ser is not None and self._ser.is_open:
+            self._send_emergency_stop(silent=True)
         self._running = False
 
         # Cancel ROS2 timers first to stop callbacks during teardown
         for timer_attr in (
             "_command_timer",
-            "_heartbeat_timer",
             "_diagnostics_timer",
             "_telemetry_timer",
         ):

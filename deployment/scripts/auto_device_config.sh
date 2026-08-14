@@ -40,7 +40,7 @@ get_device_info() {
 
 # Scan all possible serial devices
 echo "Scanning for serial devices..."
-for device in /dev/ttyACM*; do
+for device in /dev/ttyUSB* /dev/ttyACM*; do
     if [[ -e "$device" ]]; then
         echo ""
         get_device_info "$device"
@@ -51,15 +51,15 @@ echo ""
 echo "Step 2: Identify Robot Controller Device"
 echo "----------------------------------------------"
 
-# The factory IOC uses only the native STM32 USB CDC device (VID:PID 0483:5740).
-# Do not bind the robot link to a USB-UART adapter or ttyUSB device.
+# The original controller uses the onboard WCH USB-UART master link (VID:PID 1a86:55d4).
+# Do not bind the robot link to an unrelated USB-UART adapter.
 ROBOT_DEVICE=""
-for device in /dev/ttyACM*; do
+for device in /dev/ttyUSB* /dev/ttyACM*; do
     if [[ -e "$device" ]]; then
         udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
-        if echo "$udev_info" | grep -q "ID_VENDOR_ID=0483" && echo "$udev_info" | grep -q "ID_MODEL_ID=5740"; then
+        if echo "$udev_info" | grep -q "ID_VENDOR_ID=1a86" && echo "$udev_info" | grep -q "ID_MODEL_ID=55d4"; then
             ROBOT_DEVICE="$device"
-            echo "Found native STM32 USB CDC device: $ROBOT_DEVICE"
+            echo "Found Hiwonder WCH USART2 device: $ROBOT_DEVICE"
             break
         fi
     fi
@@ -68,7 +68,7 @@ done
 # No fallback to generic serial devices is permitted.
 if false; then
 if [[ -z "$ROBOT_DEVICE" ]]; then
-for device in /dev/ttyACM*; do
+for device in /dev/ttyUSB* /dev/ttyACM*; do
         if [[ -e "$device" ]]; then
                 udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
             if echo "$udev_info" | grep -q "0483"; then
@@ -134,7 +134,7 @@ if [[ -e "$ROBOT_DEVICE" ]]; then
         
         sudo tee /etc/udev/rules.d/99-rock64-robot-auto.rules > /dev/null <<EOF
 # Auto-generated rule for robot controller
-SUBSYSTEM=="tty", ATTRS{idVendor}=="$vendor", ATTRS{idProduct}=="$model", SYMLINK+="rock64_stm32", GROUP="dialout", MODE="0660"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="$vendor", ATTRS{idProduct}=="$model", SYMLINK+="rock64_stm32", SYMLINK+="rock64_stm32_wch", GROUP="dialout", MODE="0660"
 ENV{ID_MM_PORT_IGNORE}="1"
 EOF
         
@@ -173,8 +173,8 @@ echo "----------------------------------------------"
 # Test serial communication
 if [[ -e "$ROBOT_DEVICE" ]]; then
     echo "Testing serial port $ROBOT_DEVICE..."
-    if stty -F "$ROBOT_DEVICE" 115200 2>/dev/null; then
-        echo "✅ Serial port configured to 115200 baud"
+        if stty -F "$ROBOT_DEVICE" 1000000 2>/dev/null; then
+            echo "✅ Serial port configured to 1000000 baud"
     else
         echo "⚠️  Could not configure serial port"
     fi

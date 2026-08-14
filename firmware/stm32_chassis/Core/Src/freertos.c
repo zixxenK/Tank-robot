@@ -22,10 +22,10 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
+#include "usbd_cdc_if.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "uart_binary_protocol_integration_packed.h"
 #include "imu_integration.h"
 #include "battery_integration.h"
 #include "status_integration.h"
@@ -459,12 +459,11 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-  /* init code for USB_DEVICE */
-  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
   for(;;)
   {
+    USB_PingPong_Process();
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
@@ -576,13 +575,7 @@ __weak void app_task_entry(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    // Process binary protocol communication (incoming commands, motor control)
-    binary_protocol_main_task();
-    
-    // Send telemetry data (encoder, battery, IMU) at ~50Hz
-    binary_protocol_telemetry_task();
-    
-    osDelay(20);  // 50Hz for main processing loop
+    osDelay(20);
   }
   /* USER CODE END app_task_entry */
 }

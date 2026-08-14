@@ -104,10 +104,25 @@ static void binary_protocol_start_tx(BinaryProtocolContext *ctx) {
     uint8_t result;
     if (ctx->transmit_callback != NULL) {
         result = ctx->transmit_callback(frame->data, frame->length);
-    } else {
+    } else if (ctx->tx_dma_handle != NULL) {
         result = (uint8_t)HAL_UART_Transmit_DMA(ctx->uart_handle,
                                                 frame->data,
                                                 frame->length);
+    } else {
+        /* Polling TX is deliberate for the USB-UART bridge runtime. It keeps
+         * the data path independent of the programmer and avoids requiring a
+         * DMA completion IRQ just to return a short error frame. */
+        result = (uint8_t)HAL_UART_Transmit(ctx->uart_handle,
+                                            frame->data,
+                                            frame->length,
+                                            100U);
+        if (result == HAL_OK) {
+            ctx->tx_tail = (uint8_t)((ctx->tx_tail + 1U) %
+                                     TX_FRAME_QUEUE_DEPTH);
+            ctx->tx_busy = false;
+            binary_protocol_start_tx(ctx);
+            return;
+        }
     }
 
     if (result != HAL_OK) {
@@ -198,6 +213,7 @@ void binary_protocol_init_packed(BinaryProtocolContext *ctx,
     // Configure timeouts
     ctx->command_timeout_ms = command_timeout_ms;
     ctx->heartbeat_timeout_ms = heartbeat_timeout_ms;
+    ctx->heartbeat_required = true;
     ctx->telemetry_interval_ms = 20;  // 50Hz default
 
     // Initialize parser state
@@ -392,10 +408,8 @@ void binary_protocol_process_byte(BinaryProtocolContext *ctx, uint8_t byte) {
 void binary_protocol_process_frame(BinaryProtocolContext *ctx, uint8_t func, uint8_t *payload, uint8_t payload_len) {
     switch (func) {
         case FUNC_HEARTBEAT:
-            if (payload_len == 0) {
-                ctx->last_heartbeat_time = HAL_GetTick();
-                binary_protocol_send_heartbeat(ctx);
-            }
+            /* Heartbeat is intentionally ignored by the motor-only runtime.
+             * Keep the function code reserved for wire compatibility. */
             break;
 
         case FUNC_MOTOR:
@@ -494,8 +508,10 @@ bool binary_protocol_check_timeouts(BinaryProtocolContext *ctx) {
         }
     }
 
-    // Check heartbeat timeout
-    if ((now - ctx->last_heartbeat_time) > ctx->heartbeat_timeout_ms) {
+    // Heartbeat is optional. The USB-UART motor runtime uses command freshness
+    // only, so a missing heartbeat can never stop or gate a valid command.
+    if (ctx->heartbeat_required &&
+        (now - ctx->last_heartbeat_time) > ctx->heartbeat_timeout_ms) {
         if (!ctx->emergency_stop_active) {
             binary_protocol_emergency_stop(ctx);
             ctx->stats.timeout_errors++;

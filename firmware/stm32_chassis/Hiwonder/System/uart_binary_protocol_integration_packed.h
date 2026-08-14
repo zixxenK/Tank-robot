@@ -20,18 +20,15 @@ extern "C" {
 /**
  * @brief Initialize packed binary protocol integration
  * Call this from your main() or initialization function
- * Configures timers and protocol state for the factory USB CDC transport.
+ * Configures timers and protocol state for the USART1/WCH motor transport.
  */
 void binary_protocol_integration_init_packed(void);
 
 /**
  * @brief Process transport buffer (call from the application task)
- * Processes bytes queued by the factory USB CDC receive callback.
+ * Processes bytes received by the USART1 circular DMA.
  */
 void binary_protocol_process_dma_buffer(void);
-
-void binary_protocol_usb_receive(const uint8_t *data, uint16_t length);
-void binary_protocol_usb_tx_complete(void);
 
 /**
  * @brief Main protocol task (call from main loop or FreeRTOS task)

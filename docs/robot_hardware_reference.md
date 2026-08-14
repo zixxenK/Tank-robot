@@ -1,5 +1,13 @@
 # Robot Hardware Reference — Rock64 Tracked Robot
 
+## Current transport authority
+
+The original hardware wiring and continuity history override the later
+contradictory note in this file: the Rock64 motor link is the WCH USB-UART
+device `1a86:55d4` connected to USART2 on PD5/PD6 at 1,000,000 baud, 8N1.
+USART3 PD8/PD9 is auxiliary/Bluetooth. PB14/PB15 are the
+factory USB host interface. ST-Link `0483:3748` is programming/debug only.
+
 Compiled reference for an autonomous tracked robot built on a Hiwonder suspension tank chassis,
 with a Rock64 SBC as main compute, an STM32F407VET6 as the real-time motor/sensor controller,
 and an ESP32-S3-WROOM-1 as a wireless bridge. Intended to be pasted into an agent's system
@@ -131,10 +139,10 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | Present but configured as plain `GPIO_Output` in the .ioc, **not** bound to a timer channel — needs remapping onto TIM1 or TIM9 for real hardware PWM |
 | Serial bus servo port | USART6 (PC6 TX / PC7 RX) + PE7/PE8 as TX/RX bus-direction-enable | Matches Hiwonder's half-duplex bus-servo driver topology exactly |
 | SBUS input | UART5 RX (PD2), 100000 baud, 9-bit, even parity, 2 stop bits | Standard SBUS framing, matches |
-| Bluetooth UART | USART2 (PD5 TX / PD6 RX), 115200 baud | Bluetooth module interface (factory configuration) |
+| Rock64 host link | USART2 (PD5 TX / PD6 RX), 1,000,000 baud | WCH USB-UART/CH340 motor link |
 | Onboard IMU | I2C2 (PB10 SCL / PB11 SDA) + EXTI on PB12 (`IMU_ITR`) | FreeRTOS config has an `mpu6050_data_ready` semaphore — confirms MPU6050, matching the reference board exactly |
 | Display | SPI2 TX-only (PC3 MOSI / PB13 SCK) + PD11–14 as LCD_BLK/CS/DC/RES | Reference board uses SPI OLED; project uses a color LCD instead (ST7735-class 4-wire) |
-| Master/host link | Native USB CDC HS device on PB14/PB15 | This is the Rock64 link from `RosRobotControllerM4factory.ioc`; Linux exposes it as `ttyACM*` |
+| Auxiliary UART | USART3 (PD8/PD9) | Bluetooth/expansion interface |
 | Battery sense | ADC1 IN8 on PB0, labeled BATTERY | Standard voltage-divider ADC monitoring |
 | Motor enable | PD3, `GPIO_Input`, labeled MOTOR_ENABLE | Matches reference board's separate motor-enable switch |
 
@@ -165,7 +173,7 @@ PA11/PA12/PC8/PC9 need remapping onto those timers' alternate-function channels.
 | Supply commitment | 4GB variant designated Long-Term-Supply, Pine64 committed through ~2022+ |
 
 Given the project's `mpu6050_data_ready`/FreeRTOS naming and "master" UART link at 1Mbaud, the Rock64
-is almost certainly talking to the STM32 over the USART3 MASTER_TX/RX pair (not USB), which is a
+is talking to the STM32 over the USART2 PD5/PD6 pair (not native USB), which is a
 deliberate design choice worth keeping documented — it bypasses the reference board's USB-CDC approach.
 
 ---
@@ -231,8 +239,8 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 ### USB
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PB14 | USB_OTG_HS_DM | USB CDC device | Native USB CDC data minus to the Rock64 |
-| PB15 | USB_OTG_HS_DP | USB CDC device | Native USB CDC data plus to the Rock64 |
+| PB14 | USB_OTG_HS_DM | USB host | Factory USB host data minus |
+| PB15 | USB_OTG_HS_DP | USB host | Factory USB host data plus |
 
 ### Analog/ADC
 | Pin | Signal | Component | Rationale |
@@ -262,10 +270,10 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 #### Master/Host Link (Rock64)
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PD5 | USART2_TX (BLE_TX) | Rock64 SBC | High-speed link to main compute (1,000,000 baud) |
-| PD6 | USART2_RX (BLE_RX) | Rock64 SBC | High-speed link from main compute |
+| PD5 | USART2_TX (`BLE_TX` label) | Rock64 SBC via WCH bridge | High-speed link to main compute (1,000,000 baud) |
+| PD6 | USART2_RX (`BLE_RX` label) | Rock64 SBC via WCH bridge | High-speed link from main compute |
 
-**Note:** USART2 is repurposed from Bluetooth to Rock64 connection. Bluetooth functionality is not currently used in this configuration. The original reference board used USART2 for a Bluetooth module at 115200 baud, but this project uses it for the high-speed Rock64 link.
+**Note:** The factory `BLE_TX`/`BLE_RX` labels are the repurposed Rock64 USART2 link on this build.
 
 #### SBUS RC Input
 | Pin | Signal | Component | Rationale |
@@ -364,7 +372,7 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 - Matches typical servo PWM requirements
 
 #### Issue 2: USART2 Repurposing Documentation
-**Problem:** USART2 (PD5/PD6) is labeled BLE_TX/BLE_RX but used for Rock64 connection.
+**Resolution:** USART2 (PD5/PD6) is labeled BLE_TX/BLE_RX on the factory board but is used for the Rock64 connection.
 
 **Impact:**
 - Documentation confusion when referencing pin functions
@@ -373,7 +381,7 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 **Recommendation:**
 - Update pin labels in CubeMX from BLE_TX/BLE_RX to ROCK64_TX/ROCK64_RX
 - Update documentation to reflect actual usage
-- Consider reserving USART3 (PD8/PD9) for future Bluetooth module if needed
+- USART3 (PD8/PD9) remains available for the auxiliary/Bluetooth module.
 
 ---
 

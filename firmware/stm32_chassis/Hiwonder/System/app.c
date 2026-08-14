@@ -170,7 +170,9 @@ void app_task_entry(void *argument)
         // 参数3 : 消息优先级
         // 参数4 : 超时设定（可设置等待获取时间）
         if(osMessageQueueGet(moving_ctrl_queueHandle, &msg, &msg_prio, 10) != osOK) {
-            chassis->stop(chassis);
+            /* Binary protocol owns the motor objects and applies its own
+             * 250 ms command freshness stop. Do not let an empty legacy
+             * gamepad queue overwrite a Rock64 motor command. */
             // Small delay to prevent CPU hogging
             osDelay(1);
             continue;

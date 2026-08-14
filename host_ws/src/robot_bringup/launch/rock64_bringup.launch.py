@@ -32,8 +32,8 @@ def generate_launch_description() -> LaunchDescription:
     )
     use_teleop_arg = DeclareLaunchArgument(
         "use_teleop",
-        default_value="true",
-        description="Launch the PS5 teleoperation source",
+        default_value="false",
+        description="Optional PS5 teleoperation source",
     )
     use_camera_bridge_arg = DeclareLaunchArgument(
         "use_camera_bridge",
@@ -55,6 +55,14 @@ def generate_launch_description() -> LaunchDescription:
             default_value="/dev/rock64_stm32",
         ),
         description="STM32 packed-binary serial device",
+    )
+    joy_device_arg = DeclareLaunchArgument(
+        "joy_device",
+        default_value=EnvironmentVariable(
+            "PS5_JOY_DEVICE",
+            default_value="/dev/input/js0",
+        ),
+        description="Required DualSense Linux joystick device",
     )
     camera_ip_arg = DeclareLaunchArgument(
         "camera_ip",
@@ -98,7 +106,10 @@ def generate_launch_description() -> LaunchDescription:
         package="robot_teleop",
         executable="ps5_ros_bridge",
         name="ps5_ros_bridge",
-        parameters=[LaunchConfiguration("hardware_config")],
+        parameters=[
+            LaunchConfiguration("hardware_config"),
+            {"joy_device": LaunchConfiguration("joy_device")},
+        ],
         condition=IfCondition(LaunchConfiguration("use_teleop")),
         output="screen",
     )
@@ -140,6 +151,7 @@ def generate_launch_description() -> LaunchDescription:
             use_camera_bridge_arg,
             run_motor_bringup_test_arg,
             serial_port_arg,
+            joy_device_arg,
             camera_ip_arg,
             hardware_config_arg,
             safety_config_arg,

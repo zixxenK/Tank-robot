@@ -197,6 +197,7 @@ typedef struct {
     
     // Safety State
     bool emergency_stop_active;
+    bool heartbeat_required;
     uint32_t last_heartbeat_time;
     uint32_t heartbeat_timeout_ms;
     
@@ -225,9 +226,9 @@ typedef struct {
 /**
  * @brief Initialize binary protocol with DMA and hardware timer
  * @param ctx Protocol context
- * @param huart USART2 handle for the Rock64 link
- * @param hdma_rx USART2 RX DMA handle
- * @param hdma_tx USART2 TX DMA handle
+ * @param huart UART handle for the Rock64 link
+ * @param hdma_rx UART RX DMA handle
+ * @param hdma_tx UART TX DMA handle
  * @param command_timeout_ms Command timeout in milliseconds
  * @param heartbeat_timeout_ms Heartbeat timeout in milliseconds
  */
@@ -265,7 +266,7 @@ void binary_protocol_send_heartbeat(BinaryProtocolContext *ctx);
 void binary_protocol_send_telemetry_burst(BinaryProtocolContext *ctx);
 
 /**
- * @brief Advance the transmit queue after USART2 DMA completion.
+ * @brief Advance the transmit queue after UART DMA completion.
  * @param ctx Protocol context
  */
 void binary_protocol_tx_complete(BinaryProtocolContext *ctx);

@@ -1,3 +1,3 @@
-from .srv import Trigger
+from .srv import SetBool, Trigger
 
-__all__ = ["Trigger"]
+__all__ = ["SetBool", "Trigger"]

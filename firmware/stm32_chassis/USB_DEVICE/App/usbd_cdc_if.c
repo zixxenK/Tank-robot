@@ -21,11 +21,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
 
-/* The factory IOC selects USB_DEVICE CDC_HS as the host transport.  Keep the
- * USB callback thin: copy received bytes into the protocol ring buffer and
- * let the FreeRTOS application task do all parsing and motor work. */
-#include "uart_binary_protocol_integration_packed.h"
-
 /* USER CODE BEGIN INCLUDE */
 
 /* USER CODE END INCLUDE */
@@ -100,6 +95,16 @@ uint8_t UserRxBufferHS[APP_RX_DATA_SIZE];
 uint8_t UserTxBufferHS[APP_TX_DATA_SIZE];
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
+
+#define USB_PING_TOKEN       "PING\n"
+#define USB_PING_TOKEN_LEN   5U
+#define USB_PONG_TOKEN       "PONG\n"
+#define USB_PONG_TOKEN_LEN   5U
+
+static uint8_t usb_ping_match;
+static volatile uint8_t usb_pong_pending;
+static volatile uint8_t usb_pong_in_flight;
+static uint8_t usb_pong_buffer[USB_PONG_TOKEN_LEN] = USB_PONG_TOKEN;
 
 /* USER CODE END PRIVATE_VARIABLES */
 
@@ -276,7 +281,25 @@ static int8_t CDC_Receive_HS(uint8_t* Buf, uint32_t *Len)
 
   if (*Len > 0U)
   {
-    binary_protocol_usb_receive(Buf, (uint16_t)*Len);
+    /* Native USB CDC is diagnostic-only. The production motor transport is
+     * USART2 through the WCH USB-UART adapter, so this port never owns motors. */
+    for (uint32_t i = 0U; i < *Len; ++i)
+    {
+      const uint8_t byte = Buf[i];
+      if (byte == (uint8_t)USB_PING_TOKEN[usb_ping_match])
+      {
+        ++usb_ping_match;
+        if (usb_ping_match == USB_PING_TOKEN_LEN)
+        {
+          usb_ping_match = 0U;
+          usb_pong_pending = 1U;
+        }
+      }
+      else
+      {
+        usb_ping_match = (byte == (uint8_t)USB_PING_TOKEN[0]) ? 1U : 0U;
+      }
+    }
   }
 
   USBD_CDC_SetRxBuffer(&hUsbDeviceHS, &Buf[0]);
@@ -311,6 +334,20 @@ uint8_t CDC_Transmit_HS(uint8_t* Buf, uint16_t Len)
   return result;
 }
 
+void USB_PingPong_Process(void)
+{
+  if (usb_pong_pending == 0U || usb_pong_in_flight != 0U)
+  {
+    return;
+  }
+
+  if (CDC_Transmit_HS(usb_pong_buffer, USB_PONG_TOKEN_LEN) == USBD_OK)
+  {
+    usb_pong_pending = 0U;
+    usb_pong_in_flight = 1U;
+  }
+}
+
 /**
   * @brief  CDC_TransmitCplt_HS
   *         Data transmitted callback
@@ -330,7 +367,7 @@ static int8_t CDC_TransmitCplt_HS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
   UNUSED(Buf);
   UNUSED(Len);
   UNUSED(epnum);
-  binary_protocol_usb_tx_complete();
+  usb_pong_in_flight = 0U;
   /* USER CODE END 14 */
   return result;
 }

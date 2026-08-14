@@ -12,7 +12,7 @@ def _as_bool(value: str) -> bool:
 
 
 def preflight_or_raise(context, *args, **kwargs):
-    """Reject hardware bringup when its serial device is unavailable."""
+    """Reject hardware bringup when required Rock64 inputs are unavailable."""
     del args
     del kwargs
 
@@ -32,5 +32,25 @@ def preflight_or_raise(context, *args, **kwargs):
             "[rock64_bringup preflight] STM32 serial device does not exist: "
             + serial_port
         )
+
+    use_teleop = _as_bool(
+        LaunchConfiguration("use_teleop").perform(context)
+    )
+    if use_teleop:
+        joy_device = LaunchConfiguration("joy_device").perform(context).strip()
+        if not joy_device:
+            raise RuntimeError(
+                "[rock64_bringup preflight] joy_device cannot be empty"
+            )
+        if not os.path.exists(joy_device):
+            raise RuntimeError(
+                "[rock64_bringup preflight] PS5 controller device does not "
+                "exist: " + joy_device
+            )
+        if not os.access(joy_device, os.R_OK):
+            raise RuntimeError(
+                "[rock64_bringup preflight] PS5 controller device is not "
+                "readable: " + joy_device
+            )
 
     return []

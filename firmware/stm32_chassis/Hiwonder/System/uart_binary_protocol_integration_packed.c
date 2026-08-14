@@ -3,94 +3,77 @@
  * @brief Production integration example for packed binary protocol
  *
  * This file integrates the packed binary protocol with:
- * 1. USB CDC (Virtual Serial Port) for Rock64 communication
- * 2. HAL tick based command and heartbeat timeouts
- * 3. FreeRTOS task integration
- * 4. Actual motor control
+ * 1. The board WCH USB-to-UART connector for Rock64 communication
+ * 2. HAL tick based command timeout
+ * 3. Actual motor control
  *
  * HARDWARE CONFIGURATION:
- * - USB_OTG_HS: Rock64 host link via USB CDC (Virtual Serial Port)
- *   Hardware Configuration: Host connected via USB-C port to Rock64 USB
- *   using CDC class for virtual serial communication.
- * - USART2 (PD5/PD6, "BLE") remains the factory Bluetooth port.
- * - USART3 (PD8/PD9, "MASTER") remains available for the factory bus.
+ * - The original Rock64 link is USART1 (PA9/PA10) at 1000000 8N1.
+ * - USART2 (PD5/PD6) is the auxiliary/Bluetooth port.
+ * - PB14/PB15 are the board USB host port, not the Rock64 motor link.
+ * - ST-Link remains SWD-only.
  * - TIM2/TIM3/TIM4/TIM5: factory quadrature encoder inputs; never
  *   reconfigured here.
  */
 
 #include "uart_binary_protocol_packed.h"
 #include "motor_control.h"
-#include "encoder_motor.h"
-#include "adc.h"
-#include "imu_mpu6050.h"
+#include "motors_param.h"
 #include "imu_integration.h"
 #include "battery_integration.h"
 #include "status_integration.h"
-#include "watchdog.h"
 #include "main.h"
 #include "usart.h"
+#include "dma.h"
 #include "tim.h"
-#include "usbd_cdc_if.h"
-#include <string.h>
 #include <math.h>
-
-extern USBD_HandleTypeDef hUsbDeviceHS;
+#include <string.h>
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
 // ============================================================================
 
 static BinaryProtocolContext protocol_ctx;
+extern DMA_HandleTypeDef hdma_usart1_rx;
 
 // ============================================================================
 // INTEGRATION INITIALIZATION
 // ============================================================================
 
 void binary_protocol_integration_init_packed(void) {
-    // Initialize motor control layer first
-    MotorControl_Init();
-    
-    // Initialize IMU with fixed delta time (50Hz)
-    IMU_Init();
-    
-    // Initialize battery monitoring with filter priming
-    Battery_Init();
-    
-    // Initialize status peripherals (buzzer/LED)
-    Status_Init();
-    
-    // Execute startup indication sequence
-    Status_StartupSequence();
-    
-    // Initialize protocol with packed structures
-    // USB CDC (Virtual Serial Port) for Rock64 host communication
-    // No DMA handles needed for USB CDC - uses callback-based transfers
-    binary_protocol_init_packed(&protocol_ctx,
-                               NULL,              // No UART handle for USB CDC
-                               NULL,              // No DMA RX handle for USB CDC
-                               NULL,              // No DMA TX handle for USB CDC
-                               200,               // 200ms command timeout
-                               500);              // 500ms heartbeat timeout
-    binary_protocol_set_transmit_callback(&protocol_ctx, CDC_Transmit_HS);
+    /* These services are required before telemetry can be produced. The
+     * safety gateway deliberately refuses motion without valid battery data. */
+    (void)Status_Init();
+    (void)Battery_Init();
 
-    Watchdog_Init();
+    // Initialize motor control layer first. Startup PWM values are explicitly
+    // cleared below so merely booting the image cannot request motion.
+    MotorControl_Init();
+
+    MotorControl_EmergencyStop();
+
+    /* Use the original Rock64 UART. The WCH USB-serial bridge is physically
+     * wired to PA9/PA10 (USART1). RX uses the factory circular DMA;
+     * TX is deliberately polled so it does not depend on a DMA IRQ that is
+     * not required by the motor safety loop. */
+    binary_protocol_init_packed(&protocol_ctx,
+                               &huart1,
+                               &hdma_usart1_rx,
+                               NULL,
+                               250,               // 250ms command timeout
+                               0);                // heartbeat not required
+    protocol_ctx.heartbeat_required = false;
 }
 
 // ============================================================================
-// USB CDC BUFFER PROCESSING (Call from main loop)
+// UART BUFFER PROCESSING (Call from the protocol task)
 // ============================================================================
 
 void binary_protocol_process_dma_buffer(void) {
-    // Drain bytes queued by the USB callback from task context.
+    /* Consume the USART1 circular-DMA buffer. Do not poll USART2/USART3:
+     * they are the debug/auxiliary ports and probing them can steal bytes or leave
+     * HAL UART state busy. */
     binary_protocol_process_dma(&protocol_ctx);
-}
-
-void binary_protocol_usb_receive(const uint8_t *data, uint16_t length) {
-    binary_protocol_process_bytes(&protocol_ctx, data, length);
-}
-
-void binary_protocol_usb_tx_complete(void) {
-    binary_protocol_tx_complete(&protocol_ctx);
 }
 
 // ============================================================================
@@ -106,7 +89,8 @@ void binary_protocol_main_task(void) {
         MotorControl_EmergencyStop();
     }
     
-    // Process motor commands
+    // Process motor commands. The wire value is normalized to [-1, 1] and is
+    // converted to the configured motor limit, not an arbitrary 10 RPS.
     MotorCommandEntry motor_commands[MOTOR_COMMAND_CAPACITY];
     uint8_t motor_count = binary_protocol_get_motor_commands(&protocol_ctx,
                                                              motor_commands,
@@ -119,9 +103,7 @@ void binary_protocol_main_task(void) {
             uint8_t motor_id = motor_commands[i].motor_id;
             float rps = motor_commands[i].rps;
             
-            // Convert normalized RPS (-1.0 to 1.0) to actual RPS
-            // Assuming max motor RPS of 10.0 (adjust based on your motors)
-            float actual_rps = rps * 10.0f;
+            float actual_rps = rps * MOTOR_DEFAULT_RPS_LIMIT;
             
             // Set target RPS for the motor
             MotorControl_SetTargetRPS(motor_id, actual_rps);
@@ -131,7 +113,6 @@ void binary_protocol_main_task(void) {
     // Update motor control loop (100Hz PID control)
     MotorControl_Update(CONTROL_PERIOD_SEC);
     
-    Watchdog_Refresh();
 }
 
 // ============================================================================
@@ -139,6 +120,13 @@ void binary_protocol_main_task(void) {
 // ============================================================================
 
 void binary_protocol_telemetry_task(void) {
+    uint32_t now = HAL_GetTick();
+    if ((now - protocol_ctx.last_telemetry_time) <
+        protocol_ctx.telemetry_interval_ms) {
+        return;
+    }
+    protocol_ctx.last_telemetry_time = now;
+
     // Read encoder values from motor control layer
     int32_t left_encoder = MotorControl_GetEncoderCount(0);   // Motor 0 (left)
     int32_t right_encoder = MotorControl_GetEncoderCount(1);  // Motor 1 (right)
@@ -189,10 +177,6 @@ void binary_protocol_telemetry_task(void) {
                                      accel_x, accel_y, accel_z,
                                      gyro_x, gyro_y, gyro_z);
     
-    // Emit liveness independently of inbound parser activity so the host can
-    // verify the serial TX path even when commands or heartbeat pings are absent.
-    binary_protocol_send_heartbeat(&protocol_ctx);
-
     // Send telemetry burst
     binary_protocol_send_telemetry_burst(&protocol_ctx);
     
@@ -200,9 +184,6 @@ void binary_protocol_telemetry_task(void) {
 }
 
 // ============================================================================
-// USB CDC transport callbacks are implemented in usbd_cdc_if.c.  The USB
-// receive callback copies bytes into the protocol ring buffer, and the USB TX
-// completion callback advances the queued frame.
 // ============================================================================
 
 // ============================================================================

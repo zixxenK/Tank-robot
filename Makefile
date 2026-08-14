@@ -7,7 +7,7 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 FIRMWARE_DIR := $(REPO_ROOT)/firmware/stm32_chassis
 HOST_WS := $(REPO_ROOT)/host_ws
 
-.PHONY: help test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd
+.PHONY: help test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd robot-start motor-forward motor-back motor-stop motor-sequence
 
 help:
 	@echo "Targets:"
@@ -22,6 +22,11 @@ help:
 	@echo "  host-motor-test One-shot build + hardware bringup + raised-track motor test"
 	@echo "  host-teleop    One-shot build + keyboard teleop launch"
 	@echo "  host-teleop-ps5 One-shot build + PS5 teleop launch"
+	@echo "  motor-forward  Send guarded forward command to both tracks"
+	@echo "  motor-back     Send guarded backward command to both tracks"
+	@echo "  motor-stop     Send stop command to both tracks"
+	@echo "  motor-sequence Run forward/stop/back/stop sequence"
+	@echo "  robot-start    Start Rock64 ROS2/STM32 base without PS5"
 	@echo "  onecmd         One-command Gazebo telemetry launch from the host workspace"
 	@echo "  host-print     Print selected host workspace"
 
@@ -74,6 +79,21 @@ host-teleop:
 
 host-teleop-ps5:
 	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode teleop --teleop ps5 --no-install-deps
+
+robot-start:
+	@bash "$(REPO_ROOT)/scripts/robot_base_start.sh"
+
+motor-forward:
+	@bash "$(REPO_ROOT)/scripts/motor_forward.sh" --confirm
+
+motor-back:
+	@bash "$(REPO_ROOT)/scripts/motor_back.sh" --confirm
+
+motor-stop:
+	@bash "$(REPO_ROOT)/scripts/motor_stop.sh"
+
+motor-sequence:
+	@bash "$(REPO_ROOT)/scripts/motor_test_sequence.sh" --confirm 1
 
 host-unify: host-sim
 

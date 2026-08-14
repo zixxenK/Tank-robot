@@ -7,7 +7,7 @@
  * 2. Prevents false-positive low-voltage emergency stop during startup
  * 3. Uses dual-channel ADC with DMA
  * 4. Voltage divider: 100k + 10k = 11x scaling
- * 5. Internal reference: 1.21V
+ * 5. ADC reference: 3.3V analog rail
  */
 
 #include "battery_integration.h"
@@ -19,7 +19,7 @@
 // ============================================================================
 
 #define VOLTAGE_DIVIDER_RATIO   11.0f  // 100k + 10k resistor divider
-#define INTERNAL_REF_VOLTAGE    1.21f  // STM32 internal reference
+#define ADC_REFERENCE_VOLTAGE   3.3f   // STM32 analog supply/reference
 #define ADC_MAX_VALUE           4095   // 12-bit ADC
 #define FILTER_ALPHA            0.05f  // Moving average filter (0.05 new, 0.95 old)
 #define LOW_VOLTAGE_THRESHOLD_V 7.0f   // 7.0V minimum for 2S LiPo
@@ -53,27 +53,31 @@ static void prime_filter(void) {
     // Take multiple readings to get stable initial value
     float voltage_sum = 0.0f;
     const int prime_samples = 10;
+    int valid_samples = 0;
     
+    HAL_ADC_Start(&hadc1);
     for (int i = 0; i < prime_samples; i++) {
-        // Start ADC conversion
-        HAL_ADC_Start(&hadc1);
-        HAL_ADC_PollForConversion(&hadc1, 10);
-        
-        // Read voltage sense channel (channel 0)
+        // Read voltage sense channel (rank 1 / adc_buffer[0])
+        if (HAL_ADC_PollForConversion(&hadc1, 10) != HAL_OK) {
+            HAL_Delay(10);
+            continue;
+        }
         uint16_t adc_raw = HAL_ADC_GetValue(&hadc1);
         
         // Convert to voltage
-        float adc_voltage = (adc_raw / (float)ADC_MAX_VALUE) * INTERNAL_REF_VOLTAGE;
+        float adc_voltage = (adc_raw / (float)ADC_MAX_VALUE) * ADC_REFERENCE_VOLTAGE;
         float battery_v = adc_voltage * VOLTAGE_DIVIDER_RATIO;
         
         voltage_sum += battery_v;
+        valid_samples++;
         
         HAL_Delay(10); // Small delay between samples
     }
+    HAL_ADC_Stop(&hadc1);
     
     // Initialize filter with average of priming samples
-    battery_voltage = voltage_sum / prime_samples;
-    filter_primed = true;
+    battery_voltage = valid_samples > 0 ? voltage_sum / valid_samples : 0.0f;
+    filter_primed = valid_samples > 0;
 }
 
 // ============================================================================
@@ -110,7 +114,7 @@ int Battery_Update(void) {
     }
     
     // Convert raw ADC to voltage
-    float adc_voltage = (adc_buffer[0] / (float)ADC_MAX_VALUE) * INTERNAL_REF_VOLTAGE;
+    float adc_voltage = (adc_buffer[0] / (float)ADC_MAX_VALUE) * ADC_REFERENCE_VOLTAGE;
     float instant_voltage = adc_voltage * VOLTAGE_DIVIDER_RATIO;
     
     // Sanity check: voltage should be between 5V and 15V for 2S LiPo
