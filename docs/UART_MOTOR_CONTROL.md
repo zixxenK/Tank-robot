@@ -8,8 +8,8 @@ separate programmer/debugger and is not the application data port.
 Rock64 USB host ──USB cable──> STM32 board USB-C UART connector
                                   │
                                   └─ WCH bridge 1a86:55d4
-                                  └─ USART3 PD8/PD9 (factory MASTER_TX/MASTER_RX)
-                                     USART1 is debug; USART2 is BLE/auxiliary
+                                  └─ USART1 PA9/PA10 (product UART1)
+                                     USART3 is factory; USART2 is BLE/auxiliary
 
                          programming/debug only
 Rock64 USB host ──USB cable──> ST-Link 0483:3748
@@ -28,8 +28,8 @@ With both cables connected, `lsusb` should show both identities:
 ```
 
 The Rock64 host port is the product-labeled USB-C `UART1`, exposed as
-`/dev/rock64_stm32`, at 1000000 8N1. On the STM32 it is USART3 on PD8/PD9
-(`MASTER_TX`/`MASTER_RX`). The wire protocol
+`/dev/rock64_stm32`, at 1000000 8N1. On the STM32 it is USART1 on PA9/PA10.
+The wire protocol
 is the packed binary frame documented in `communication_protocols.md`:
 
 ```text
@@ -45,3 +45,23 @@ motor stop.
 Before any live movement test, keep motor power disabled and send only the
 emergency-stop or zero-speed frame. Hardware motion testing must be performed
 with the tracks lifted and the motor-enable switch controlled deliberately.
+
+The deterministic safe-link check is:
+
+```bash
+python3 scripts/motor_link_safe_test.py
+```
+
+From the Windows checkout, the complete build/flash/readback/launch/proof
+workflow always runs on the Rock64:
+
+```powershell
+powershell -File scripts/reflash_rock64.ps1 -Port UART1
+```
+
+Use `-Port FACTORY_USART3` only when deliberately testing the stock PD8/PD9
+wiring. It does not select the physical connector labeled UART1.
+
+It fails if the selected UART produces no valid packed response. Use
+`--allow-no-response` only when diagnosing a board that is intentionally not
+running the packed custom image.

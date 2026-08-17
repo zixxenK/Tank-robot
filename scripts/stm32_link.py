@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Canonical hardware facts for the Hiwonder ROS Robot Controller V1.2.
 
-The board's WCH USB-UART device is the Rock64 motor transport.  The
-manufacturer packet porting uses the board's MASTER_TX/MASTER_RX pair, which
-is USART3 on PD8/PD9.  The product silkscreen calls the physical connector
-UART1; that label is not the STM32 peripheral number.
+The board's WCH USB-UART device is the Rock64 motor transport.  The physical
+connector is product-labeled UART1 and is connected to USART1 on PA9/PA10.
 ST-Link is a separate SWD programmer and is never a motor-data port.
 """
 
@@ -19,8 +17,8 @@ DEFAULT_PORT = "/dev/rock64_stm32"
 DEFAULT_BAUD = 1_000_000
 WCH_VID = 0x1A86
 WCH_PID = 0x55D4
-WCH_UART = "UART1 / USART3"
-WCH_PINS = "PD8/PD9 (MASTER_TX/MASTER_RX)"
+WCH_UART = "UART1 / USART1"
+WCH_PINS = "PA9/PA10"
 STLINK_VID = 0x0483
 STLINK_PID = 0x3748
 NATIVE_USB_VID = 0x0483

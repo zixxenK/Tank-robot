@@ -20,7 +20,7 @@ Record before flashing:
 3. Flash the Release image and verify read-back.
 4. Confirm boot diagnostics and that PWM outputs are zero after boot.
 5. Send the emergency-stop and zero-speed packed frames before enabling motor
-   power. Heartbeat frames are not required by the canonical USART3 runtime.
+   power. Heartbeat frames are not required by the canonical USART1 runtime.
 6. With tracks lifted, call `/stm32/motor_1/enable` and
    `/stm32/motor_2/enable` as `std_srvs/SetBool` (`true`, then `false`) to
    exercise each motor independently. Motor 0 is M1/left and motor 1 is
@@ -37,9 +37,11 @@ Record before flashing:
 
 1. Verify `/dev/rock64_stm32` resolves to the Hiwonder WCH USB-UART
    `/dev/ttyACM*` device, with USB identity `1a86:55d4`, and configure it for
-   USART3 on PD8/PD9 at 1,000,000 8N1. The product connector is labeled
-   UART1; STM32 USART1 on PA9/PA10 is debug-only. ST-Link `0483:3748` is
+   USART1 on PA9/PA10 at 1,000,000 8N1. The product connector is labeled
+   UART1. ST-Link `0483:3748` is
    flash/debug only.
+   The safe proof command sends only stop/zero frames and fails on a zero-byte
+   or invalid response: `python3 scripts/motor_link_safe_test.py`.
 2. Launch with no transport overrides.
 3. Confirm the active graph contains `safety_gateway`, `ps5_ros_bridge`, and
    `stm32_hardened_bridge` and no raw-command hardware subscriber.

@@ -53,7 +53,6 @@
 
 /* USER CODE BEGIN PV */
 extern UART_HandleTypeDef huart1;
-extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart6;
 
 static uint32_t protocol_task_stack[256];
@@ -103,12 +102,18 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+  /* SystemInit deliberately masks interrupts while it clears inherited NVIC
+   * state.  The motor image does not need the legacy USB-CDC device, and the
+   * USB stack performs short HAL_Delay() calls during enumeration setup.
+   * Enable the clean timebase before the remaining peripheral bring-up. */
+  __enable_irq();
+
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
-  /* The Rock64 link is the Hiwonder WCH USB-UART bridge on USART3 PD8/PD9
-   * (factory labels MASTER_TX/MASTER_RX). USART1 is debug; USART2 is BLE. */
+  /* The Rock64 link is the Hiwonder WCH USB-UART bridge on product UART1:
+   * USART1 PA9/PA10 at 1 Mbaud. USART3 is the factory pair; USART2 is BLE. */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
@@ -131,12 +136,18 @@ int main(void)
   MX_TIM13_Init();
   MX_ADC1_Init();
   MX_CRC_Init();
-  MX_USB_DEVICE_Init();
+  /* The Rock64 motor link is the WCH UART1 connector.  Do not initialize the
+   * legacy OTG-HS CDC stack here: on this controller it is not wired into the
+   * host path and its startup delay can deadlock while no USB device exists. */
 
-  /* SystemInit masks interrupts while it clears stale NVIC state.  The
-   * protocol startup uses HAL timing, so the HAL timebase must be running
-   * before binary_protocol_integration_init_packed(). */
-  __enable_irq();
+  /* The custom motor protocol owns its 100 Hz update loop.  TIM7 is a
+   * legacy speed-measurement timer and has no registered HAL callback in
+   * this image.  NRST is not wired on the bench board, so an SWD-launched
+   * image can inherit a stale TIM7 enable/pending bit from the previous
+   * image; leave the legacy interrupt disabled before global IRQ enable. */
+  HAL_NVIC_DisableIRQ(TIM7_IRQn);
+  __HAL_TIM_DISABLE_IT(&htim7, TIM_IT_UPDATE);
+  __HAL_TIM_CLEAR_IT(&htim7, TIM_IT_UPDATE);
 
   osKernelInitialize();
   MX_FREERTOS_Init();
@@ -167,15 +178,18 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  /* Match the factory clock tree: 8 MHz HSE -> 168 MHz SYSCLK,
-   * APB1=42 MHz and APB2=84 MHz. The UART baud-rate divisors, motor timer
-   * rates, and FreeRTOS/TIM14 timing are all derived from this tree. */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  /* Use the STM32F407 internal HSI clock.  The Rock64 motor-controller board
+   * does not reliably provide the external HSE oscillator at boot; a failed
+   * HSE startup traps here before USART1 can service the Rock64 link.  HSI
+   * 16 MHz -> 168 MHz SYSCLK keeps APB1=42 MHz and APB2=84 MHz, so the UART
+   * baud-rate divisors, motor timers, and FreeRTOS timebase remain stable. */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 168;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)

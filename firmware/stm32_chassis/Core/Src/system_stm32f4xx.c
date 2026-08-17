@@ -173,6 +173,15 @@ void SystemInit(void)
    * MX_USB_DEVICE_Init() enables OTG_HS_IRQn again after initialization.
    */
   __disable_irq();
+  /* A Rock64 SWD launch is used on this bench because NRST is not wired.
+   * Clear the Cortex-M4 floating-point lazy-state registers so FreeRTOS does
+   * not inherit an exception frame from the image that was flashed before
+   * this one.  A real hardware reset starts these registers at zero. */
+  FPU->FPCCR = 0U;
+  FPU->FPCAR = 0U;
+  FPU->FPDSCR = 0U;
+  SCB->CFSR = 0xFFFFFFFFUL;
+  SCB->HFSR = 0xFFFFFFFFUL;
   for (uint32_t irq_bank = 0U; irq_bank < 8U; ++irq_bank)
   {
     NVIC->ICER[irq_bank] = 0xFFFFFFFFUL;

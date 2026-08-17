@@ -2,7 +2,7 @@
 """Probe the Hiwonder STM32 ROM bootloader on the WCH motor cable.
 
 The filename is retained for compatibility with the old UART2 diagnostic,
-but the board's WCH connector uses the USART3 master pins PD8/PD9.  The running motor
+but the board's WCH connector uses the USART1 UART1 pins PA9/PA10.  The running motor
 application speaks packed binary frames; it does not implement ASCII
 ``PING``/``PONG``.  This diagnostic therefore probes only the STM32 ROM
 bootloader sync and never sends a motor frame.

@@ -121,7 +121,7 @@ void app_task_entry(void *argument)
     // uart_ros_cmd_init();  // ROS command handler
     // uart_ros_integration_init();  // UART integration for ROS commands
     
-	/* The dedicated binary_protocol_task owns the USART3 Rock64 WCH link,
+	/* The dedicated binary_protocol_task owns the USART1 UART1 WCH link,
 	 * including idle-DMA reception, parsing, motor watchdog, and telemetry.
 	 * Keep this factory application task focused on UI/gamepad services so it
 	 * cannot restart the UART receiver or consume the same parser context. */

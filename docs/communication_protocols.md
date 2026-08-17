@@ -2,12 +2,12 @@
 
 ## Physical Link
 
-- Peripheral: original Hiwonder WCH USB-UART bridge to STM32 USART3 master link
-- Pins: PD8 `MASTER_TX`/Rock64 TX, PD9 `MASTER_RX`/Rock64 RX
+- Peripheral: original Hiwonder WCH USB-UART bridge to STM32 USART1 UART1 link
+- Pins: PA9 UART1 TX/Rock64 RX, PA10 UART1 RX/Rock64 TX
 - Host device: WCH `1a86:55d4`, normally exposed by Linux as `/dev/ttyACM*` and
   addressed through `/dev/rock64_stm32`.
 - Line coding: 1,000,000 baud, 8 data bits, no parity, 1 stop bit
-- RX: USART3 circular DMA; TX: bounded blocking UART writes
+- RX: USART1 circular DMA; TX: bounded blocking UART writes
 
 ## Frame
 
@@ -60,6 +60,12 @@ Emergency stop payload:
 ```text
 02 00
 ```
+
+This is a deliberate custom-runtime semantic. In the stock Hiwonder 7in1
+firmware, motor subcommand `0x02` is a single-motor stop and the second byte
+is the motor ID; the stock all-motor stop is subcommand `0x03` with a motor
+mask. Therefore the custom `02 00` frame must not be used as a stop-frame
+compatibility test against the unmodified 7in1 image.
 
 ## Timeouts and Rearming
 

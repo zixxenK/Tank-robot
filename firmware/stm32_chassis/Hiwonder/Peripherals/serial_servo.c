@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include "serial_servo.h"
-#include "global.h"
+#include "main.h"
 #include "usart.h"
 #include <stdarg.h>
 #include <string.h>
@@ -31,7 +31,7 @@ static inline void SerialWrite(const uint8_t *buffer, uint16_t length) {
 static inline void SerialRead(const uint8_t *buffer, uint16_t length) {
     HAL_GPIO_WritePin(SERIAL_SERVO_RX_EN_GPIO_Port, SERIAL_SERVO_RX_EN_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(SERIAL_SERVO_TX_EN_GPIO_Port, SERIAL_SERVO_TX_EN_Pin, GPIO_PIN_SET);
-    HAL_UART_Receive_IT(&huart1, (void *) buffer, length);
+    HAL_UART_Receive_IT(&huart6, (void *) buffer, length);
     HAL_UART_Transmit(&huart6, (void *) buffer, length, 1000);
 }
 

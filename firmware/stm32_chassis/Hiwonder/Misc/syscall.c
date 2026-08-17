@@ -42,7 +42,8 @@ FILE __stdout;
 
 PUTCHAR_PROTOTYPE {
 #if (1 == ENABLE_DEBUG_UART)	//使用JLink打印日志
-    HAL_UART_Transmit(&huart1, (uint8_t*)&ch, 1, 0xFFFF); /* Debug UART1 */
+    /* UART1 is reserved for binary motor frames; never emit debug text here. */
+    (void)ch;
 #endif
 	
 #if (0 == ENABLE_DEBUG_UART)	//使用JLink打印日志

@@ -28,6 +28,17 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 project(${CMAKE_PROJECT_NAME})
 message("Build type: " ${CMAKE_BUILD_TYPE})
 
+# Host-link peripheral profile.  The approved custom board wiring is USART1
+# on PA9/PA10; USART3 is retained as the stock/factory alternative.  This
+# changes the firmware packet endpoint only.  It cannot change PCB traces.
+set(ROCK64_HOST_USART "1" CACHE STRING
+    "Host-link USART number: 1 (custom UART1/PA9-PA10) or 3 (stock PD8-PD9)")
+set_property(CACHE ROCK64_HOST_USART PROPERTY STRINGS 1 3)
+if(NOT ROCK64_HOST_USART STREQUAL "1" AND NOT ROCK64_HOST_USART STREQUAL "3")
+    message(FATAL_ERROR
+        "ROCK64_HOST_USART must be 1 (PA9/PA10) or 3 (PD8/PD9), got '${ROCK64_HOST_USART}'")
+endif()
+
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 
@@ -47,6 +58,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Hiwonder/Peripherals/imu_mpu6050.c
     Hiwonder/Peripherals/buzzer.c
     Hiwonder/Peripherals/led.c
+    Hiwonder/Peripherals/serial_servo.c
     Hiwonder/Portings/motor_porting.c
     Hiwonder/Misc/pid.c
     Hiwonder/System/motor_control.c
@@ -77,7 +89,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined symbols
+    ROCK64_HOST_USART=${ROCK64_HOST_USART}
 )
 
 # Remove wrong libob.a library dependency when using cpp files

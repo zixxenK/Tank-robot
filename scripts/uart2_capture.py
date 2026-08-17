@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture raw bytes from the STM32 UART1/USART3 WCH link for diagnosis only.
+"""Capture raw bytes from the STM32 UART1/USART1 WCH link for diagnosis only.
 
 The filename is retained for compatibility with earlier commands; UART2 is
 not the Hiwonder board's WCH motor transport.

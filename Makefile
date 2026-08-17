@@ -7,7 +7,7 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 FIRMWARE_DIR := $(REPO_ROOT)/firmware/stm32_chassis
 HOST_WS := $(REPO_ROOT)/host_ws
 
-.PHONY: help test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd robot-start motor-forward motor-back motor-stop motor-sequence
+.PHONY: help test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd robot-start motor-forward motor-back motor-stop motor-sequence rock64-update
 
 help:
 	@echo "Targets:"
@@ -15,6 +15,7 @@ help:
 	@echo "  stm32-config   Configure STM32 CMake build in firmware tree"
 	@echo "  stm32-build    Build STM32 firmware in firmware tree"
 	@echo "  stm32-flash    Flash STM32 firmware (requires OpenOCD/ST-Link)"
+	@echo "  rock64-update  Build host + STM32 and flash from the Rock64"
 	@echo "  host-build     Build host ROS2 workspace (host_ws preferred)"
 	@echo "  host-launch    Launch Rock64 bringup from active host workspace"
 	@echo "  host-sim       One-shot install deps + build + Gazebo telemetry launch"
@@ -49,6 +50,9 @@ stm32-build: stm32-config
 
 stm32-flash:
 	@bash "$(REPO_ROOT)/scripts/flash_stm32.sh"
+
+rock64-update:
+	@bash "$(REPO_ROOT)/deployment/scripts/rock64_update_and_flash.sh"
 
 host-build:
 	@cd "$(HOST_WS)" && colcon build --symlink-install

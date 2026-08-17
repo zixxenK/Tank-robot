@@ -76,7 +76,7 @@ void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  /* USART1 is the factory debug UART on PA9/PA10 (DBG_TX/DBG_RX). */
+  /* Product UART1 USB-C host link: PA9/PA10 at 1 Mbaud, 8N1. */
   huart1.Init.BaudRate = 1000000;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
@@ -136,7 +136,7 @@ void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  /* Product UART1 WCH/master link: PD8/PD9 (MASTER_TX/MASTER_RX). */
+  /* USART3 is retained only for the separate factory MASTER_TX/MASTER_RX pair. */
   huart3.Init.BaudRate = 1000000;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;

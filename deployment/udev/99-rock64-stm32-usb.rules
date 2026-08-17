@@ -1,4 +1,4 @@
-# Original Hiwonder USART3 master motor link through the onboard WCH USB-UART.
+# Hiwonder product UART1 WCH USB-UART link to the USART1 motor transport.
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="rock64_stm32", SYMLINK+="rock64_stm32_wch", GROUP="dialout", MODE="0660"
 ENV{ID_MM_PORT_IGNORE}="1"
 

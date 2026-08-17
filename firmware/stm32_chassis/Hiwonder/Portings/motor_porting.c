@@ -114,10 +114,14 @@ void motors_init(void)
         (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim3) + 1;
 
 
-    // 测速更新定时器
+    // Legacy speed timer is not used by the packed Rock64 protocol task.
+    // Do not enable TIM7 update interrupts: no HAL callback is registered
+    // for this timer in the custom image, and a stale IRQ is unsafe when the
+    // board is relaunched through SWD without a connected NRST line.
     __HAL_TIM_SET_COUNTER(&htim7, 0);
     __HAL_TIM_CLEAR_IT(&htim7, TIM_IT_UPDATE);
-    __HAL_TIM_ENABLE_IT(&htim7, TIM_IT_UPDATE);
+    __HAL_TIM_DISABLE_IT(&htim7, TIM_IT_UPDATE);
+    HAL_NVIC_DisableIRQ(TIM7_IRQn);
     __HAL_TIM_ENABLE(&htim7);
 
     //packet_register_callback(&packet_controller, PACKET_FUNC_MOTOR, packet_handler);
@@ -276,4 +280,3 @@ static void packet_handler(struct PacketRawFrame *frame)
 }
 
 */
-

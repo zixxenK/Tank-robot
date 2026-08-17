@@ -20,14 +20,14 @@ extern "C" {
 /**
  * @brief Initialize packed binary protocol integration
  * Call this from your main() or initialization function
- * Configures timers and protocol state for the USART3/WCH master motor
- * transport (the product connector is labeled UART1).
+ * Configures timers and protocol state for the USART1/WCH motor transport
+ * on PA9/PA10 (the product connector is labeled UART1).
  */
 void binary_protocol_integration_init_packed(void);
 
 /**
  * @brief Process transport buffer (call from the application task)
- * Processes bytes received by USART3 HAL idle-event DMA.
+ * Processes bytes received by USART1 HAL idle-event DMA.
  */
 void binary_protocol_process_dma_buffer(void);
 

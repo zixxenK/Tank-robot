@@ -8,8 +8,8 @@
  * 3. Actual motor control
  *
  * HARDWARE CONFIGURATION:
- * - The product-labeled UART1 USB-C link is USART3 (PD8/PD9) at 1000000 8N1.
- * - USART1 (PA9/PA10, DBG_TX/DBG_RX) is the separate debug UART.
+ * - The product-labeled UART1 USB-C link is USART1 (PA9/PA10) at 1000000 8N1.
+ * - USART3 (PD8/PD9) remains the separate factory MASTER pair.
  * - USART2 (PD5/PD6) is the auxiliary/Bluetooth port.
  * - ST-Link remains SWD-only.
  * - TIM2/TIM3/TIM4/TIM5: factory quadrature encoder inputs; never
@@ -30,18 +30,35 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef ROCK64_HOST_USART
+#define ROCK64_HOST_USART 1
+#endif
+
+#if ROCK64_HOST_USART == 1
+#define ROCK64_HOST_UART_HANDLE huart1
+#define ROCK64_HOST_DMA_RX_HANDLE hdma_usart1_rx
+#define ROCK64_HOST_UART_DESCRIPTION "USART1 PA9/PA10"
+extern DMA_HandleTypeDef hdma_usart1_rx;
+#elif ROCK64_HOST_USART == 3
+#define ROCK64_HOST_UART_HANDLE huart3
+#define ROCK64_HOST_DMA_RX_HANDLE hdma_usart3_rx
+#define ROCK64_HOST_UART_DESCRIPTION "USART3 PD8/PD9"
+extern DMA_HandleTypeDef hdma_usart3_rx;
+#else
+#error "ROCK64_HOST_USART must be 1 or 3"
+#endif
+
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
 // ============================================================================
 
 static BinaryProtocolContext protocol_ctx;
-extern DMA_HandleTypeDef hdma_usart3_rx;
 static osThreadId_t protocol_task_handle;
 
 #define PROTOCOL_RX_EVENT_FLAG (1U << 0)
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
-    if (huart != &huart3) {
+    if (huart != &ROCK64_HOST_UART_HANDLE) {
         return;
     }
 
@@ -70,15 +87,16 @@ void binary_protocol_integration_init_packed(void) {
 
     MotorControl_EmergencyStop();
 
-    /* Use the WCH Rock64 UART1 USB-C link on PD8/PD9 (USART3 MASTER_TX/RX).
+    /* Use the selected WCH Rock64 host link (the approved default is
+     * USART1 PA9/PA10; USART3 PD8/PD9 is available only for stock wiring).
      * Telemetry TX
      * deliberately uses
      * bounded blocking
      * writes: frames are short at 1 Mbaud, and this removes a second DMA
      * completion path from the motor bring-up image. */
     binary_protocol_init_packed(&protocol_ctx,
-                                &huart3,
-                                &hdma_usart3_rx,
+                                &ROCK64_HOST_UART_HANDLE,
+                                &ROCK64_HOST_DMA_RX_HANDLE,
                                 NULL,
                                 250,               // 250ms command timeout
                                 0);                // heartbeat not required
@@ -90,7 +108,7 @@ void binary_protocol_integration_init_packed(void) {
 // ============================================================================
 
 void binary_protocol_process_dma_buffer(void) {
-    /* Consume the USART3 HAL idle-DMA ring. Do not poll USART1/USART2. */
+    /* Consume the selected host USART HAL idle-DMA ring. */
     binary_protocol_process_dma(&protocol_ctx);
 }
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Exercise the Hiwonder WCH USART3 motor link without requesting movement.
+"""Exercise the Hiwonder WCH USART1 motor link without requesting movement.
 
 This sends only an emergency-stop frame followed by a two-motor zero-speed
-frame. It does not send nonzero motor values and does not use ST-Link.
+frame. It requires at least one valid packed response by default, so a wrong
+UART profile or dead host path fails instead of looking like a successful
+zero-byte test. It does not send nonzero motor values and does not use ST-Link.
 """
 
 import argparse
@@ -50,10 +52,33 @@ def frame(payload: bytes) -> bytes:
     return SYNC + body + bytes([crc])
 
 
+def valid_frame(data: bytes) -> bool:
+    """Return true if data contains one valid packed protocol frame."""
+    for start in range(max(0, len(data) - 4)):
+        if data[start : start + 2] != SYNC or start + 5 > len(data):
+            continue
+        payload_len = data[start + 3]
+        end = start + 5 + payload_len
+        if end > len(data):
+            continue
+        body = data[start + 2 : end - 1]
+        crc = 0
+        for byte in body:
+            crc = CRC8_TABLE[crc ^ byte]
+        if data[end - 1] == crc:
+            return True
+    return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", default=DEFAULT_PORT)
     parser.add_argument("--baud", type=int, default=DEFAULT_BAUD)
+    parser.add_argument(
+        "--allow-no-response",
+        action="store_true",
+        help="send safe frames but do not fail when no valid response arrives",
+    )
     args = parser.parse_args()
 
     require_wch(args.port)
@@ -64,19 +89,30 @@ def main() -> None:
         + struct.pack("<Bf", 1, 0.0)
     )
 
-    with serial.Serial(args.port, args.baud, timeout=0.2, write_timeout=0.2) as link:
+    response = bytearray()
+    with serial.Serial(args.port, args.baud, timeout=0.02, write_timeout=0.2) as link:
         link.write(stop)
         link.flush()
         time.sleep(0.05)
-        response = link.read(64)
+        response.extend(link.read(256))
         link.write(zero)
         link.flush()
+        deadline = time.monotonic() + 0.25
+        while time.monotonic() < deadline:
+            response.extend(link.read(256))
 
     print(f"sent emergency stop: {stop.hex(' ')}")
     print(f"sent zero-speed frame: {zero.hex(' ')}")
     print(f"received {len(response)} response bytes: {response.hex(' ')}")
     print(f"Transport: {WCH_UART} {WCH_PINS}")
     print("No nonzero motor command was sent.")
+    if valid_frame(response):
+        print("PASS: received a valid packed response from the selected UART.")
+    elif not args.allow_no_response:
+        raise SystemExit(
+            "FAIL: no valid packed response. Check the flashed UART profile, "
+            "physical connector wiring, bridge ownership, and baud rate."
+        )
 
 
 if __name__ == "__main__":

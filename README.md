@@ -16,7 +16,7 @@ E-stop + battery telemetry ─────────────────> 
                                                v
                                   stm32_hardened_bridge
                                                v
-                              USART3/WCH packed binary (product UART1)
+                              USART1/WCH packed binary (product UART1)
                                                v
                                         STM32F407
 ```
@@ -39,8 +39,8 @@ docs/                     Current architecture and validation documents
 ```
 
 There is one ROS workspace (`host_ws`) and one motor transport: packed binary
-over USART3 (PD8/PD9, factory MASTER_TX/MASTER_RX) through the WCH USB-UART
-adapter. The product connector is labeled UART1; STM32 USART1 is debug-only.
+over USART1 (PA9/PA10) through the WCH USB-UART adapter on the product-labeled
+UART1 connector. USART3/PD8-PD9 remains the separate factory pair.
 Native USB CDC is diagnostic-only
 and ST-Link is flash/debug-only. Legacy ASCII bridges, duplicate workspaces,
 and placeholder micro-ROS paths have been removed.
@@ -61,6 +61,11 @@ Release build:
 cmake --preset Release
 cmake --build --preset Release -j 4
 ```
+
+To select the host UART without hand-editing generated firmware, use
+`.\scripts\stm32_port_profile.ps1 -HostUart USART1` (the approved
+PA9/PA10 mapping) or `-HostUart USART3` (stock PD8/PD9 wiring). The selector
+changes the firmware endpoint, not the board traces.
 
 Generated images are under `firmware/stm32_chassis/build/<preset>/`. Building
 does not flash the controller.
@@ -171,6 +176,22 @@ sudo bash deployment/scripts/rock64_setup.sh --ros-distro auto
 
 The setup script targets Ubuntu 22.04/Humble, builds `host_ws`, installs the
 udev rule and systemd service, and launches only the hardened STM32 bridge.
+
+To send the current checkout to the board and perform the complete update from
+the Rock64 (including the STM32 ST-Link flash), run this from Windows with an
+SSH key configured for `rock64@rock64`:
+
+```powershell
+.\scripts\deploy_rock64.ps1
+```
+
+The script preserves a source backup on the Rock64, builds the ROS packages and
+STM32 Release image there, flashes and verifies the STM32 through the Rock64
+ST-Link, starts the image with SWD, runs the safe stop/zero-speed UART proof,
+and restarts the robot service only after every step passes. The Rock64 sudo
+password is requested interactively and is never stored. This workflow always
+flashes; source-only synchronization is intentionally not supported by this
+command.
 
 ## Hardware Gate
 

@@ -215,8 +215,9 @@ ros2 launch robot_bringup rock64_bringup.launch.py
 
 ### USART1/3 Configuration (FIXED)
 - **File:** `firmware/stm32_chassis/Core/Src/usart.c`, `uart_binary_protocol_integration_packed.c`
-- **Status:** USART3 correctly configured on PD8/PD9 at 1,000,000 baud
-- **Verified:** Factory pin map labels these pins DBG_TX/DBG_RX for the WCH adapter
+- **Status:** USART1 correctly configured on PA9/PA10 at 1,000,000 baud
+- **Verified:** The approved custom design assigns the physical UART1 connector
+  to PA9/PA10; stock 7in1 labels are not the custom runtime source of truth.
 
 ### Main.c Initialization Order (FIXED)
 - **File:** `firmware/stm32_chassis/Core/Src/main.c:79-157`

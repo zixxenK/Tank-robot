@@ -4,8 +4,8 @@
 
 The original hardware wiring and continuity history override the later
 contradictory note in this file: the Rock64 motor link is the WCH USB-UART
-device `1a86:55d4` connected to USART3 on PD8/PD9 at 1,000,000 baud, 8N1.
-USART1 PA9/PA10 is debug-only; USART2 PD5/PD6 is BLE/auxiliary. PB14/PB15 are the
+device `1a86:55d4` connected to USART1 on PA9/PA10 at 1,000,000 baud, 8N1.
+USART2 PD5/PD6 is BLE/auxiliary; USART3 PD8/PD9 is a separate factory pair. PB14/PB15 are the
 factory USB host interface. ST-Link `0483:3748` is programming/debug only.
 
 Compiled reference for an autonomous tracked robot built on a Hiwonder suspension tank chassis,
@@ -139,7 +139,7 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | Present but configured as plain `GPIO_Output` in the .ioc, **not** bound to a timer channel — needs remapping onto TIM1 or TIM9 for real hardware PWM |
 | Serial bus servo port | USART6 (PC6 TX / PC7 RX) + PE7/PE8 as TX/RX bus-direction-enable | Matches Hiwonder's half-duplex bus-servo driver topology exactly |
 | SBUS input | UART5 RX (PD2), 100000 baud, 9-bit, even parity, 2 stop bits | Standard SBUS framing, matches |
-| Rock64 host link | USART3 (PD8 TX / PD9 RX), 1,000,000 baud | WCH USB-UART master motor link; factory MASTER_TX/MASTER_RX; product connector labeled UART1 |
+| Rock64 host link | USART1 (PA9 TX / PA10 RX), 1,000,000 baud | WCH USB-UART motor link on the product connector labeled UART1 |
 | Onboard IMU | I2C2 (PB10 SCL / PB11 SDA) + EXTI on PB12 (`IMU_ITR`) | FreeRTOS config has an `mpu6050_data_ready` semaphore — confirms MPU6050, matching the reference board exactly |
 | Display | SPI2 TX-only (PC3 MOSI / PB13 SCK) + PD11–14 as LCD_BLK/CS/DC/RES | Reference board uses SPI OLED; project uses a color LCD instead (ST7735-class 4-wire) |
 | Auxiliary UART | USART2 (PD5/PD6) | Bluetooth/expansion interface |
@@ -173,7 +173,7 @@ PA11/PA12/PC8/PC9 need remapping onto those timers' alternate-function channels.
 | Supply commitment | 4GB variant designated Long-Term-Supply, Pine64 committed through ~2022+ |
 
 Given the project's `mpu6050_data_ready`/FreeRTOS naming and "master" UART link at 1Mbaud, the Rock64
-is talking to the STM32 over the USART3 PD8/PD9 pair (not native USB), which is a
+is talking to the STM32 over the custom USART1 PA9/PA10 pair (not native USB), which is a
 deliberate design choice worth keeping documented — it bypasses the reference board's USB-CDC approach.
 
 ---
@@ -215,8 +215,8 @@ deliberate design choice worth keeping documented — it bypasses the reference 
 - Confirm the ESP32-S3 module variant in use (flash/PSRAM size — N4/N8/N16, R2/R8) since it isn't
   identifiable from `lsusb`/`dmesg` output alone; check the module's printed part marking or query it
   via `esptool.py flash_id`.
-- Whether the Rock64↔STM32 link over USART3 at 1Mbaud is a custom packet protocol or reuses any of
-  Hiwonder's open-source ROS SDK framing. **USART3 MASTER IS USED FOR ROCK64 CONNECTION; USART1 IS DEBUG**
+- Whether the Rock64↔STM32 link over USART1 at 1Mbaud is a custom packet protocol or reuses any of
+  Hiwonder's open-source ROS SDK framing. **USART1 UART1 IS USED FOR ROCK64 CONNECTION; USART3 IS NOT THE HOST LINK**
 
 ---
 
@@ -264,8 +264,8 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 #### Debug UART
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PA9 | USART1_TX (DBG_TX) | Debug console | Debug output via USART1 |
-| PA10 | USART1_RX (DBG_RX) | Debug console | Debug input via USART1 |
+| PA9 | USART1_TX | UART1 USB-C host link | Binary protocol TX to Rock64 |
+| PA10 | USART1_RX | UART1 USB-C host link | Binary protocol RX from Rock64 |
 
 #### Master/Host Link (Rock64)
 | Pin | Signal | Component | Rationale |
@@ -273,9 +273,9 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 | PD5 | USART2_TX (`BLE_TX` label) | Auxiliary/Bluetooth port | Not the Rock64 motor transport |
 | PD6 | USART2_RX (`BLE_RX` label) | Auxiliary/Bluetooth port | Not the Rock64 motor transport |
 
-**Note:** The manufacturer packet porting uses `MASTER_TX`/`MASTER_RX` on
-USART3 for the Rock64 motor link. The product connector is labeled `UART1`,
-while STM32 USART1/`DBG_TX`/`DBG_RX` is debug-only.
+**Note:** Stock Hiwonder 7in1 firmware uses `MASTER_TX`/`MASTER_RX` on
+USART3, but this approved custom image intentionally routes the physical
+UART1 connector to USART1 on PA9/PA10. USART3 is not the Rock64 host link.
 
 #### SBUS RC Input
 | Pin | Signal | Component | Rationale |
@@ -374,9 +374,9 @@ while STM32 USART1/`DBG_TX`/`DBG_RX` is debug-only.
 - Matches typical servo PWM requirements
 
 #### Issue 2: WCH master motor transport documentation
-**Resolution:** The manufacturer packet porting uses USART3 (PD8/PD9,
-`MASTER_TX`/`MASTER_RX`) for the Rock64 connection. The physical connector is
-silkscreened UART1; STM32 USART1 (PA9/PA10, `DBG_TX`/`DBG_RX`) is debug-only.
+**Resolution:** The approved custom image uses the physical UART1 connector
+and USART1 (PA9/PA10) for the Rock64 connection. USART3 (PD8/PD9,
+`MASTER_TX`/`MASTER_RX`) remains the separate stock/factory pair.
 
 **Impact:**
 - Documentation confusion when referencing pin functions
@@ -385,8 +385,8 @@ silkscreened UART1; STM32 USART1 (PA9/PA10, `DBG_TX`/`DBG_RX`) is debug-only.
 **Recommendation:**
 - Update pin labels in CubeMX from BLE_TX/BLE_RX to ROCK64_TX/ROCK64_RX
 - Update documentation to reflect actual usage
-- USART2 (PD5/PD6) remains the auxiliary/Bluetooth module; USART3 is the master
-  motor transport.
+- USART2 (PD5/PD6) remains the auxiliary/Bluetooth module; USART6 (PC6/PC7)
+  owns serial-servo traffic.
 
 ---
 

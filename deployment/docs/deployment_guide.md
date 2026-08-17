@@ -6,8 +6,8 @@
 - ROS 2 Humble
 - Canonical workspace: `host_ws`
 - STM32 transport: hardened packed binary over the original Hiwonder WCH
-  USB-UART master link on `/dev/rock64_stm32` (USART3 PD8/PD9, 1,000,000 baud,
-  8N1; factory labels DBG_TX/DBG_RX)
+  USB-UART link on `/dev/rock64_stm32` (USART1 PA9/PA10, 1,000,000 baud,
+  8N1; product connector UART1)
 
 ## Install
 
@@ -68,6 +68,35 @@ sudo systemctl enable --now rock64-robot.service
 systemctl status rock64-robot.service
 journalctl -u rock64-robot.service -f
 ```
+
+## Updating and flashing from the Rock64
+
+From the development PC, the canonical workflow is:
+
+```powershell
+.\scripts\deploy_rock64.ps1
+```
+
+This uploads the current source tree to `rock64@rock64`, retains a backup of
+the existing Rock64 source tree, builds the selected ROS packages and the
+STM32 Release image on the Rock64, stops the running service, flashes through
+the Rock64-connected ST-Link, performs readback verification, starts the
+image through SWD, runs `python3 scripts/motor_link_safe_test.py`, and
+restarts the service only after the safe UART proof passes. It always flashes
+and requires both USB devices to be connected to the Rock64:
+
+- WCH motor UART `1a86:55d4`, exposed as `/dev/rock64_stm32` and connected to
+  the physical UART1 connector / USART1 PA9-PA10
+- ST-Link `0483:3748`, used only for SWD flashing
+
+The board-side command is also available directly after source deployment:
+
+```bash
+bash /opt/rock64-robot/deployment/scripts/rock64_update_and_flash.sh
+```
+
+If the board reset is not asserted automatically by the ST-Link, press the
+STM32 board reset button after the verified flash and before motion testing.
 
 Expected control nodes are:
 

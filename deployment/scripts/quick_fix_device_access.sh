@@ -19,7 +19,7 @@ REPO_ROOT="${REPO_ROOT:-/opt/rock64-robot}"
 cd "${REPO_ROOT}" || exit 1
 
 echo ""
-echo "Step 1: Install the canonical WCH USART3 master-link udev rule..."
+echo "Step 1: Install the canonical WCH USART1 host-link udev rule..."
 echo "----------------------------------------------"
 
 # Backup existing rule
@@ -30,7 +30,7 @@ fi
 
 # Create corrected udev rule
 cat > /etc/udev/rules.d/99-rock64-stm32.rules <<'EOF'
-# Tank Robot - WCH USB-UART to STM32 USART3 PD8/PD9 master motor link
+# Tank Robot - WCH USB-UART to STM32 USART1 PA9/PA10 UART1 motor link
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="rock64_stm32", SYMLINK+="rock64_stm32_wch", MODE="0660", GROUP="dialout"
 ENV{ID_MM_PORT_IGNORE}="1"
 EOF
@@ -119,8 +119,8 @@ echo "Step 5: Display firmware status..."
 echo "----------------------------------------------"
 
 cat <<'EOF'
-The active STM32 firmware and host bridge use packed binary frames on USART3
-(PD8/PD9, factory MASTER_TX/MASTER_RX) at 1000000 8N1. The product connector
+The active STM32 firmware and host bridge use packed binary frames on USART1
+(PA9/PA10) at 1000000 8N1. The product connector
 is labeled UART1; ST-Link is SWD-only.
 Complete docs/HARDWARE_VALIDATION.md before enabling motors.
 EOF

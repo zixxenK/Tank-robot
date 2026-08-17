@@ -30,8 +30,16 @@ if [[ "${DO_BUILD}" == true ]]; then
   echo "[flash] Building firmware..."
   cd "${FIRMWARE_DIR}"
   rm -rf build/Release
-  cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -G 'Unix Makefiles'
-  cmake --build build/Release -j4
+  ROCK64_HOST_USART="${ROCK64_HOST_USART:-1}"
+  case "${ROCK64_HOST_USART}" in
+    1|3) ;;
+    *) echo "[flash] ERROR: ROCK64_HOST_USART must be 1 or 3" >&2; exit 1 ;;
+  esac
+  cmake -S . -B build/Release \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DROCK64_HOST_USART="${ROCK64_HOST_USART}" \
+    -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -G 'Unix Makefiles'
+  cmake --build build/Release -j"${STM32_BUILD_JOBS:-4}"
 fi
 
 if [[ ! -f "${BIN_FILE}" ]]; then
@@ -63,6 +71,28 @@ if command -v st-flash >/dev/null 2>&1; then
       echo "[flash] ERROR: st-flash failed with status ${FLASH_RC}" >&2
       exit "${FLASH_RC}"
     fi
+  fi
+
+  if [[ "${DO_VERIFY}" == true ]]; then
+    VERIFY_FILE="$(mktemp)"
+    VERIFY_SIZE="$(stat -c '%s' "${BIN_FILE}")"
+    echo "[flash] Reading back ${VERIFY_SIZE} bytes for verification..."
+    set +e
+    st-flash read "${VERIFY_FILE}" 0x08000000 "${VERIFY_SIZE}"
+    READ_RC=$?
+    set -e
+    if [[ "${READ_RC}" -ne 0 ]]; then
+      rm -f "${VERIFY_FILE}"
+      echo "[flash] ERROR: st-flash readback failed with status ${READ_RC}" >&2
+      exit "${READ_RC}"
+    fi
+    if ! cmp -s "${BIN_FILE}" "${VERIFY_FILE}"; then
+      echo "[flash] ERROR: STM32 readback does not match ${BIN_FILE}" >&2
+      rm -f "${VERIFY_FILE}"
+      exit 1
+    fi
+    rm -f "${VERIFY_FILE}"
+    echo "[flash] Readback verified."
   fi
 elif command -v openocd >/dev/null 2>&1; then
   echo "[flash] Using OpenOCD..."

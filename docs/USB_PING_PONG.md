@@ -1,7 +1,7 @@
 # Native STM32 USB ping/pong (not the normal board transport)
 
 This diagnostic path uses only the STM32 native USB CDC device. It does not
-use USART3, the WCH USB-UART adapter, the robot heartbeat, or motor frames.
+use the WCH USB-UART adapter on USART1, the robot heartbeat, or motor frames.
 
 The firmware accepts `PING\n` and replies `PONG\n`.
 

@@ -113,7 +113,7 @@ find_stm32_device() {
 WCH_DEVICE=$(find_wch_device)
 STM32_DEVICE=$(find_stm32_device)
 
-echo "WCH USART3 master device discovery (product UART1):"
+echo "WCH USART1 host device discovery (product UART1):"
 if [[ -n "$WCH_DEVICE" ]]; then
     echo "  ✅ Found: $WCH_DEVICE"
 else
