@@ -120,8 +120,9 @@ apt-get install -y --no-install-recommends \
 # ── Create udev rule for STM32 serial port ────────────────────────────────
 echo "[setup] Installing udev rule for STM32 serial port..."
 cat > /etc/udev/rules.d/99-rock64-stm32.rules <<'EOF'
-# Rock64 Ranger — Hiwonder WCH USB-UART (1a86:55d4) to USART2 PD5/PD6.
-# Creates a stable alias to the underlying /dev/ttyUSB* node.
+# Rock64 Ranger — Hiwonder WCH USB-UART (1a86:55d4) to USART3 PD8/PD9
+# (product connector labeled UART1).
+# Creates a stable alias to the underlying /dev/ttyACM* node.
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", \
   SYMLINK+="rock64_stm32", SYMLINK+="rock64_stm32_wch", GROUP="dialout", MODE="0664", \
   ENV{ID_MM_PORT_IGNORE}="1"

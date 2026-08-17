@@ -6,7 +6,8 @@
 - ROS 2 Humble
 - Canonical workspace: `host_ws`
 - STM32 transport: hardened packed binary over the original Hiwonder WCH
-  USB-UART master link on `/dev/rock64_stm32` (USART2 PD5/PD6, 1,000,000 baud)
+  USB-UART master link on `/dev/rock64_stm32` (USART3 PD8/PD9, 1,000,000 baud,
+  8N1; factory labels DBG_TX/DBG_RX)
 
 ## Install
 

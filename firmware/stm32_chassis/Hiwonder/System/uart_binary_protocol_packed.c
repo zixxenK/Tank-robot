@@ -4,7 +4,7 @@
  *
  * CRITICAL IMPLEMENTATION NOTES:
  * 1. All structs use __attribute__((packed)) to match Python struct.pack()
- * 2. DMA circular buffer for non-blocking reception
+ * 2. HAL idle-event DMA reception on a circular buffer
  * 3. Hardware timer for deterministic timeout protection
  * 4. State machine parser for robust frame synchronization
  * 5. Burst telemetry transmission at fixed frequency
@@ -104,6 +104,16 @@ static void binary_protocol_start_tx(BinaryProtocolContext *ctx) {
     uint8_t result;
     if (ctx->transmit_callback != NULL) {
         result = ctx->transmit_callback(frame->data, frame->length);
+        if (result == HAL_OK) {
+            /* A synchronous callback has completed the frame before it
+             * returns.  Treat it exactly like the blocking TX path so the
+             * queue cannot remain permanently busy on its first frame. */
+            ctx->tx_tail = (uint8_t)((ctx->tx_tail + 1U) %
+                                     TX_FRAME_QUEUE_DEPTH);
+            ctx->tx_busy = false;
+            binary_protocol_start_tx(ctx);
+            return;
+        }
     } else if (ctx->tx_dma_handle != NULL) {
         result = (uint8_t)HAL_UART_Transmit_DMA(ctx->uart_handle,
                                                 frame->data,
@@ -227,17 +237,27 @@ void binary_protocol_init_packed(BinaryProtocolContext *ctx,
     ctx->last_command_time = HAL_GetTick();
     ctx->last_heartbeat_time = HAL_GetTick();
 
-    // Start DMA circular reception if available
+    // Start HAL idle-event reception on the configured circular DMA stream.
+    // The receive-event callback wakes the protocol task; the parser still
+    // drains the DMA ring from task context so no motor code runs in IRQ.
     if (huart && hdma_rx) {
-        // Configure DMA for circular mode
-        hdma_rx->Instance->CR |= DMA_SxCR_CIRC;  // Enable circular mode
-
-        // Start DMA reception
-        HAL_UART_Receive_DMA(huart, (uint8_t*)ctx->rx_buffer, RX_BUFFER_SIZE);
+        (void)HAL_UARTEx_ReceiveToIdle_DMA(huart,
+                                           (uint8_t *)ctx->rx_buffer,
+                                           RX_BUFFER_SIZE);
     } else {
         // No DMA available - will use polling mode
         ctx->rx_write_pos = 0;
     }
+}
+
+void binary_protocol_rx_event(BinaryProtocolContext *ctx, uint16_t position) {
+    if (ctx == NULL) {
+        return;
+    }
+
+    ctx->rx_event_pos = position;
+    __DMB();
+    ctx->rx_event_pending = true;
 }
 
 // ============================================================================
@@ -249,6 +269,9 @@ void binary_protocol_process_dma(BinaryProtocolContext *ctx) {
         // DMA mode - calculate available data in circular buffer
         // DMA write position is: RX_BUFFER_SIZE - DMA counter
         uint16_t dma_write_pos = RX_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(ctx->rx_dma_handle);
+        if (dma_write_pos >= RX_BUFFER_SIZE) {
+            dma_write_pos = 0;
+        }
 
         // Process all available bytes
         while (ctx->rx_read_pos != dma_write_pos) {
@@ -260,6 +283,7 @@ void binary_protocol_process_dma(BinaryProtocolContext *ctx) {
             // Advance read position (with wraparound)
             ctx->rx_read_pos = (ctx->rx_read_pos + 1) % RX_BUFFER_SIZE;
         }
+        ctx->rx_event_pending = false;
     } else {
         if (ctx->uart_handle != NULL) {
             // UART polling mode - read a single byte.

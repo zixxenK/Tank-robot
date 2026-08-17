@@ -42,7 +42,7 @@ FILE __stdout;
 
 PUTCHAR_PROTOTYPE {
 #if (1 == ENABLE_DEBUG_UART)	//使用JLink打印日志
-    HAL_UART_Transmit(&huart1, (uint8_t*)&ch, 1, 0xFFFF); /* 重定向到 UART1 打印 */
+    HAL_UART_Transmit(&huart1, (uint8_t*)&ch, 1, 0xFFFF); /* Debug UART1 */
 #endif
 	
 #if (0 == ENABLE_DEBUG_UART)	//使用JLink打印日志

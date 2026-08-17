@@ -108,7 +108,7 @@ extern USBD_CDC_ItfTypeDef USBD_Interface_fops_HS;
 uint8_t CDC_Transmit_HS(uint8_t* Buf, uint16_t Len);
 
 /* USB-only diagnostic transport.  This path is intentionally independent of
- * USART1 and the robot heartbeat/motor protocol. */
+ * the native USB CDC path and the robot heartbeat/motor protocol. */
 void USB_PingPong_Process(void);
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */

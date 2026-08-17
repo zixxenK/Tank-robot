@@ -170,6 +170,8 @@ typedef struct {
     volatile uint8_t rx_buffer[RX_BUFFER_SIZE];
     volatile uint16_t rx_write_pos;  // DMA write position
     volatile uint16_t rx_read_pos;   // Parser read position
+    volatile uint16_t rx_event_pos;  // Position reported by HAL idle-DMA
+    volatile bool rx_event_pending;  // Set by HAL_UARTEx_RxEventCallback
     
     // Frame Parser State
     FrameState rx_state;
@@ -245,6 +247,13 @@ void binary_protocol_init_packed(BinaryProtocolContext *ctx,
  * @param ctx Protocol context
  */
 void binary_protocol_process_dma(BinaryProtocolContext *ctx);
+
+/**
+ * @brief Record a HAL UART idle-DMA reception event.
+ * @param ctx Protocol context
+ * @param position DMA write position reported by HAL
+ */
+void binary_protocol_rx_event(BinaryProtocolContext *ctx, uint16_t position);
 
 void binary_protocol_process_bytes(BinaryProtocolContext *ctx,
                                    const uint8_t *data,

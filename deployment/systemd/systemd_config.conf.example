@@ -9,7 +9,8 @@ ROCK64_IP=192.168.1.159
 # ── Hardware ───────────────────────────────────────────────────────────────
 # Serial port for STM32 motor controller.
 # The udev rule (99-rock64-stm32.rules) creates a stable symlink to the
-# Original Hiwonder WCH USB-UART node:
+# Original Hiwonder WCH USB-UART node, wired to USART3 PD8/PD9
+# (the product connector is labeled UART1):
 #   /dev/rock64_stm32  ->  /dev/ttyACM*  (VID:1A86 PID:55D4)
 SERIAL_PORT=/dev/rock64_stm32
 

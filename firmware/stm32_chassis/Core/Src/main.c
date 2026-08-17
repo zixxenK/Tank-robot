@@ -27,6 +27,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -52,9 +53,19 @@
 
 /* USER CODE BEGIN PV */
 extern UART_HandleTypeDef huart1;
-extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart6;
+
+static uint32_t protocol_task_stack[256];
+static StaticTask_t protocol_task_control_block;
+static const osThreadAttr_t protocol_task_attributes = {
+  .name = "protocol_task",
+  .cb_mem = &protocol_task_control_block,
+  .cb_size = sizeof(protocol_task_control_block),
+  .stack_mem = &protocol_task_stack[0],
+  .stack_size = sizeof(protocol_task_stack),
+  .priority = (osPriority_t)osPriorityNormal,
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -96,40 +107,46 @@ int main(void)
 
   /* USER CODE END SysInit */
 
-  /* The Rock64 link is the Hiwonder WCH USB-UART bridge on USART1 PA9/PA10
-   * (factory labels DBG_TX/DBG_RX). USART2 PD5/PD6 is the Bluetooth port. */
+  /* The Rock64 link is the Hiwonder WCH USB-UART bridge on USART3 PD8/PD9
+   * (factory labels MASTER_TX/MASTER_RX). USART1 is debug; USART2 is BLE. */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
-  MX_USART3_UART_Init();
-  MX_USART6_UART_Init();
-
-  /* Motor 0/1 use TIM1 PWM with TIM5/TIM2 encoders. Initialize the remaining
-   * factory motor timers too because MotorControl_Init() safely zeros all four
-   * motor objects during startup. */
+  MX_SPI2_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
-  MX_TIM3_Init();
-  MX_TIM4_Init();
   MX_TIM5_Init();
   MX_TIM7_Init();
   MX_TIM9_Init();
   MX_TIM10_Init();
   MX_TIM11_Init();
+  MX_I2C2_Init();
+  MX_UART5_Init();
+  MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
+  MX_USART6_UART_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
+  MX_TIM12_Init();
+  MX_TIM13_Init();
+  MX_ADC1_Init();
+  MX_CRC_Init();
+  MX_USB_DEVICE_Init();
 
   /* SystemInit masks interrupts while it clears stale NVIC state.  The
-   * protocol startup performs timed ADC filter priming, so the HAL timebase
-   * must be running before Battery_Init()/binary_protocol_integration_init_packed(). */
+   * protocol startup uses HAL timing, so the HAL timebase must be running
+   * before binary_protocol_integration_init_packed(). */
   __enable_irq();
 
-  binary_protocol_integration_init_packed();
+  osKernelInitialize();
+  MX_FREERTOS_Init();
+  if (osThreadNew(binary_protocol_task, NULL, &protocol_task_attributes) == NULL) {
+    Error_Handler();
+  }
+  osKernelStart();
 
-  while (1)
-  {
-    binary_protocol_main_task();
-    binary_protocol_telemetry_task();
-    HAL_Delay(10U);
+  /* The scheduler owns the application after osKernelStart(). */
+  for (;;) {
   }
 }
 
@@ -150,13 +167,17 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  /* Use the internal oscillator for a deterministic bring-up clock.  This
-   * avoids hanging in Error_Handler() when the factory HSE/BOOT wiring is not
-   * available during commissioning. USART1 still supports the configured
-   * 1 Mbaud link from the 16 MHz HSI clock. */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  /* Match the factory clock tree: 8 MHz HSE -> 168 MHz SYSCLK,
+   * APB1=42 MHz and APB2=84 MHz. The UART baud-rate divisors, motor timer
+   * rates, and FreeRTOS/TIM14 timing are all derived from this tree. */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 168;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -166,12 +187,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
     Error_Handler();
   }
@@ -187,9 +208,8 @@ void SystemClock_Config(void)
 
 /**
   * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM14 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
+  * @note   TIM14 is handled by the custom HAL timebase implementation in
+  * stm32f4xx_hal_timebase_tim.c, which calls HAL_IncTick().
   * @param  htim : TIM handle
   * @retval None
   */
@@ -198,9 +218,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM14) {
-    HAL_IncTick();
-  }
+  /* TIM14 is the registered HAL timebase callback. It is dispatched by
+   * TIM8_TRG_COM_TIM14_IRQHandler(), not from this legacy callback. */
+  (void)htim;
   /* USER CODE BEGIN Callback 1 */
 
   /* USER CODE END Callback 1 */

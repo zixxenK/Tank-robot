@@ -17,7 +17,7 @@ PS5 DualSense (optional)                  Autonomous agent
                 stm32_hardened_bridge
           reconnect | serial timeout
                           |
-                USART2/WCH packed binary
+                USART3/WCH packed binary (product UART1)
                           |
                        STM32F407
        command timeout | PID | PWM | encoders

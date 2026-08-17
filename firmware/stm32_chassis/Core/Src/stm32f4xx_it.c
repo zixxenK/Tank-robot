@@ -20,6 +20,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_it.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
+extern void xPortSysTickHandler(void);
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -68,6 +72,7 @@ extern TIM_HandleTypeDef htim7;
 extern TIM_HandleTypeDef htim11;
 extern TIM_HandleTypeDef htim12;
 extern TIM_HandleTypeDef htim13;
+extern TIM_HandleTypeDef htim14;
 extern DMA_HandleTypeDef hdma_uart5_rx;
 extern DMA_HandleTypeDef hdma_usart1_rx;
 extern DMA_HandleTypeDef hdma_usart1_tx;
@@ -77,7 +82,6 @@ extern UART_HandleTypeDef huart5;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart6;
-extern TIM_HandleTypeDef htim14;
 
 /* USER CODE BEGIN EV */
 
@@ -173,6 +177,20 @@ void DebugMon_Handler(void)
   /* USER CODE BEGIN DebugMonitor_IRQn 1 */
 
   /* USER CODE END DebugMonitor_IRQn 1 */
+}
+
+/**
+  * @brief This function handles the HAL SysTick interrupt.
+  *
+ * TIM14 owns the HAL millisecond timebase. SysTick is the FreeRTOS scheduler
+ * tick and must be forwarded to the kernel when the scheduler is running.
+  */
+void SysTick_Handler(void)
+{
+  if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+  {
+    xPortSysTickHandler();
+  }
 }
 
 /******************************************************************************/

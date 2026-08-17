@@ -21,9 +21,8 @@ echo "----------------------------------------------"
 
 # Expected nodes based on launch configuration
 EXPECTED_NODES=(
-    "ps5_ros_bridge"
     "stm32_hardened_bridge"
-    "esp32_camera_bridge"
+    "safety_gateway"
 )
 
 echo "Expected nodes:"
@@ -62,7 +61,7 @@ ls -la /dev/ttyACM* 2>/dev/null || echo "  No ACM devices found"
 
 echo ""
 echo "USB device details:"
-lsusb | grep -i "1a86\|0483" || echo "  No STM32/CH341 devices found"
+lsusb | grep -i "1a86\|0483" || echo "  No WCH/ST-Link devices found"
 
 echo ""
 echo "Current device symlinks:"
@@ -77,22 +76,22 @@ echo ""
 echo "Step 3: Automatic Device Discovery Logic"
 echo "----------------------------------------------"
 
-# Function to find CH341 device
-find_ch341_device() {
-    local ch341_device=""
+# Function to find onboard WCH USB-UART motor device
+find_wch_device() {
+    local wch_device=""
     for device in /dev/ttyACM* /dev/ttyUSB*; do
         if [[ -e "$device" ]]; then
             # Try to get device ID
             local device_path=$(readlink -f "$device")
             local device_id=$(udevadm info --query=property --name="$device" 2>/dev/null | grep -E "ID_VENDOR_ID|ID_MODEL_ID" || echo "")
             
-            if echo "$device_id" | grep -q "1a86"; then
-                ch341_device="$device"
+            if echo "$device_id" | grep -q "ID_VENDOR_ID=1a86" && echo "$device_id" | grep -q "ID_MODEL_ID=55d4"; then
+                wch_device="$device"
                 break
             fi
         fi
     done
-    echo "$ch341_device"
+    echo "$wch_device"
 }
 
 # Function to find STM32 native device
@@ -111,14 +110,14 @@ find_stm32_device() {
     echo "$stm32_device"
 }
 
-CH341_DEVICE=$(find_ch341_device)
+WCH_DEVICE=$(find_wch_device)
 STM32_DEVICE=$(find_stm32_device)
 
-echo "CH341 device discovery:"
-if [[ -n "$CH341_DEVICE" ]]; then
-    echo "  ✅ Found: $CH341_DEVICE"
+echo "WCH USART3 master device discovery (product UART1):"
+if [[ -n "$WCH_DEVICE" ]]; then
+    echo "  ✅ Found: $WCH_DEVICE"
 else
-    echo "  ❌ No CH341 device found"
+    echo "  ❌ No WCH motor device found"
 fi
 
 echo ""
@@ -133,16 +132,10 @@ echo ""
 echo "Step 4: Port Remapping Logic"
 echo "----------------------------------------------"
 
-# Auto-detect the correct serial port
+# Auto-detect only the WCH motor serial port; ST-Link/native USB are not motor ports.
 AUTO_SERIAL_PORT=""
-if [[ -n "$CH341_DEVICE" ]]; then
-    AUTO_SERIAL_PORT="$CH341_DEVICE"
-elif [[ -n "$STM32_DEVICE" ]]; then
-    AUTO_SERIAL_PORT="$STM32_DEVICE"
-elif [[ -e /dev/ttyACM0 ]]; then
-    AUTO_SERIAL_PORT="/dev/ttyACM0"
-elif [[ -e /dev/ttyUSB0 ]]; then
-    AUTO_SERIAL_PORT="/dev/ttyUSB0"
+if [[ -n "$WCH_DEVICE" ]]; then
+    AUTO_SERIAL_PORT="$WCH_DEVICE"
 fi
 
 echo "Auto-detected serial port: ${AUTO_SERIAL_PORT:-NONE}"
@@ -180,7 +173,7 @@ echo "Creating robust udev rules for device persistence..."
 sudo tee "$UDEV_RULES_FILE" > /dev/null <<'EOF'
 # Rock64 Robot - Robust Device Persistence Rules
 
-# CH341 device (QinHeng Electronics) - creates rock64_stm32 symlink
+# WCH device (QinHeng Electronics 1a86:55d4) - creates rock64_stm32 symlink
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="rock64_stm32", MODE="0666"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", ENV{ID_MM_PORT_IGNORE}="1"
 
@@ -271,7 +264,7 @@ echo ""
 echo "Recommendations:"
 echo "----------------"
 if [[ -z "$AUTO_SERIAL_PORT" ]]; then
-    echo "❌ No serial device found - connect STM32/CH341 device"
+    echo "❌ No WCH motor serial device found - connect the Hiwonder USB cable"
 elif [[ "$SERVICE_STATUS" != "active" ]]; then
     echo "❌ Service not running - check logs with: journalctl -u rock64-robot.service -f"
 elif [[ $(echo "$ACTUAL_NODES" | wc -l) -lt 2 ]]; then
@@ -282,7 +275,7 @@ fi
 
 echo ""
 echo "For device port changes, the system now:"
-echo "1. Auto-detects CH341 and STM32 devices"
+echo "1. Auto-detects the WCH motor device and reports optional STM32 USB"
 echo "2. Updates configuration automatically"
 echo "3. Creates persistent symlinks via udev rules"
-echo "4. Provides fallback to any available ACM device"
+echo "4. Refuses generic ACM devices so ST-Link/native USB cannot become the motor port"

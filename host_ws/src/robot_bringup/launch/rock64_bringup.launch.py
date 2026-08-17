@@ -33,7 +33,7 @@ def generate_launch_description() -> LaunchDescription:
     use_teleop_arg = DeclareLaunchArgument(
         "use_teleop",
         default_value="false",
-        description="Optional PS5 teleoperation source",
+        description="Optional teleoperation source; hardware bringup does not require a controller",
     )
     use_camera_bridge_arg = DeclareLaunchArgument(
         "use_camera_bridge",

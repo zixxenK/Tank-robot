@@ -2,12 +2,12 @@
 
 ## Physical Link
 
-- Peripheral: original Hiwonder WCH USB-UART bridge to STM32 USART2
-- Pins: PD5 `BLE_TX`/Rock64 TX, PD6 `BLE_RX`/Rock64 RX
-- Host device: WCH `1a86:55d4`, normally exposed by Linux as `/dev/ttyUSB*` and
+- Peripheral: original Hiwonder WCH USB-UART bridge to STM32 USART3 master link
+- Pins: PD8 `MASTER_TX`/Rock64 TX, PD9 `MASTER_RX`/Rock64 RX
+- Host device: WCH `1a86:55d4`, normally exposed by Linux as `/dev/ttyACM*` and
   addressed through `/dev/rock64_stm32`.
 - Line coding: 1,000,000 baud, 8 data bits, no parity, 1 stop bit
-- RX: USART2 circular DMA; TX: bounded blocking UART writes
+- RX: USART3 circular DMA; TX: bounded blocking UART writes
 
 ## Frame
 

@@ -8,9 +8,9 @@
  * 3. Actual motor control
  *
  * HARDWARE CONFIGURATION:
- * - The original Rock64 link is USART1 (PA9/PA10) at 1000000 8N1.
+ * - The product-labeled UART1 USB-C link is USART3 (PD8/PD9) at 1000000 8N1.
+ * - USART1 (PA9/PA10, DBG_TX/DBG_RX) is the separate debug UART.
  * - USART2 (PD5/PD6) is the auxiliary/Bluetooth port.
- * - PB14/PB15 are the board USB host port, not the Rock64 motor link.
  * - ST-Link remains SWD-only.
  * - TIM2/TIM3/TIM4/TIM5: factory quadrature encoder inputs; never
  *   reconfigured here.
@@ -26,6 +26,7 @@
 #include "usart.h"
 #include "dma.h"
 #include "tim.h"
+#include "cmsis_os2.h"
 #include <math.h>
 #include <string.h>
 
@@ -34,17 +35,34 @@
 // ============================================================================
 
 static BinaryProtocolContext protocol_ctx;
-extern DMA_HandleTypeDef hdma_usart1_rx;
+extern DMA_HandleTypeDef hdma_usart3_rx;
+static osThreadId_t protocol_task_handle;
+
+#define PROTOCOL_RX_EVENT_FLAG (1U << 0)
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
+    if (huart != &huart3) {
+        return;
+    }
+
+    binary_protocol_rx_event(&protocol_ctx, size);
+    if (protocol_task_handle != NULL) {
+        (void)osThreadFlagsSet(protocol_task_handle, PROTOCOL_RX_EVENT_FLAG);
+    }
+}
 
 // ============================================================================
 // INTEGRATION INITIALIZATION
 // ============================================================================
 
 void binary_protocol_integration_init_packed(void) {
-    /* These services are required before telemetry can be produced. The
-     * safety gateway deliberately refuses motion without valid battery data. */
+    /* Status is useful for the board indicators, but battery ADC startup is
+     * deliberately not part of the motor-link bring-up.  On this integrated
+     * controller the ADC/VREF path is board-specific and the old priming code
+     * can fault before USART1 and the motor controller are alive.  Battery
+     * monitoring is not a prerequisite for this raised-track bench test; the
+     * host receives an unavailable value instead of a fabricated reading. */
     (void)Status_Init();
-    (void)Battery_Init();
 
     // Initialize motor control layer first. Startup PWM values are explicitly
     // cleared below so merely booting the image cannot request motion.
@@ -52,16 +70,18 @@ void binary_protocol_integration_init_packed(void) {
 
     MotorControl_EmergencyStop();
 
-    /* Use the original Rock64 UART. The WCH USB-serial bridge is physically
-     * wired to PA9/PA10 (USART1). RX uses the factory circular DMA;
-     * TX is deliberately polled so it does not depend on a DMA IRQ that is
-     * not required by the motor safety loop. */
+    /* Use the WCH Rock64 UART1 USB-C link on PD8/PD9 (USART3 MASTER_TX/RX).
+     * Telemetry TX
+     * deliberately uses
+     * bounded blocking
+     * writes: frames are short at 1 Mbaud, and this removes a second DMA
+     * completion path from the motor bring-up image. */
     binary_protocol_init_packed(&protocol_ctx,
-                               &huart1,
-                               &hdma_usart1_rx,
-                               NULL,
-                               250,               // 250ms command timeout
-                               0);                // heartbeat not required
+                                &huart3,
+                                &hdma_usart3_rx,
+                                NULL,
+                                250,               // 250ms command timeout
+                                0);                // heartbeat not required
     protocol_ctx.heartbeat_required = false;
 }
 
@@ -70,9 +90,7 @@ void binary_protocol_integration_init_packed(void) {
 // ============================================================================
 
 void binary_protocol_process_dma_buffer(void) {
-    /* Consume the USART1 circular-DMA buffer. Do not poll USART2/USART3:
-     * they are the debug/auxiliary ports and probing them can steal bytes or leave
-     * HAL UART state busy. */
+    /* Consume the USART3 HAL idle-DMA ring. Do not poll USART1/USART2. */
     binary_protocol_process_dma(&protocol_ctx);
 }
 
@@ -131,16 +149,11 @@ void binary_protocol_telemetry_task(void) {
     int32_t left_encoder = MotorControl_GetEncoderCount(0);   // Motor 0 (left)
     int32_t right_encoder = MotorControl_GetEncoderCount(1);  // Motor 1 (right)
     
-    // Read battery voltage from integration layer
-    Battery_Update();  // Process ADC DMA buffer
-    float battery_voltage = Battery_GetVoltage();
-    float battery_current = Battery_IsCurrentValid() ? Battery_GetCurrent() : NAN;
-    
-    // Check for low battery condition
-    if (Battery_IsLowVoltage()) {
-        Status_LowBatteryBeep();
-        Status_SetLEDWarning();
-    }
+    /* Battery monitoring is intentionally unavailable in the motor-only
+     * bring-up image.  Do not call the ADC path or turn an absent reading into
+     * a low-battery motor inhibit. */
+    float battery_voltage = NAN;
+    float battery_current = NAN;
     
     // Read IMU data with fixed delta time (rate-limited to 50Hz)
     float accel[3], gyro[3];
@@ -205,22 +218,24 @@ void binary_protocol_trigger_emergency_stop(void) {
 // FREERTOS TASK (If using RTOS)
 // ============================================================================
 
-#ifdef USE_FREERTOS
-
 void binary_protocol_task(void *argument) {
     (void)argument;
-    
+
+    protocol_task_handle = osThreadGetId();
     binary_protocol_integration_init_packed();
-    
+
     for (;;) {
         binary_protocol_main_task();
-        
-        // 10ms task period = 100Hz
-        osDelay(10);
+        binary_protocol_telemetry_task();
+
+        /* The idle-DMA callback wakes this task immediately after a burst;
+         * the timeout keeps the motor watchdog/PID loop alive when the link
+         * is quiet. */
+        (void)osThreadFlagsWait(PROTOCOL_RX_EVENT_FLAG,
+                                osFlagsWaitAny,
+                                1U);
     }
 }
-
-#endif // USE_FREERTOS
 
 // ============================================================================
 // MAIN LOOP INTEGRATION (If not using RTOS)

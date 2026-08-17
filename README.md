@@ -16,7 +16,7 @@ E-stop + battery telemetry ─────────────────> 
                                                v
                                   stm32_hardened_bridge
                                                v
-                              USART2/WCH packed binary
+                              USART3/WCH packed binary (product UART1)
                                                v
                                         STM32F407
 ```
@@ -39,7 +39,9 @@ docs/                     Current architecture and validation documents
 ```
 
 There is one ROS workspace (`host_ws`) and one motor transport: packed binary
-over USART2 through the WCH USB-UART adapter. Native USB CDC is diagnostic-only
+over USART3 (PD8/PD9, factory MASTER_TX/MASTER_RX) through the WCH USB-UART
+adapter. The product connector is labeled UART1; STM32 USART1 is debug-only.
+Native USB CDC is diagnostic-only
 and ST-Link is flash/debug-only. Legacy ASCII bridges, duplicate workspaces,
 and placeholder micro-ROS paths have been removed.
 
@@ -151,7 +153,7 @@ use `python3 scripts/motor_start_stop_test.py --confirm`.
 - Safety policy: `host_ws/src/agent_core/config/safety_gateway.yaml`
 - Hardware parameters: `host_ws/src/robot_bringup/config/rock64_hardware.yaml`
 - Deployment template: `deployment/systemd/systemd_config.conf.example`
-- Stable STM32 device: `/dev/rock64_stm32` -> WCH `/dev/ttyUSB*` (WCH
+- Stable STM32 device: `/dev/rock64_stm32` -> WCH `/dev/ttyACM*` (WCH
   VID:PID `1a86:55d4`); ST-Link `0483:3748` is flash/debug-only.
 
 A critical-battery stop is latched. It can be cleared only after fresh telemetry

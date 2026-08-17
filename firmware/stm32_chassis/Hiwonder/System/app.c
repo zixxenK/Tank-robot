@@ -121,9 +121,11 @@ void app_task_entry(void *argument)
     // uart_ros_cmd_init();  // ROS command handler
     // uart_ros_integration_init();  // UART integration for ROS commands
     
-    /* Binary protocol integration for USART2 Rock64 link */
-    binary_protocol_integration_init_packed();
-	
+	/* The dedicated binary_protocol_task owns the USART3 Rock64 WCH link,
+	 * including idle-DMA reception, parsing, motor watchdog, and telemetry.
+	 * Keep this factory application task focused on UI/gamepad services so it
+	 * cannot restart the UART receiver or consume the same parser context. */
+
 	//注册按键回调函数，处理按键值
     button_register_callback(buttons[0], button_event_callback);
     button_register_callback(buttons[1], button_event_callback);
@@ -159,10 +161,7 @@ void app_task_entry(void *argument)
 	// 循环  : RTOS任务中的循环，必须要有osDelay或者其他系统阻塞函数，否则会导致系统异常
     for(;;) {
         
-        // Process binary protocol DMA buffer and send telemetry
-        binary_protocol_main_task();
-        binary_protocol_telemetry_task();  // Send sensor data to Rock64
-        
+
         //接收 运动控制队列 中的信息，若获取超100ms，则视为不成功，并使电机停止，跳过 这次循环
         //osMessageQueueGet() 取出队列中的消息
         // 参数1 : 消息队列句柄

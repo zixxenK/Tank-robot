@@ -360,7 +360,8 @@ class STM32HardenedBridge(Node):
         super().__init__("stm32_hardened_bridge")
 
         # Parameters
-        # Original Hiwonder/Rock64 link: WCH USB-UART -> USART2 PD5/PD6.
+        # Hiwonder product UART1 USB-C WCH link: USART3 PD8/PD9
+        # (factory MASTER_TX/MASTER_RX).
         self.declare_parameter("serial_port", "/dev/rock64_stm32")
         self.declare_parameter("baud_rate", 1000000)
         self.declare_parameter("max_speed", 255)
@@ -610,7 +611,7 @@ class STM32HardenedBridge(Node):
                 self._motor_test_targets = None
 
             self.get_logger().info(
-                f"Connected to Hiwonder USART2 motor link "
+                f"Connected to Hiwonder UART1/USART3 master motor link "
                 f"{self._serial_port}"
             )
             self._send_emergency_stop()  # Initial safety stop, not an emergency

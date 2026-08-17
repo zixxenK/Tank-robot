@@ -18,7 +18,7 @@ This document catalogs all silent failures currently breaking the robot, priorit
 3. **E-Stop State Latch Bug** - Suppresses fault warnings after first idle
 
 ### Previously Fixed (Verified)
-- USART2/3 configuration mismatch
+- USART1/3 configuration mismatch
 - Main.c initialization order and debug loops
 - Battery current validity flag
 - Dead UART porting files (bluetooth_porting.c, packet_porting.c)
@@ -213,10 +213,10 @@ ros2 launch robot_bringup rock64_bringup.launch.py
 
 ## Previously Fixed (Verified Resolved)
 
-### USART2/3 Configuration (FIXED)
+### USART1/3 Configuration (FIXED)
 - **File:** `firmware/stm32_chassis/Core/Src/usart.c`, `uart_binary_protocol_integration_packed.c`
-- **Status:** USART2 correctly configured on PD5/PD6 at 1,000,000 baud
-- **Verified:** Commit d720b48 "Fix USART2 configuration for CH340 adapter"
+- **Status:** USART3 correctly configured on PD8/PD9 at 1,000,000 baud
+- **Verified:** Factory pin map labels these pins DBG_TX/DBG_RX for the WCH adapter
 
 ### Main.c Initialization Order (FIXED)
 - **File:** `firmware/stm32_chassis/Core/Src/main.c:79-157`

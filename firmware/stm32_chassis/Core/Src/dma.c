@@ -44,10 +44,12 @@ void MX_DMA_Init(void)
   __HAL_RCC_DMA2_CLK_ENABLE();
 
   /* DMA interrupt init */
+  /* The packed protocol polls circular RX using NDTR and uses blocking TX;
+   * no UART DMA completion IRQ is required for this runtime.  Leaving these
+   * streams unvectored also avoids stale factory DMA flags after SWD resume. */
   /* DMA1_Stream4_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
-  /* USART1 DMA streams are intentionally not enabled in the USB-only image. */
 
 }
 

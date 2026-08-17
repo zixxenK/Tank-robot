@@ -189,10 +189,10 @@ void SystemInit(void)
   SystemInit_ExtMemCtl(); 
 #endif /* DATA_IN_ExtSRAM || DATA_IN_ExtSDRAM */
 
-  /* Configure the Vector Table location -------------------------------------*/
-#if defined(USER_VECT_TAB_ADDRESS)
-  SCB->VTOR = VECT_TAB_BASE_ADDRESS | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM */
-#endif /* USER_VECT_TAB_ADDRESS */
+  /* Configure the vector table location. This is explicit because the board's
+   * integrated UART download path can leave the core executing from System
+   * Memory; application interrupts must always resolve to this image. */
+  SCB->VTOR = FLASH_BASE;
 }
 
 /**

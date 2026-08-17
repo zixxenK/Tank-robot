@@ -58,6 +58,15 @@ if [[ "${USE_HARDWARE_BRIDGE}" == "true" && ! -e "${SERIAL_PORT}" ]]; then
   echo "[robot_start] ERROR: Serial port ${SERIAL_PORT} not found." >&2
   exit 1
 fi
+if [[ "${USE_HARDWARE_BRIDGE}" == "true" && -e "${SERIAL_PORT}" && "$(command -v udevadm || true)" ]]; then
+  SERIAL_PROPS="$(udevadm info --query=property --name="${SERIAL_PORT}" 2>/dev/null || true)"
+  if ! grep -q '^ID_VENDOR_ID=1a86$' <<<"${SERIAL_PROPS}" || \
+     ! grep -q '^ID_MODEL_ID=55d4$' <<<"${SERIAL_PROPS}"; then
+    echo "[robot_start] ERROR: ${SERIAL_PORT} is not the Hiwonder WCH motor port (1a86:55d4)." >&2
+    echo "[robot_start] ST-Link and native STM32 USB are separate diagnostic/programming paths." >&2
+    exit 1
+  fi
+fi
 
 # Validate camera reachability (best-effort)
 CAMERA_IP="${CAMERA_IP_STATION:-192.168.1.125}"

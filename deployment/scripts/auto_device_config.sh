@@ -59,7 +59,7 @@ for device in /dev/ttyUSB* /dev/ttyACM*; do
         udev_info=$(udevadm info --query=property --name="$device" 2>/dev/null)
         if echo "$udev_info" | grep -q "ID_VENDOR_ID=1a86" && echo "$udev_info" | grep -q "ID_MODEL_ID=55d4"; then
             ROBOT_DEVICE="$device"
-            echo "Found Hiwonder WCH USART2 device: $ROBOT_DEVICE"
+            echo "Found Hiwonder WCH USART3 master device (PD8/PD9 MASTER_TX/MASTER_RX; product UART1): $ROBOT_DEVICE"
             break
         fi
     fi

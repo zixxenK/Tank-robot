@@ -9,13 +9,15 @@ BUILD_DIR="${FIRMWARE_DIR}/.pio/build/esp32cam"
 FIRMWARE_BIN="${BUILD_DIR}/firmware.bin"
 
 DO_BUILD=false
+USB_PORT="${ESP32_PORT:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --build) DO_BUILD=true; shift ;;
+    --port) USB_PORT="${2:-}"; shift 2 ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--build]"
+      echo "Usage: $0 [--build] [--port /dev/ttyUSBx]"
       exit 1
       ;;
   esac
@@ -60,18 +62,18 @@ fi
 
 echo "[flash] Flashing ${FIRMWARE_BIN} via USB-C..."
 
-# Try to detect the correct USB port
-USB_PORT=""
-for port in /dev/ttyACM1 /dev/ttyACM0 /dev/ttyUSB0 /dev/ttyUSB1; do
-  if [[ -e "${port}" ]]; then
-    USB_PORT="${port}"
-    break
-  fi
-done
-
 if [[ -z "${USB_PORT}" ]]; then
-  echo "[flash] ERROR: No USB serial device found"
-  echo "[flash] Expected /dev/ttyACM0, /dev/ttyACM1, /dev/ttyUSB0, or /dev/ttyUSB1"
+  echo "[flash] ERROR: ESP32_PORT is not set"
+  echo "[flash] Pass --port /dev/ttyUSBx (or set ESP32_PORT)."
+  exit 1
+fi
+
+if [[ "${USB_PORT}" == "/dev/rock64_stm32" ]]; then
+  echo "[flash] ERROR: refusing the Hiwonder WCH motor port"
+  exit 1
+fi
+if [[ ! -e "${USB_PORT}" ]]; then
+  echo "[flash] ERROR: ESP32 port does not exist: ${USB_PORT}"
   exit 1
 fi
 
