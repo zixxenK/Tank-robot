@@ -9,7 +9,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet("UART1", "FACTORY_USART3")]
+  [ValidateSet("UART1")]
   [string]$Port = "UART1",
   [string]$HostName = "rock64",
   [string]$UserName = "rock64",
@@ -17,17 +17,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$hostUsart = if ($Port -eq "UART1") { "1" } else { "3" }
 $deployScript = Join-Path $PSScriptRoot "deploy_rock64.ps1"
 
-if ($Port -eq "UART1") {
-  Write-Host "[reflash] UART1 connector -> USART1 PA9/PA10 (approved custom host link)"
-} else {
-  Write-Host "[reflash] factory PD8/PD9 -> USART3 (reference profile; not product UART1)"
-}
+Write-Host "[reflash] UART1 connector -> USART1 PA9/PA10 (production 1.0 host link)"
 
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $deployScript `
-  -HostName $HostName -UserName $UserName -RemoteRoot $RemoteRoot -HostUsart $hostUsart
+  -HostName $HostName -UserName $UserName -RemoteRoot $RemoteRoot
 if ($LASTEXITCODE -ne 0) {
   throw "Rock64 reflash failed ($LASTEXITCODE)."
 }

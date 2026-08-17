@@ -13,9 +13,7 @@
 param(
   [string]$HostName = "rock64",
   [string]$UserName = "rock64",
-  [string]$RemoteRoot = "/opt/rock64-robot",
-  [ValidateSet("1", "3")]
-  [string]$HostUsart = "1"
+  [string]$RemoteRoot = "/opt/rock64-robot"
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,8 +61,8 @@ try {
   Write-Host "Installing source on Rock64 ..."
   Invoke-NativeChecked "ssh.exe" @("-tt", $target, $extract)
 
-  $remoteCommand = "ROCK64_HOST_USART=$HostUsart STM32_BUILD_JOBS=4 bash '$RemoteRoot/deployment/scripts/rock64_update_and_flash.sh'"
-  Write-Host "Starting mandatory Rock64 build/flash/proof workflow for USART$HostUsart. Sudo may prompt for the Rock64 password."
+  $remoteCommand = "STM32_BUILD_JOBS=4 bash '$RemoteRoot/deployment/scripts/rock64_update_and_flash.sh'"
+  Write-Host "Starting mandatory Rock64 build/flash/proof workflow for UART1/USART1. Sudo may prompt for the Rock64 password."
   Invoke-NativeChecked "ssh.exe" @("-tt", $target, $remoteCommand)
 } finally {
   if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }

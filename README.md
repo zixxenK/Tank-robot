@@ -3,6 +3,10 @@
 A differential-drive robot with an STM32F407 motor controller, a Rock64 ROS 2
 Humble host, and an optional ESP32 camera.
 
+The validated 1.0 hardware/software contract is recorded in
+[docs/SOURCE_OF_TRUTH_1_0.md](docs/SOURCE_OF_TRUTH_1_0.md). Read that before
+changing UART ownership, flashing, or selecting hardware profiles.
+
 ## Control Architecture
 
 ```text
@@ -38,9 +42,10 @@ deployment/               Rock64 setup and systemd integration
 docs/                     Current architecture and validation documents
 ```
 
-There is one ROS workspace (`host_ws`) and one motor transport: packed binary
-over USART1 (PA9/PA10) through the WCH USB-UART adapter on the product-labeled
-UART1 connector. USART3/PD8-PD9 remains the separate factory pair.
+There is one ROS workspace (`host_ws`) and one production motor transport:
+packed binary over USART1 (PA9/PA10) through the WCH USB-UART adapter on the
+product-labeled UART1 connector. This mapping is the 1.0 source of truth;
+USART3/PD8-PD9 is retained only in the stock 7in1 reference material.
 Native USB CDC is diagnostic-only
 and ST-Link is flash/debug-only. Legacy ASCII bridges, duplicate workspaces,
 and placeholder micro-ROS paths have been removed.
@@ -62,10 +67,9 @@ cmake --preset Release
 cmake --build --preset Release -j 4
 ```
 
-To select the host UART without hand-editing generated firmware, use
-`.\scripts\stm32_port_profile.ps1 -HostUart USART1` (the approved
-PA9/PA10 mapping) or `-HostUart USART3` (stock PD8/PD9 wiring). The selector
-changes the firmware endpoint, not the board traces.
+The production firmware has one host-UART mapping. Do not select or hand-edit
+an alternate host UART; the stock USART3/PD8-PD9 mapping belongs only to the
+7in1 reference material.
 
 Generated images are under `firmware/stm32_chassis/build/<preset>/`. Building
 does not flash the controller.

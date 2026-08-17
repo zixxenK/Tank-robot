@@ -48,13 +48,7 @@ python3 -c 'import serial' >/dev/null 2>&1 || die "python3-serial is not install
 command -v st-flash >/dev/null 2>&1 || command -v openocd >/dev/null 2>&1 || die "neither st-flash nor openocd is installed"
 command -v openocd >/dev/null 2>&1 || die "openocd is required to start the image with NRST disconnected"
 
-ROCK64_HOST_USART="${ROCK64_HOST_USART:-1}"
-case "${ROCK64_HOST_USART}" in
-  1) echo "[rock64_update] Host profile: USART1 / PA9-PA10 (approved custom UART1)" ;;
-  3) echo "[rock64_update] Host profile: USART3 / PD8-PD9 (stock wiring only)" ;;
-  *) die "ROCK64_HOST_USART must be 1 or 3" ;;
-esac
-export ROCK64_HOST_USART
+echo "[rock64_update] Production host link: UART1 / USART1 / PA9-PA10"
 
 [[ -e /dev/rock64_stm32 ]] || die "/dev/rock64_stm32 is missing"
 lsusb | grep -q '1a86:55d4' || die "WCH motor UART 1a86:55d4 is not connected"

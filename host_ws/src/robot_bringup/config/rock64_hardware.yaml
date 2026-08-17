@@ -18,7 +18,7 @@
     left_topic: /tracks/left_cmd
     right_topic: /tracks/right_cmd
 
-    # Hiwonder product UART1 USB-C WCH link: USART3 PD8/PD9, 1M 8N1.
+    # Production link: physical UART1 USB-C -> USART1 PA9/PA10, 1M 8N1.
     serial_port: /dev/rock64_stm32
     baud_rate: 1000000
     max_speed: 255

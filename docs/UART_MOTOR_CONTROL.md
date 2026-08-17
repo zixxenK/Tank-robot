@@ -59,8 +59,8 @@ workflow always runs on the Rock64:
 powershell -File scripts/reflash_rock64.ps1 -Port UART1
 ```
 
-Use `-Port FACTORY_USART3` only when deliberately testing the stock PD8/PD9
-wiring. It does not select the physical connector labeled UART1.
+There is no alternate production port. The stock 7in1 `USART3/PD8-PD9`
+assignment is reference material only and must not be selected for this robot.
 
 It fails if the selected UART produces no valid packed response. Use
 `--allow-no-response` only when diagnosing a board that is intentionally not

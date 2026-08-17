@@ -10,10 +10,9 @@ STM32F407VGT6 chassis controller firmware for the Rock64-based tank robot.
   PA9/PA10
   at 1,000,000 baud
 
-The legacy IOC is the original Hiwonder hardware configuration. CMake does not
-parse or regenerate the IOC; it builds the checked-in sources. Do not treat the
-experimental `RosRobotControllerM4factory.ioc` CDC variant as the board
-transport configuration.
+The legacy IOC is the original Hiwonder/7in1 hardware reference. CMake does
+not parse or regenerate the IOC; it builds the checked-in production sources.
+The reference is not a production host-port selector.
 
 ## Build
 ```bash
@@ -22,22 +21,15 @@ cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -DCMAKE_BUIL
 ninja -C build
 ```
 
-The host-link profile is selectable without editing generated UART code. The
-default is the approved custom UART1 connector mapping:
+The production host link is fixed and requires no generated-code edits:
 
 ```powershell
 ..\..\scripts\stm32_port_profile.ps1 -HostUart USART1
 ```
 
-For a board physically wired like the stock 7in1 reference, select USART3:
-
-```powershell
-..\..\scripts\stm32_port_profile.ps1 -HostUart USART3
-```
-
-This changes the firmware endpoint only; it cannot rewire the PCB. Flash the
-selected Release image only after confirming the physical connector traces:
-`..\..\scripts\stm32_port_profile.ps1 -HostUart USART1 -Flash`.
+Do not select USART3 for this robot. The stock 7in1 `USART3/PD8-PD9`
+assignment is retained only in `legacy_hiwonder_reference/` for comparison.
+Flash only through the Rock64 workflow documented in the repository root.
 
 ## Hardware Interface
 - USB_OTG_HS is diagnostic-only and is not a motor transport

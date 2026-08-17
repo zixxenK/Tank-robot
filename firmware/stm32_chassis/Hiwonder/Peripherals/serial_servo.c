@@ -16,8 +16,8 @@
 #define BYTE_TO_HW(A, B) ((((uint16_t)(A)) << 8) | (uint8_t)(B))
 //宏函数 将高地八位合成为十六位
 
-uint8_t uart2_rx_buffer[256];
-uint8_t uart2_tx_buffer[256];
+uint8_t serial_servo_rx_buffer[256];
+uint8_t serial_servo_tx_buffer[256];
 uint32_t response_timeout = 0u;
 
 static inline void SerialWrite(const uint8_t *buffer, uint16_t length) {

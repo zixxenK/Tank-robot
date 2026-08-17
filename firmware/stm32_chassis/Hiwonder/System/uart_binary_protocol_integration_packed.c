@@ -30,23 +30,10 @@
 #include <math.h>
 #include <string.h>
 
-#ifndef ROCK64_HOST_USART
-#define ROCK64_HOST_USART 1
-#endif
-
-#if ROCK64_HOST_USART == 1
+/* Production host link: physical UART1 -> USART1 on PA9/PA10. */
 #define ROCK64_HOST_UART_HANDLE huart1
 #define ROCK64_HOST_DMA_RX_HANDLE hdma_usart1_rx
-#define ROCK64_HOST_UART_DESCRIPTION "USART1 PA9/PA10"
 extern DMA_HandleTypeDef hdma_usart1_rx;
-#elif ROCK64_HOST_USART == 3
-#define ROCK64_HOST_UART_HANDLE huart3
-#define ROCK64_HOST_DMA_RX_HANDLE hdma_usart3_rx
-#define ROCK64_HOST_UART_DESCRIPTION "USART3 PD8/PD9"
-extern DMA_HandleTypeDef hdma_usart3_rx;
-#else
-#error "ROCK64_HOST_USART must be 1 or 3"
-#endif
 
 // ============================================================================
 // PROTOCOL CONTEXT (Global for interrupt access)
@@ -87,9 +74,7 @@ void binary_protocol_integration_init_packed(void) {
 
     MotorControl_EmergencyStop();
 
-    /* Use the selected WCH Rock64 host link (the approved default is
-     * USART1 PA9/PA10; USART3 PD8/PD9 is available only for stock wiring).
-     * Telemetry TX
+    /* Use the production WCH Rock64 host link on USART1 PA9/PA10. Telemetry TX
      * deliberately uses
      * bounded blocking
      * writes: frames are short at 1 Mbaud, and this removes a second DMA

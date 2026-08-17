@@ -30,14 +30,8 @@ if [[ "${DO_BUILD}" == true ]]; then
   echo "[flash] Building firmware..."
   cd "${FIRMWARE_DIR}"
   rm -rf build/Release
-  ROCK64_HOST_USART="${ROCK64_HOST_USART:-1}"
-  case "${ROCK64_HOST_USART}" in
-    1|3) ;;
-    *) echo "[flash] ERROR: ROCK64_HOST_USART must be 1 or 3" >&2; exit 1 ;;
-  esac
   cmake -S . -B build/Release \
     -DCMAKE_BUILD_TYPE=Release \
-    -DROCK64_HOST_USART="${ROCK64_HOST_USART}" \
     -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -G 'Unix Makefiles'
   cmake --build build/Release -j"${STM32_BUILD_JOBS:-4}"
 fi
