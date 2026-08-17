@@ -1,0 +1,8 @@
+# Original Hiwonder USART3 master motor link through the onboard WCH USB-UART.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="rock64_stm32", SYMLINK+="rock64_stm32_wch", GROUP="dialout", MODE="0660"
+ENV{ID_MM_PORT_IGNORE}="1"
+
+# Reserved diagnostic rule only; the original controller configures PB14/PB15
+# as USB host pins, so this device is not expected during normal operation.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", SYMLINK+="rock64_stm32_usb", GROUP="dialout", MODE="0660"
+ENV{ID_MM_PORT_IGNORE}="1"
