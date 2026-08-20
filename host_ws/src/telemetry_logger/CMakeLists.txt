@@ -11,9 +11,9 @@ find_package(ament_cmake_python REQUIRED)
 ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
-  scripts/telemetry_recorder.py
-  scripts/bag_parser.py
-  scripts/feature_extractor.py
+  telemetry_logger/telemetry_recorder.py
+  telemetry_logger/bag_parser.py
+  telemetry_logger/feature_extractor.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

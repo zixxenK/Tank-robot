@@ -19,8 +19,10 @@ class _TwistWithCovariance:
 
 
 class Odometry:
-    def __init__(self):
+    def __init__(self, x=0.0, y=0.0):
         self.header = Header()
         self.child_frame_id = ""
         self.pose = _PoseWithCovariance()
         self.twist = _TwistWithCovariance()
+        self.pose.pose.position.x = float(x)
+        self.pose.pose.position.y = float(y)

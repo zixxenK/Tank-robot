@@ -23,6 +23,11 @@ The setup script installs dependencies, creates the STM32 udev rule, builds
 
 ## Configuration
 
+For PyCharm Professional Remote SSH setup and debugging of the Rock64-side
+Python nodes, see [pycharm_remote_ssh.md](pycharm_remote_ssh.md). The guide
+keeps interpreter credentials and machine-local IDE identifiers out of the
+repository.
+
 Copy and edit the template when managing configuration manually:
 
 ```bash

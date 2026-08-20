@@ -3,6 +3,9 @@
 **Commit Baseline:** f5e8366  
 **Flash Target:** Rock64 (aarch64)
 
+The validated production wiring and transport assignment are defined by
+[`SOURCE_OF_TRUTH_1_0.md`](SOURCE_OF_TRUTH_1_0.md).
+
 This document catalogs all silent failures currently breaking the robot, prioritized by severity for the Rock64 flashing workflow. Items marked **FIXED** have been verified resolved in current HEAD.
 
 ---
@@ -18,7 +21,7 @@ This document catalogs all silent failures currently breaking the robot, priorit
 3. **E-Stop State Latch Bug** - Suppresses fault warnings after first idle
 
 ### Previously Fixed (Verified)
-- USART1/3 configuration mismatch
+- Production UART mapping mismatch
 - Main.c initialization order and debug loops
 - Battery current validity flag
 - Dead UART porting files (bluetooth_porting.c, packet_porting.c)
@@ -213,11 +216,11 @@ ros2 launch robot_bringup rock64_bringup.launch.py
 
 ## Previously Fixed (Verified Resolved)
 
-### USART1/3 Configuration (FIXED)
+### Production UART Mapping (FIXED)
 - **File:** `firmware/stm32_chassis/Core/Src/usart.c`, `uart_binary_protocol_integration_packed.c`
 - **Status:** USART1 correctly configured on PA9/PA10 at 1,000,000 baud
-- **Verified:** The approved custom design assigns the physical UART1 connector
-  to PA9/PA10; stock 7in1 labels are not the custom runtime source of truth.
+- **Verified:** The approved custom design assigns the product-labeled UART1
+  connector to USART1 on PA9/PA10 at 1,000,000 baud, 8N1.
 
 ### Main.c Initialization Order (FIXED)
 - **File:** `firmware/stm32_chassis/Core/Src/main.c:79-157`

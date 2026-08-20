@@ -1,14 +1,14 @@
 /**:
   ros__parameters:
-    max_linear_speed: 0.5
-    max_angular_speed: 1.0
-    max_linear_acceleration: 2.0
-    max_angular_acceleration: 4.0
+    max_linear_speed: 0.8
+    max_angular_speed: 2.0
+    max_linear_acceleration: 3.0
+    max_angular_acceleration: 6.0
     teleop_command_timeout: 0.25
     agent_command_timeout: 0.1
     agent_heartbeat_timeout: 0.1
     output_rate_hz: 50.0
-    monitor_battery: true
+    monitor_battery: false
     battery_startup_grace_period: 5.0
     battery_timeout: 1.0
     minimum_battery_voltage: 10.5

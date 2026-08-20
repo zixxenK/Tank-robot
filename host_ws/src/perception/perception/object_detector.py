@@ -17,6 +17,11 @@ import time
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import (
+    QoSDurabilityPolicy,
+    QoSProfile,
+    QoSReliabilityPolicy,
+)
 from sensor_msgs.msg import Image
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 from geometry_msgs.msg import Pose2D
@@ -65,18 +70,23 @@ class ObjectDetector(Node):
 
         # CV Bridge
         self._cv_bridge = CvBridge()
+        sensor_qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )
 
         # Subscribers and publishers
         self._image_sub = self.create_subscription(
-            Image, self._input_topic, self._image_callback, 10
+            Image, self._input_topic, self._image_callback, sensor_qos
         )
         self._detection_pub = self.create_publisher(
-            Detection2DArray, self._output_topic, 10
+            Detection2DArray, self._output_topic, sensor_qos
         )
 
         if self._enable_debug:
             self._debug_pub = self.create_publisher(
-                Image, self._debug_topic, 10
+                Image, self._debug_topic, sensor_qos
             )
 
         # Detection statistics

@@ -4,7 +4,7 @@
  * Initialises the OV2640/OV5640 camera and streams MJPEG over HTTP
  * on the local network for consumption by the Rock64 ROS2 bridge node.
  *
- * Board:  ESP32-S3-DevKitC-1 (CAMERA_MODEL_ESP32S3)
+ * Board:  ESP32-S3-DevKitC-1 (CAMERA_MODEL_ESP32S3) (wroom1)
  * Framework: Arduino ESP32 (via PlatformIO)
  * Camera Library: esp32-camera (lib_deps in platformio.ini)
  */

@@ -174,6 +174,10 @@ ros2 service call /safety/reset_battery_latch std_srvs/srv/Trigger {}
 
 ## Deployment
 
+For the recommended PyCharm Professional Remote SSH workflow for Rock64-side
+ROS 2 Python development, see
+[deployment/docs/pycharm_remote_ssh.md](deployment/docs/pycharm_remote_ssh.md).
+
 ```bash
 sudo bash deployment/scripts/rock64_setup.sh --ros-distro auto
 ```

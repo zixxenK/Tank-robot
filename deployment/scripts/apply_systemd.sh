@@ -27,6 +27,14 @@ echo "[apply_systemd] Copying update units..."
 cp "${UPDATE_SERVICE_SRC}" "${UPDATE_SERVICE_DST}"
 cp "${UPDATE_TIMER_SRC}" "${UPDATE_TIMER_DST}"
 
+# ── Install udev rules ───────────────────────────────────────────────────
+if [[ -d "${DEPLOY_DIR}/udev" ]]; then
+  echo "[apply_systemd] Installing udev rules..."
+  cp "${DEPLOY_DIR}/udev/"*.rules /etc/udev/rules.d/ 2>/dev/null || true
+  udevadm control --reload-rules || true
+  udevadm trigger || true
+fi
+
 sed -i "s|^WorkingDirectory=.*|WorkingDirectory=${REPO_ROOT}|" "${SERVICE_DST}"
 sed -i "s|^ExecStart=.*|ExecStart=/bin/bash ${REPO_ROOT}/deployment/scripts/robot_start.sh|" "${SERVICE_DST}"
 sed -i "s|^WorkingDirectory=.*|WorkingDirectory=${REPO_ROOT}|" "${UPDATE_SERVICE_DST}"

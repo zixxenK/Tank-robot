@@ -36,7 +36,6 @@ restore_service() {
 trap restore_service EXIT
 
 [[ "$(uname -m)" == "aarch64" ]] || die "run this script on the Rock64 (aarch64), not a development PC"
-[[ -d "${REPO_ROOT}/.git" ]] || die "repository root is not a Git checkout: ${REPO_ROOT}"
 [[ -d "${HOST_WS}/src" ]] || die "ROS workspace is missing: ${HOST_WS}/src"
 [[ -x "${REPO_ROOT}/scripts/flash_stm32.sh" || -f "${REPO_ROOT}/scripts/flash_stm32.sh" ]] || die "STM32 flash script is missing"
 
@@ -57,6 +56,8 @@ st-info --probe >/dev/null || die "ST-Link probe failed"
 
 if systemctl is-active --quiet "${SERVICE}"; then
   SERVICE_WAS_ACTIVE=true
+  echo "[rock64_update] Stopping ${SERVICE} before cleaning/building..."
+  as_root systemctl stop "${SERVICE}"
 fi
 
 echo "[rock64_update] Repository: ${REPO_ROOT}"
@@ -69,6 +70,9 @@ tar --exclude='firmware/stm32_chassis/build' \
     deployment scripts host_ws/src firmware/stm32_chassis Makefile
 
 echo "[rock64_update] Installing host dependencies..."
+# Do not let an older overlay (for example /home/rock64/install) influence
+# dependency discovery or the generated entry-point wrappers.
+unset AMENT_PREFIX_PATH CMAKE_PREFIX_PATH COLCON_PREFIX_PATH PYTHONPATH ROS_PACKAGE_PATH
 # shellcheck source=/dev/null
 set +u
 source /opt/ros/humble/setup.bash
@@ -76,9 +80,19 @@ set -u
 cd "${HOST_WS}"
 rosdep install --from-paths src --ignore-src -r -y
 
+echo "[rock64_update] Removing generated ROS state before rebuilding..."
+rm -rf build install log
+
+if [[ -d "${REPO_ROOT}/deployment/udev" ]]; then
+  echo "[rock64_update] Syncing udev rules..."
+  as_root cp "${REPO_ROOT}/deployment/udev/"*.rules /etc/udev/rules.d/ 2>/dev/null || true
+  as_root udevadm control --reload-rules || true
+  as_root udevadm trigger || true
+fi
+
 echo "[rock64_update] Building ROS packages..."
 colcon build --symlink-install \
-  --packages-up-to agent_core robot_bringup robot_drivers robot_teleop
+  --packages-up-to agent_core robot_bringup robot_drivers robot_teleop robot_audio
 
 echo "[rock64_update] Building STM32 Release image..."
 export STM32_BUILD_JOBS="${STM32_BUILD_JOBS:-4}"

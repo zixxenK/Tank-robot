@@ -27,6 +27,12 @@ resolve_host_ws() {
 
 HOST_WS="$(resolve_host_ws)"
 
+# A previous interactive build can leave another checkout in the overlay
+# search paths (for example /home/rock64/install). Clear those paths before
+# sourcing the canonical ROS installation, otherwise ros2 may launch stale
+# nodes from the wrong workspace even when the current directory is correct.
+unset AMENT_PREFIX_PATH CMAKE_PREFIX_PATH COLCON_PREFIX_PATH PYTHONPATH ROS_PACKAGE_PATH
+
 # ── Auto-detect ROS distro ────────────────────────────────────────────────
 resolve_ros_distro() {
   # Explicit override from environment

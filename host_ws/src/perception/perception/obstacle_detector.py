@@ -16,6 +16,11 @@ import time
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import (
+    QoSDurabilityPolicy,
+    QoSProfile,
+    QoSReliabilityPolicy,
+)
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float32MultiArray
@@ -60,21 +65,26 @@ class ObstacleDetector(Node):
 
         # CV Bridge
         self._cv_bridge = CvBridge()
+        sensor_qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )
 
         # Subscribers and publishers
         self._image_sub = self.create_subscription(
-            Image, self._input_topic, self._image_callback, 10
+            Image, self._input_topic, self._image_callback, sensor_qos
         )
         self._obstacle_pub = self.create_publisher(
-            Float32MultiArray, self._output_topic, 10
+            Float32MultiArray, self._output_topic, sensor_qos
         )
         self._avoidance_pub = self.create_publisher(
-            Twist, self._avoidance_topic, 10
+            Twist, self._avoidance_topic, sensor_qos
         )
 
         if self._enable_debug:
             self._debug_pub = self.create_publisher(
-                Image, "/perception/obstacle_debug", 10
+                Image, "/perception/obstacle_debug", sensor_qos
             )
 
         # Previous frame for motion detection

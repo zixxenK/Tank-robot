@@ -1,5 +1,8 @@
 # System Topology
 
+The production transport assignment is defined by
+[`SOURCE_OF_TRUTH_1_0.md`](SOURCE_OF_TRUTH_1_0.md).
+
 ## Runtime Graph
 
 ```text
@@ -17,7 +20,7 @@ PS5 DualSense (optional)                  Autonomous agent
                 stm32_hardened_bridge
           reconnect | serial timeout
                           |
-                USART1/WCH packed binary (product UART1)
+             UART1 -> USART1 -> PA9/PA10 (WCH packed binary)
                           |
                        STM32F407
        command timeout | PID | PWM | encoders

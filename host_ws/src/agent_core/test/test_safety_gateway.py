@@ -64,6 +64,29 @@ def test_agent_requires_fresh_true_heartbeat() -> None:
     assert reason == "agent"
 
 
+def test_stale_teleop_command_stops_the_output() -> None:
+    gateway = _gateway()
+    gateway._teleop_command = (0.2, 0.0)
+    gateway._teleop_time = 10.0
+
+    command, reason = gateway._select_command(10.251)
+
+    assert command is None
+    assert reason == "command_timeout"
+
+
+def test_stale_agent_heartbeat_stops_an_agent_command() -> None:
+    gateway = _gateway()
+    gateway._agent_command = (0.2, 0.0)
+    gateway._agent_time = 10.0
+    gateway._agent_heartbeat_time = 9.9
+
+    command, reason = gateway._select_command(10.051)
+
+    assert command is None
+    assert reason == "agent_heartbeat_stale"
+
+
 def test_estop_and_battery_latch_override_commands() -> None:
     gateway = _gateway()
     gateway._teleop_command = (0.2, 0.0)

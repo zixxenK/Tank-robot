@@ -31,3 +31,8 @@ class Header:
 class Int32MultiArray:
     def __init__(self, data=None):
         self.data = data if data is not None else []
+
+
+class Int32:
+    def __init__(self, data=0):
+        self.data = int(data)

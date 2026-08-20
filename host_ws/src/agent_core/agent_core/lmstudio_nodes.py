@@ -11,6 +11,11 @@ import rclpy
 from diagnostic_msgs.msg import DiagnosticArray
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
+from rclpy.qos import (
+    QoSDurabilityPolicy,
+    QoSProfile,
+    QoSReliabilityPolicy,
+)
 from std_msgs.msg import Bool, String
 import threading
 
@@ -170,15 +175,20 @@ class TeleopChatNode(_LMStudioNode):
         self._command_deadline = 0.0
         self._llm_thread: Optional[threading.Thread] = None
         self._llm_lock = threading.Lock()
+        command_qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )
         self._command_publisher = self.create_publisher(
             Twist,
             "/agent/cmd_vel_proposed",
-            10,
+            command_qos,
         )
         self._heartbeat_publisher = self.create_publisher(
             Bool,
             "/agent/heartbeat",
-            10,
+            command_qos,
         )
         self._status_publisher = self.create_publisher(
             String,

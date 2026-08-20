@@ -1,6 +1,8 @@
 # Hardware Validation Gate
 
 Do not place the robot on the floor until every raised-track check passes.
+The production wiring and transport assignments are defined by
+[`SOURCE_OF_TRUTH_1_0.md`](SOURCE_OF_TRUTH_1_0.md).
 
 ## Build Evidence
 
@@ -35,7 +37,8 @@ Record before flashing:
 
 ## Rock64 Integration
 
-1. Verify `/dev/rock64_stm32` resolves to the Hiwonder WCH USB-UART
+1. Follow [`SOURCE_OF_TRUTH_1_0.md`](SOURCE_OF_TRUTH_1_0.md) for the transport
+   assignment. Verify `/dev/rock64_stm32` resolves to the Hiwonder WCH USB-UART
    `/dev/ttyACM*` device, with USB identity `1a86:55d4`, and configure it for
    USART1 on PA9/PA10 at 1,000,000 8N1. The product connector is labeled
    UART1. ST-Link `0483:3748` is

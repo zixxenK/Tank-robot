@@ -24,21 +24,28 @@ echo "----------------------------------------------"
 source /opt/ros/humble/setup.bash
 
 echo ""
+echo "Stopping the robot and clearing generated workspace state..."
+echo "----------------------------------------------"
+sudo systemctl stop rock64-robot.service || true
+unset AMENT_PREFIX_PATH CMAKE_PREFIX_PATH COLCON_PREFIX_PATH PYTHONPATH ROS_PACKAGE_PATH
+rm -rf "${WS_PATH}/build" "${WS_PATH}/install" "${WS_PATH}/log"
+
+echo ""
 echo "Step 2: Rebuild robot_bringup package only..."
 echo "----------------------------------------------"
 cd "${WS_PATH}"
-colcon build --packages-select robot_bringup --symlink-install
+colcon build --packages-up-to robot_bringup robot_audio --symlink-install
 
 echo ""
 echo "Step 3: Restart systemd service..."
 echo "----------------------------------------------"
-systemctl restart rock64-robot.service
+sudo systemctl restart rock64-robot.service
 
 echo ""
 echo "Step 4: Check service status..."
 echo "----------------------------------------------"
 sleep 3
-systemctl status rock64-robot.service --no-pager
+sudo systemctl status rock64-robot.service --no-pager
 
 echo ""
 echo "=========================================="

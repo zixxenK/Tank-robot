@@ -42,15 +42,8 @@ def preflight_or_raise(context, *args, **kwargs):
             raise RuntimeError(
                 "[rock64_bringup preflight] joy_device cannot be empty"
             )
-        if not os.path.exists(joy_device):
-            raise RuntimeError(
-                "[rock64_bringup preflight] PS5 controller device does not "
-                "exist: " + joy_device
-            )
-        if not os.access(joy_device, os.R_OK):
-            raise RuntimeError(
-                "[rock64_bringup preflight] PS5 controller device is not "
-                "readable: " + joy_device
-            )
+        # Note: Do not abort launch if joy_device is not yet connected.
+        # ps5_ros_bridge includes dynamic hotplug detection and will auto-connect
+        # as soon as the operator powers on the PS5 DualSense controller.
 
     return []

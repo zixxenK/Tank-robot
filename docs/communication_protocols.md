@@ -1,8 +1,12 @@
 # Rock64 to STM32 Packed Protocol
 
+The validated physical transport assignment is defined by
+[`SOURCE_OF_TRUTH_1_0.md`](SOURCE_OF_TRUTH_1_0.md).
+
 ## Physical Link
 
-- Peripheral: original Hiwonder WCH USB-UART bridge to STM32 USART1 UART1 link
+- Peripheral: WCH USB-UART bridge on the product-labeled UART1 connector to
+  STM32 USART1
 - Pins: PA9 UART1 TX/Rock64 RX, PA10 UART1 RX/Rock64 TX
 - Host device: WCH `1a86:55d4`, normally exposed by Linux as `/dev/ttyACM*` and
   addressed through `/dev/rock64_stm32`.
@@ -32,6 +36,7 @@ the reflected CRC-8/MAXIM table (`table[1] == 0x5E`).
 | Code | Name | Payload |
 | ---: | --- | --- |
 | `0x03` | Motor | Motor subcommand |
+| `0x04` | Buzzer | `01 FREQUENCY_UINT16_LE` (`0` = off) |
 | `0x10` | Encoder | `<ii` left/right counts |
 | `0x11` | Battery | `<ff` voltage/current |
 | `0x12` | IMU | `<ffffff` acceleration/gyro |
@@ -67,6 +72,20 @@ is the motor ID; the stock all-motor stop is subcommand `0x03` with a motor
 mask. Therefore the custom `02 00` frame must not be used as a stop-frame
 compatibility test against the unmodified 7in1 image.
 
+## Buzzer Commands
+
+Set or clear the physical PA8 buzzer through the same UART1 link:
+
+```text
+01 FREQUENCY_UINT16_LE
+```
+
+The valid frequency range is 0 through 20,000 Hz. The Rock64 publishes these
+commands on `/buzzer/frequency` as `std_msgs/Int32`; the hardened bridge is the
+only node that writes them to the STM32 serial port. The STM32 image must be
+rebuilt and flashed with the buzzer protocol extension for this topic to make
+physical sound.
+
 ## Timeouts and Rearming
 
 - A valid motor-speed frame refreshes the command timestamp.
@@ -88,6 +107,9 @@ compatibility test against the unmodified 7in1 image.
 | `/stm32/battery` | `sensor_msgs/BatteryState` | Hardened bridge | Safety gateway |
 | `/stm32/encoder_ticks` | `std_msgs/Int32MultiArray` | Hardened bridge | Diagnostics |
 | `/stm32/imu` | `sensor_msgs/Imu` | Hardened bridge | Consumers |
+| `/joy` | `sensor_msgs/Joy` | PS5 bridge | Buzzer/song controls |
+| `/buzzer/frequency` | `std_msgs/Int32` | Song creator | Hardened STM32 bridge |
+| `/buzzer/status` | `std_msgs/String` | Song creator | Operator/diagnostics |
 
 For raised-track commissioning, the bridge additionally provides
 `/stm32/motor_1/enable` and `/stm32/motor_2/enable` as

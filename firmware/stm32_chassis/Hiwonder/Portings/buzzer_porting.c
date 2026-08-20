@@ -65,9 +65,10 @@ void buzzers_init(void)
 */
 void buzzer_timer_callback(void *argument)
 {
-    buzzer_task_handler(buzzers[0], BUZZER_TASK_PERIOD);
+    if (buzzers[0] != NULL) {
+        buzzer_task_handler(buzzers[0], BUZZER_TASK_PERIOD);
+    }
 }
-
 
 /**
   * @brief 蜂鸣器 PWM 设置接口
@@ -89,6 +90,9 @@ static void buzzer1_set_pwm(BuzzerObjectTypeDef *self, uint32_t freq)
     uint32_t period = 100000u / freq;
     uint16_t pulse = period / 2;
     uint32_t counter_period = period - 1;
+    __HAL_TIM_SET_COUNTER(&htim12, 0);
+    __HAL_TIM_CLEAR_FLAG(&htim12, TIM_FLAG_UPDATE | TIM_FLAG_CC1);
+    HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
     __HAL_TIM_SET_AUTORELOAD(&htim12, counter_period);
     __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_1, pulse);
     __HAL_TIM_ENABLE(&htim12);

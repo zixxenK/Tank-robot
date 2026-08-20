@@ -15,6 +15,11 @@ import numpy as np
 from cv_bridge import CvBridge
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import (
+    QoSDurabilityPolicy,
+    QoSProfile,
+    QoSReliabilityPolicy,
+)
 from sensor_msgs.msg import Image
 
 
@@ -33,7 +38,16 @@ class ESP32CameraBridge(Node):
         path = self.get_parameter("stream_path").value
 
         self._url = f"http://{ip}:{port}{path}"
-        self._pub = self.create_publisher(Image, "/camera/image_raw", 10)
+        image_qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )
+        self._pub = self.create_publisher(
+            Image,
+            "/camera/image_raw",
+            image_qos,
+        )
         self._running = True
         self._bridge = CvBridge()
 

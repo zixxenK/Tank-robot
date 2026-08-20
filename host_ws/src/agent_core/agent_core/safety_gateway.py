@@ -156,6 +156,16 @@ class SafetyGatewayNode(Node):
             reliability=QoSReliabilityPolicy.RELIABLE,
             durability=QoSDurabilityPolicy.VOLATILE,
         )
+        safety_event_qos = QoSProfile(
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )
+        telemetry_qos = QoSProfile(
+            depth=5,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )
         self._safe_command_publisher = self.create_publisher(
             Twist,
             self._safe_command_topic,
@@ -171,25 +181,25 @@ class SafetyGatewayNode(Node):
             Twist,
             self._teleop_command_topic,
             self._teleop_command_callback,
-            10,
+            command_qos,
         )
         self.create_subscription(
             Twist,
             self._agent_command_topic,
             self._agent_command_callback,
-            10,
+            command_qos,
         )
         self.create_subscription(
             Bool,
             self._estop_topic,
             self._estop_callback,
-            10,
+            safety_event_qos,
         )
         self.create_subscription(
             Bool,
             self._agent_heartbeat_topic,
             self._heartbeat_callback,
-            10,
+            command_qos,
         )
 
         if self._monitor_battery:
@@ -197,7 +207,7 @@ class SafetyGatewayNode(Node):
                 BatteryState,
                 self._battery_topic,
                 self._battery_callback,
-                10,
+                telemetry_qos,
             )
 
         self.create_service(
@@ -468,18 +478,8 @@ class SafetyGatewayNode(Node):
                 )
                 if in_grace:
                     return None, "battery_pending"
-                if not self._battery_warning_logged:
-                    self.get_logger().warn(
-                        "Battery data unavailable; stopping commands."
-                    )
-                    self._battery_warning_logged = True
                 return None, "battery_unavailable"
             if now - self._battery_time > self._battery_timeout:
-                if not self._battery_warning_logged:
-                    self.get_logger().warn(
-                        "Battery data is stale; stopping commands."
-                    )
-                    self._battery_warning_logged = True
                 return None, "battery_stale"
 
         if self._teleop_time is not None and (
@@ -642,7 +642,10 @@ def main(args=None) -> None:
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        # ros2 launch may already have shut down the default context after
+        # SIGINT. Avoid a second shutdown raising RCLError during teardown.
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

@@ -43,11 +43,12 @@ try {
       "-czf", $archive,
       "--exclude=.git", "--exclude=.idea", "--exclude=.vscode",
       "--exclude=.pytest_cache", "--exclude=firmware/stm32_chassis/build",
+      "--exclude=firmware/esp32_sensors/.pio",
       "--exclude=host_ws/build", "--exclude=host_ws/install", "--exclude=host_ws/log",
       "--exclude=log", "--exclude=*.bin", "--exclude=*.elf", "--exclude=*.hex",
       "--exclude=*.map", "--exclude=firmware_backup", "--exclude=ros2_ws_backup",
       "--exclude=microros_agent_ws", "--exclude=uart_ros_bridge",
-      "deployment", "scripts", "host_ws/src", "firmware/stm32_chassis", "Makefile"
+      "deployment", "scripts", "host_ws/src", "firmware/stm32_chassis", "firmware/esp32_sensors", "Makefile"
     )
     Invoke-NativeChecked "tar.exe" $tarArgs
   } finally {

@@ -1,12 +1,14 @@
 # Robot Hardware Reference — Rock64 Tracked Robot
 
-## Current transport authority
+## Canonical transport authority
 
-The original hardware wiring and continuity history override the later
-contradictory note in this file: the Rock64 motor link is the WCH USB-UART
-device `1a86:55d4` connected to USART1 on PA9/PA10 at 1,000,000 baud, 8N1.
-USART2 PD5/PD6 is BLE/auxiliary; USART3 PD8/PD9 is a separate factory pair. PB14/PB15 are the
-factory USB host interface. ST-Link `0483:3748` is programming/debug only.
+The validated production wiring is defined by
+[`docs/SOURCE_OF_TRUTH_1_0.md`](SOURCE_OF_TRUTH_1_0.md). The Rock64 motor link
+is the WCH USB-UART device `1a86:55d4` on the product-labeled UART1 connector,
+connected to USART1 on PA9/PA10 at 1,000,000 baud, 8N1. USART2 PD5/PD6 is
+BLE/auxiliary; the stock USART3/PD8-PD9 factory mapping is not a production
+transport. PB14/PB15 are the factory USB host interface. ST-Link `0483:3748`
+is programming/debug only.
 
 Compiled reference for an autonomous tracked robot built on a Hiwonder suspension tank chassis,
 with a Rock64 SBC as main compute, an STM32F407VET6 as the real-time motor/sensor controller,
@@ -216,7 +218,7 @@ deliberate design choice worth keeping documented — it bypasses the reference 
   identifiable from `lsusb`/`dmesg` output alone; check the module's printed part marking or query it
   via `esptool.py flash_id`.
 - Whether the Rock64↔STM32 link over USART1 at 1Mbaud is a custom packet protocol or reuses any of
-  Hiwonder's open-source ROS SDK framing. **USART1 UART1 IS USED FOR ROCK64 CONNECTION; USART3 IS NOT THE HOST LINK**
+  Hiwonder's open-source ROS SDK framing. **The validated production transport is UART1/USART1.**
 
 ---
 
@@ -261,21 +263,17 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 
 ### UART/USART Communications
 
-#### Debug UART
+#### Rock64 Host Link
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
 | PA9 | USART1_TX | UART1 USB-C host link | Binary protocol TX to Rock64 |
 | PA10 | USART1_RX | UART1 USB-C host link | Binary protocol RX from Rock64 |
 
-#### Master/Host Link (Rock64)
+#### Auxiliary UART
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
 | PD5 | USART2_TX (`BLE_TX` label) | Auxiliary/Bluetooth port | Not the Rock64 motor transport |
 | PD6 | USART2_RX (`BLE_RX` label) | Auxiliary/Bluetooth port | Not the Rock64 motor transport |
-
-**Note:** Stock Hiwonder 7in1 firmware uses `MASTER_TX`/`MASTER_RX` on
-USART3, but this approved custom image intentionally routes the physical
-UART1 connector to USART1 on PA9/PA10. USART3 is not the Rock64 host link.
 
 #### SBUS RC Input
 | Pin | Signal | Component | Rationale |
@@ -373,10 +371,10 @@ UART1 connector to USART1 on PA9/PA10. USART3 is not the Rock64 host link.
 - Minimal CubeMX reconfiguration required
 - Matches typical servo PWM requirements
 
-#### Issue 2: WCH master motor transport documentation
+#### Issue 2: WCH motor transport documentation
 **Resolution:** The approved custom image uses the physical UART1 connector
-and USART1 (PA9/PA10) for the Rock64 connection. USART3 (PD8/PD9,
-`MASTER_TX`/`MASTER_RX`) remains the separate stock/factory pair.
+and USART1 (PA9/PA10) for the Rock64 connection, as defined by the canonical
+source-of-truth document.
 
 **Impact:**
 - Documentation confusion when referencing pin functions

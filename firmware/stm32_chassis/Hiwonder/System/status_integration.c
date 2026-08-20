@@ -11,41 +11,15 @@
 #include "led.h"
 #include "main.h"
 
+extern BuzzerObjectTypeDef *buzzers[1];
+
 // ============================================================================
 // STATUS PERIPHERAL INSTANCES
 // ============================================================================
 
-static BuzzerObjectTypeDef emergency_buzzer;
 static LEDObjectTypeDef status_led;
 
 static bool status_initialized = false;
-
-// ============================================================================
-// BUZZER HARDWARE ABSTRACTION
-// ============================================================================
-
-static int buzzer_get_ctrl_block(BuzzerObjectTypeDef *self, BuzzerCtrlTypeDef *p) {
-    (void)self;
-    (void)p;
-    // Simple queue implementation (could be enhanced with FreeRTOS queue)
-    // For now, return empty (no queued commands)
-    return -1; // No queued commands
-}
-
-static int buzzer_put_ctrl_block(BuzzerObjectTypeDef *self, BuzzerCtrlTypeDef *p) {
-    (void)self;
-    (void)p;
-    // Direct execution for simplicity
-    return 0;
-}
-
-static void buzzer_set_pwm(BuzzerObjectTypeDef *self, uint32_t freq) {
-    (void)self;
-    (void)freq;
-    // Configure PWM for buzzer on TIM4 Channel 2 (example)
-    // Adapt to your actual hardware configuration
-    // TIM4->CCR2 = (SystemCoreClock / (freq * 2)) - 1;
-}
 
 // ============================================================================
 // LED HARDWARE ABSTRACTION
@@ -78,13 +52,6 @@ static void led_set_pin(LEDObjectTypeDef *self, uint32_t new_state) {
 // ============================================================================
 
 int Status_Init(void) {
-    // Initialize buzzer
-    buzzer_object_init(&emergency_buzzer);
-    emergency_buzzer.id = 0;
-    emergency_buzzer.get_ctrl_block = buzzer_get_ctrl_block;
-    emergency_buzzer.put_ctrl_block = buzzer_put_ctrl_block;
-    emergency_buzzer.set_pwm = buzzer_set_pwm;
-    
     // Initialize LED
     led_object_init(&status_led);
     status_led.id = 0;
@@ -107,7 +74,9 @@ void Status_Update(uint32_t period_ms) {
     }
     
     // Update buzzer state machine
-    buzzer_task_handler(&emergency_buzzer, period_ms);
+    if (buzzers[0] != NULL) {
+        buzzer_task_handler(buzzers[0], period_ms);
+    }
     
     // Update LED state machine
     led_task_handler(&status_led, period_ms);
@@ -123,7 +92,9 @@ void Status_EmergencyBeep(void) {
     }
     
     // Aggressive emergency beep sequence
-    buzzer_didi(&emergency_buzzer, 2100, 100, 50, 10); // 2100Hz, 100ms on, 50ms off, 10 repeats
+    if (buzzers[0] != NULL) {
+        buzzer_didi(buzzers[0], 2100, 100, 50, 10);
+    }
 }
 
 void Status_CommunicationLostBeep(void) {
@@ -132,7 +103,9 @@ void Status_CommunicationLostBeep(void) {
     }
     
     // Communication lost pattern
-    buzzer_didi(&emergency_buzzer, 1500, 200, 200, 5); // 1500Hz, 200ms on, 200ms off, 5 repeats
+    if (buzzers[0] != NULL) {
+        buzzer_didi(buzzers[0], 1500, 200, 200, 5);
+    }
 }
 
 void Status_LowBatteryBeep(void) {
@@ -141,7 +114,9 @@ void Status_LowBatteryBeep(void) {
     }
     
     // Low battery warning
-    buzzer_didi(&emergency_buzzer, 1200, 500, 500, 3); // 1200Hz, 500ms on, 500ms off, 3 repeats
+    if (buzzers[0] != NULL) {
+        buzzer_didi(buzzers[0], 1200, 500, 500, 3);
+    }
 }
 
 void Status_OKBeep(void) {
@@ -150,7 +125,9 @@ void Status_OKBeep(void) {
     }
     
     // System OK acknowledgment
-    buzzer_didi(&emergency_buzzer, 2000, 100, 100, 2); // 2000Hz, 100ms on, 100ms off, 2 repeats
+    if (buzzers[0] != NULL) {
+        buzzer_didi(buzzers[0], 2000, 100, 100, 2);
+    }
 }
 
 // ============================================================================
