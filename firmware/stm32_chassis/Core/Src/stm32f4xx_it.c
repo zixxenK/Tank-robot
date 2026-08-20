@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
 #include "stm32f4xx_it.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -191,6 +192,14 @@ void SysTick_Handler(void)
   {
     xPortSysTickHandler();
   }
+}
+
+/**
+  * @brief This function handles EXTI line 9 to 5 interrupts.
+  */
+void EXTI9_5_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(HC_SR04_ECHO_Pin);
 }
 
 /******************************************************************************/
@@ -370,6 +379,7 @@ void EXTI15_10_IRQHandler(void)
   */
 void TIM8_BRK_TIM12_IRQHandler(void)
 {
+  HAL_TIM_IRQHandler(&htim12);
   /* USER CODE BEGIN TIM8_BRK_TIM12_IRQn 0 */
 
   /* USER CODE END TIM8_BRK_TIM12_IRQn 0 */

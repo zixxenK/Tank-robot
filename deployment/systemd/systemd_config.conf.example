@@ -4,7 +4,7 @@
 
 # ── Network ────────────────────────────────────────────────────────────────
 # IP address of the Rock64 SBC on your local network
-ROCK64_IP=192.168.1.159
+ROCK64_IP=192.168.1.139
 
 # ── Hardware ───────────────────────────────────────────────────────────────
 # Serial port for STM32 motor controller.
@@ -20,8 +20,33 @@ CAMERA_IP_STATION=192.168.1.125
 # Set to true to launch the ESP32 camera bridge node
 USE_CAMERA_BRIDGE=false
 
+# Launch the direct STL-50B2 driver from normal robot bringup.
+USE_LIDAR=true
+LIDAR_SERIAL_PORT=/dev/ttyS2
+LIDAR_SYNC_GPIOCHIP=/dev/gpiochip2
+
+# Launch the USB webcam bridge. The ESP32 camera remains /camera/image_raw;
+# the USB camera is published independently as /camera/usb/image_raw.
+USE_USB_CAMERA=false
+USB_CAMERA_DEVICE=/dev/video0
+
+# The web dashboard is external to this repository. ROS topics can be exposed
+# through rosbridge on this separate port to avoid the dashboard HTTPS port.
+USE_ROSBRIDGE=false
+ROSBRIDGE_PORT=9091
+
 # Set false only for host-side simulation or mocked integration tests.
 USE_HARDWARE_BRIDGE=true
+
+# Launch the PS5 DualSense joystick bridge on the normal operator startup.
+USE_TELEOP=true
+
+# Launch the PS5-triggered buzzer/song node and /buzzer/frequency transport.
+USE_AUDIO=true
+
+# Set to true only if production firmware with active battery telemetry is loaded.
+# Defaults to false so motor teleoperation is not blocked by missing ADC readings.
+MONITOR_BATTERY=false
 
 # ── ROS2 ───────────────────────────────────────────────────────────────────
 # Set to: humble or auto (auto mode supports Ubuntu 22.04 only)

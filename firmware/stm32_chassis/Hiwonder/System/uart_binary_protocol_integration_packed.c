@@ -22,6 +22,8 @@
 #include "imu_integration.h"
 #include "battery_integration.h"
 #include "status_integration.h"
+#include "hc_sr04.h"
+#include "buzzer.h"
 #include "main.h"
 #include "usart.h"
 #include "dma.h"
@@ -41,6 +43,9 @@ extern DMA_HandleTypeDef hdma_usart1_rx;
 
 static BinaryProtocolContext protocol_ctx;
 static osThreadId_t protocol_task_handle;
+
+extern BuzzerObjectTypeDef *buzzers[1];
+extern void buzzers_init(void);
 
 #define PROTOCOL_RX_EVENT_FLAG (1U << 0)
 
@@ -66,6 +71,9 @@ void binary_protocol_integration_init_packed(void) {
      * can fault before USART1 and the motor controller are alive.  Battery
      * monitoring is not a prerequisite for this raised-track bench test; the
      * host receives an unavailable value instead of a fabricated reading. */
+    /* Initialize the real buzzer instance before protocol commands can
+     * arrive. Status beeps reuse this same hardware object. */
+    buzzers_init();
     (void)Status_Init();
 
     // Initialize motor control layer first. Startup PWM values are explicitly
@@ -73,6 +81,7 @@ void binary_protocol_integration_init_packed(void) {
     MotorControl_Init();
 
     MotorControl_EmergencyStop();
+    hc_sr04_init();
 
     /* Use the production WCH Rock64 host link on USART1 PA9/PA10. Telemetry TX
      * deliberately uses
@@ -192,11 +201,25 @@ void binary_protocol_telemetry_task(void) {
                                      battery_current,
                                      accel_x, accel_y, accel_z,
                                      gyro_x, gyro_y, gyro_z);
+
+    hc_sr04_service();
+    HcSr04Measurement ultrasonic;
+    if (hc_sr04_get_measurement(&ultrasonic)) {
+        protocol_ctx.telemetry.ultrasonic.distance_mm = ultrasonic.distance_mm;
+        protocol_ctx.telemetry.ultrasonic.echo_us = ultrasonic.echo_us;
+        protocol_ctx.telemetry.ultrasonic.valid = ultrasonic.valid ? 1U : 0U;
+        protocol_ctx.telemetry.ultrasonic.reserved = 0U;
+    } else {
+        protocol_ctx.telemetry.ultrasonic.valid = 0U;
+    }
     
     // Send telemetry burst
     binary_protocol_send_telemetry_burst(&protocol_ctx);
     
-    Status_Update(20);
+    /* The protocol task runs the motor loop at CONTROL_PERIOD_SEC. Give the
+     * buzzer state machine the same elapsed period instead of relying on a
+     * second application task that is not present in this image. */
+    Status_Update((uint32_t)(CONTROL_PERIOD_SEC * 1000.0f));
 }
 
 // ============================================================================

@@ -17,12 +17,14 @@ static void pwm_servo2_write_pin(uint32_t new_state)
 
 static void pwm_servo3_write_pin(uint32_t new_state)
 {
-    HAL_GPIO_WritePin(PWM_SERVO_3_GPIO_Port, PWM_SERVO_3_Pin, (GPIO_PinState)new_state);
+    /* PC8 is reserved for HC-SR04 TRIG in the production image. */
+    (void)new_state;
 }
 
 static void pwm_servo4_write_pin(uint32_t new_state)
 {
-    HAL_GPIO_WritePin(PWM_SERVO_4_GPIO_Port, PWM_SERVO_4_Pin, (GPIO_PinState)new_state);
+    /* PC9 is reserved for HC-SR04 ECHO in the production image. */
+    (void)new_state;
 }
 
 void pwm_servos_init(void)

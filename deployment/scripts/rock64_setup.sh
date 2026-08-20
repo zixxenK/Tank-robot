@@ -98,12 +98,17 @@ apt-get install -y --no-install-recommends \
   ${ROSGZ_PKG:+"${ROSGZ_PKG}"} \
   "ros-${RESOLVED_DISTRO}-cv-bridge" \
   "ros-${RESOLVED_DISTRO}-rviz2" \
+  "ros-${RESOLVED_DISTRO}-slam-toolbox" \
+  "ros-${RESOLVED_DISTRO}-navigation2" \
+  "ros-${RESOLVED_DISTRO}-nav2-bringup" \
+  "ros-${RESOLVED_DISTRO}-rosbridge-server" \
   "ros-${RESOLVED_DISTRO}-visualization-msgs" \
   "ros-${RESOLVED_DISTRO}-rmw-fastrtps-cpp" \
   python3-colcon-common-extensions \
   python3-rosdep \
   python3-pip \
   python3-serial \
+  python3-libgpiod \
   python3-opencv \
   python3-pygame \
   python3-evdev \
@@ -117,8 +122,8 @@ apt-get install -y --no-install-recommends \
   stlink-tools \
   openocd
 
-# ── Create udev rule for STM32 serial port ────────────────────────────────
-echo "[setup] Installing udev rule for STM32 serial port..."
+# ── Create udev rules for STM32 and PS5 controller ────────────────────────
+echo "[setup] Installing udev rules..."
 cat > /etc/udev/rules.d/99-rock64-stm32.rules <<'EOF'
 # Rock64 Ranger — Hiwonder WCH USB-UART (1a86:55d4) to USART1 PA9/PA10
 # (product connector labeled UART1).
@@ -127,8 +132,19 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", \
   SYMLINK+="rock64_stm32", SYMLINK+="rock64_stm32_wch", GROUP="dialout", MODE="0664", \
   ENV{ID_MM_PORT_IGNORE}="1"
 EOF
+
+cat > /etc/udev/rules.d/99-rock64-ps5.rules <<'EOF'
+# Sony DualSense (PS5) Wireless Controller — USB link
+KERNEL=="js[0-9]*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0ce6", MODE="0666", GROUP="input", SYMLINK+="input/ps5_controller", SYMLINK+="input/ps5_controller_js"
+# Sony DualSense (PS5) Wireless Controller — Bluetooth link
+KERNEL=="js[0-9]*", KERNELS=="*054C:0CE6*", MODE="0666", GROUP="input", SYMLINK+="input/ps5_controller", SYMLINK+="input/ps5_controller_js"
+# General joystick device permissions: allow non-root operator reading
+KERNEL=="js[0-9]*", SUBSYSTEM=="input", MODE="0666", GROUP="input"
+KERNEL=="event[0-9]*", SUBSYSTEM=="input", MODE="0666", GROUP="input"
+EOF
+
 udevadm control --reload-rules
-udevadm trigger --subsystem-match=tty
+udevadm trigger
 
 # ── Write deployment config ───────────────────────────────────────────────
 echo "[setup] Writing systemd_config.conf..."
@@ -143,6 +159,12 @@ ROCK64_IP=${ROCK64_IP}
 SERIAL_PORT=${SERIAL_PORT}
 CAMERA_IP_STATION=${CAMERA_IP}
 USE_CAMERA_BRIDGE=false
+USE_AUDIO=true
+
+# Direct LiDAR acquisition
+USE_LIDAR=true
+LIDAR_SERIAL_PORT=/dev/ttyS2
+LIDAR_SYNC_GPIOCHIP=/dev/gpiochip2
 
 # Canonical packed-binary STM32 bridge
 USE_HARDWARE_BRIDGE=true

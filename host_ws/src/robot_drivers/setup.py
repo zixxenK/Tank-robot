@@ -17,7 +17,7 @@ setup(
     zip_safe=True,
     maintainer="Rock64 Ranger Team",
     maintainer_email="todo@example.com",
-    description="Hardware bridge nodes for STM32 serial and ESP32 camera",
+    description="Hardware bridge and STL-50B2 LiDAR nodes",
     license="MIT",
     tests_require=["pytest"],
     entry_points={
@@ -27,6 +27,8 @@ setup(
             "motor_bringup_test = robot_drivers.motor_bringup_test:main",
             "stm32_selftest_cli = robot_drivers.stm32_selftest_cli:main",
             "telemetry_markers = robot_drivers.telemetry_markers:main",
+            "stl50b2_lidar = robot_drivers.stl50b2_lidar:main",
+            "usb_webcam_bridge = robot_drivers.usb_webcam_bridge:main",
         ],
     },
 )

@@ -54,6 +54,14 @@ echo "[robot_start] Host WS  : $(resolve_host_ws)"
 # Validate serial port
 SERIAL_PORT="${SERIAL_PORT:-/dev/rock64_stm32}"
 USE_HARDWARE_BRIDGE="${USE_HARDWARE_BRIDGE:-true}"
+USE_TELEOP="${USE_TELEOP:-true}"
+MONITOR_BATTERY="${MONITOR_BATTERY:-false}"
+USE_AUDIO="${USE_AUDIO:-true}"
+USE_LIDAR="${USE_LIDAR:-false}"
+LIDAR_SERIAL_PORT="${LIDAR_SERIAL_PORT:-/dev/ttyS2}"
+LIDAR_SYNC_GPIOCHIP="${LIDAR_SYNC_GPIOCHIP:-/dev/gpiochip2}"
+USE_USB_CAMERA="${USE_USB_CAMERA:-false}"
+USB_CAMERA_DEVICE="${USB_CAMERA_DEVICE:-/dev/video0}"
 if [[ "${USE_HARDWARE_BRIDGE}" == "true" && ! -e "${SERIAL_PORT}" ]]; then
   echo "[robot_start] ERROR: Serial port ${SERIAL_PORT} not found." >&2
   exit 1
@@ -88,5 +96,13 @@ echo "[robot_start] Launching hardware bringup..."
 exec ros2 launch robot_bringup rock64_bringup.launch.py \
   serial_port:="${SERIAL_PORT}" \
   use_hardware_bridge:="${USE_HARDWARE_BRIDGE}" \
+  use_teleop:="${USE_TELEOP}" \
+  use_audio:="${USE_AUDIO}" \
+  monitor_battery:="${MONITOR_BATTERY}" \
   camera_ip:="${CAMERA_IP}" \
-  use_camera_bridge:="${USE_CAMERA_BRIDGE}"
+  use_camera_bridge:="${USE_CAMERA_BRIDGE}" \
+  use_lidar:="${USE_LIDAR}" \
+  lidar_serial_port:="${LIDAR_SERIAL_PORT}" \
+  lidar_sync_gpiochip:="${LIDAR_SYNC_GPIOCHIP}" \
+  use_usb_camera:="${USE_USB_CAMERA}" \
+  usb_camera_device:="${USB_CAMERA_DEVICE}"

@@ -28,8 +28,10 @@ class Imu:
 
 
 class Joy:
-    def __init__(self):
+    def __init__(self, axes=None, buttons=None):
         self.header = Header()
+        self.axes = list(axes) if axes is not None else []
+        self.buttons = list(buttons) if buttons is not None else []
 
 
 class JointState:
@@ -39,3 +41,29 @@ class JointState:
         self.position = []
         self.velocity = []
         self.effort = []
+
+
+class LaserScan:
+    def __init__(self):
+        self.header = Header()
+        self.angle_min = 0.0
+        self.angle_max = 0.0
+        self.angle_increment = 0.0
+        self.time_increment = 0.0
+        self.scan_time = 0.0
+        self.range_min = 0.0
+        self.range_max = 0.0
+        self.ranges = []
+        self.intensities = []
+
+
+class Range:
+    ULTRASOUND = 0
+
+    def __init__(self):
+        self.header = Header()
+        self.radiation_type = self.ULTRASOUND
+        self.field_of_view = 0.0
+        self.min_range = 0.0
+        self.max_range = 0.0
+        self.range = 0.0

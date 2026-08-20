@@ -3,7 +3,7 @@
 <package format="3">
   <name>robot_drivers</name>
   <version>0.1.0</version>
-  <description>Hardware driver nodes for Rock64 Ranger — STM32 serial bridge and ESP32 camera bridge.</description>
+  <description>Hardware drivers for Rock64 Ranger, including the STL-50B2 LiDAR.</description>
   <maintainer email="todo@example.com">Rock64 Ranger Team</maintainer>
   <license>MIT</license>
 
@@ -12,6 +12,7 @@
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>builtin_interfaces</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
   <depend>diagnostic_msgs</depend>
@@ -19,6 +20,7 @@
   <depend>cv_bridge</depend>
 
   <exec_depend>python3-serial</exec_depend>
+  <exec_depend>python3-libgpiod</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
 

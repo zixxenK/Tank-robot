@@ -53,6 +53,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Hiwonder/Peripherals/led.c
     Hiwonder/Peripherals/serial_servo.c
     Hiwonder/Portings/motor_porting.c
+    Hiwonder/Portings/buzzer_porting.c
+    Hiwonder/Portings/lwmem_porting.c
     Hiwonder/Misc/pid.c
     Hiwonder/System/motor_control.c
     Hiwonder/System/uart_binary_protocol_packed.c
@@ -61,9 +63,12 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Hiwonder/System/imu_integration.c
     Hiwonder/System/battery_integration.c
     Hiwonder/System/status_integration.c
+    Hiwonder/System/hc_sr04.c
     Third_Party/Fusion/Fusion/FusionAhrs.c
     Third_Party/Fusion/Fusion/FusionCompass.c
     Third_Party/Fusion/Fusion/FusionOffset.c
+    Third_Party/Lw/lwmem.c
+    Third_Party/Lw/lwmem_sys_cmsis_os.c
 )
 
 # Add include paths
@@ -73,6 +78,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     Hiwonder/Portings
     Hiwonder/System
     Hiwonder/Misc
+    Third_Party/Lw
     # Third-party library include paths
     Third_Party/Fusion
     Third_Party/Fusion/Fusion

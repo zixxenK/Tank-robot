@@ -32,8 +32,11 @@ def generate_launch_description() -> LaunchDescription:
     )
     use_teleop_arg = DeclareLaunchArgument(
         "use_teleop",
-        default_value="false",
-        description="Optional teleoperation source; hardware bringup does not require a controller",
+        default_value=EnvironmentVariable(
+            "USE_TELEOP",
+            default_value="true",
+        ),
+        description="Launch the PS5 teleoperation source",
     )
     use_camera_bridge_arg = DeclareLaunchArgument(
         "use_camera_bridge",
@@ -42,6 +45,22 @@ def generate_launch_description() -> LaunchDescription:
             default_value="false",
         ),
         description="Launch the ESP32 camera bridge",
+    )
+    use_lidar_arg = DeclareLaunchArgument(
+        "use_lidar",
+        default_value=EnvironmentVariable(
+            "USE_LIDAR",
+            default_value="false",
+        ),
+        description="Launch the directly connected STL-50B2 LiDAR",
+    )
+    use_usb_camera_arg = DeclareLaunchArgument(
+        "use_usb_camera",
+        default_value=EnvironmentVariable(
+            "USE_USB_CAMERA",
+            default_value="false",
+        ),
+        description="Launch the USB webcam bridge",
     )
     run_motor_bringup_test_arg = DeclareLaunchArgument(
         "run_motor_bringup_test",
@@ -72,6 +91,27 @@ def generate_launch_description() -> LaunchDescription:
         ),
         description="ESP32 camera address",
     )
+    lidar_serial_port_arg = DeclareLaunchArgument(
+        "lidar_serial_port",
+        default_value=EnvironmentVariable(
+            "LIDAR_SERIAL_PORT",
+            default_value="/dev/ttyS2",
+        ),
+        description="ROCK64 UART2 device for STL-50B2",
+    )
+    lidar_sync_gpiochip_arg = DeclareLaunchArgument(
+        "lidar_sync_gpiochip",
+        default_value="/dev/gpiochip2",
+        description="GPIO chip for STL-50B2 sync on header pin 12",
+    )
+    usb_camera_device_arg = DeclareLaunchArgument(
+        "usb_camera_device",
+        default_value=EnvironmentVariable(
+            "USB_CAMERA_DEVICE",
+            default_value="/dev/video0",
+        ),
+        description="V4L2 device for the USB webcam",
+    )
     hardware_config_arg = DeclareLaunchArgument(
         "hardware_config",
         default_value=PathJoinSubstitution(
@@ -94,12 +134,35 @@ def generate_launch_description() -> LaunchDescription:
         ),
         description="Safety gateway ROS parameter file",
     )
+    monitor_battery_arg = DeclareLaunchArgument(
+        "monitor_battery",
+        default_value=EnvironmentVariable(
+            "MONITOR_BATTERY",
+            default_value="false",
+        ),
+        description=(
+            "Require live STM32 battery telemetry before motion; disabled by "
+            "default "
+            "for the motor-only firmware image"
+        ),
+    )
+    use_audio_arg = DeclareLaunchArgument(
+        "use_audio",
+        default_value=EnvironmentVariable(
+            "USE_AUDIO",
+            default_value="true",
+        ),
+        description="Launch the buzzer song creator and its ROS audio topics",
+    )
 
     safety_gateway = Node(
         package="agent_core",
         executable="safety_gateway",
         name="safety_gateway",
-        parameters=[LaunchConfiguration("safety_config")],
+        parameters=[
+            LaunchConfiguration("safety_config"),
+            {"monitor_battery": LaunchConfiguration("monitor_battery")},
+        ],
         output="screen",
     )
     teleop = Node(
@@ -124,6 +187,22 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(LaunchConfiguration("use_hardware_bridge")),
         output="screen",
     )
+    buzzer_song_creator = Node(
+        package="robot_audio",
+        executable="buzzer_song_creator",
+        name="buzzer_song_creator",
+        parameters=[
+            {
+                "joy_topic": "/joy",
+                "triangle_index": 2,
+                "frequency_topic": "/buzzer/frequency",
+                "play_sequence_topic": "/buzzer/play_sequence",
+                "status_topic": "/buzzer/status",
+            }
+        ],
+        condition=IfCondition(LaunchConfiguration("use_audio")),
+        output="screen",
+    )
     camera_bridge = Node(
         package="robot_drivers",
         executable="esp32_camera_bridge",
@@ -134,6 +213,61 @@ def generate_launch_description() -> LaunchDescription:
             {"stream_port": 81},
         ],
         condition=IfCondition(LaunchConfiguration("use_camera_bridge")),
+        output="screen",
+    )
+    lidar = Node(
+        package="robot_drivers",
+        executable="stl50b2_lidar",
+        name="stl50b2_lidar",
+        parameters=[
+            {
+                "serial_port": LaunchConfiguration("lidar_serial_port"),
+                "baudrate": 115200,
+                "frame_id": "base_laser",
+                "scan_topic": "/scan",
+                "sync_gpiochip": LaunchConfiguration("lidar_sync_gpiochip"),
+                "sync_line_offset": 3,
+                "sync_global_number": 67,
+                "allow_sysfs_gpio_fallback": True,
+            }
+        ],
+        condition=IfCondition(LaunchConfiguration("use_lidar")),
+        output="screen",
+    )
+    lidar_tf = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="base_to_laser_tf",
+        arguments=[
+            "0", "0", "0.18", "0", "0", "0",
+            "base_link", "base_laser",
+        ],
+        condition=IfCondition(LaunchConfiguration("use_lidar")),
+        output="screen",
+    )
+    ultrasonic_tf = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="base_to_ultrasonic_tf",
+        arguments=[
+            "0.12", "0", "0.12", "0", "0", "0",
+            "base_link", "ultrasonic_link",
+        ],
+        output="screen",
+    )
+    usb_camera = Node(
+        package="robot_drivers",
+        executable="usb_webcam_bridge",
+        name="usb_webcam_bridge",
+        parameters=[{
+            "device": LaunchConfiguration("usb_camera_device"),
+            "topic": "/camera/usb/image_raw",
+            "frame_id": "usb_camera_link",
+            "width": 640,
+            "height": 480,
+            "fps": 15.0,
+        }],
+        condition=IfCondition(LaunchConfiguration("use_usb_camera")),
         output="screen",
     )
     motor_bringup_test = Node(
@@ -149,17 +283,29 @@ def generate_launch_description() -> LaunchDescription:
             use_hardware_bridge_arg,
             use_teleop_arg,
             use_camera_bridge_arg,
+            use_lidar_arg,
+            use_usb_camera_arg,
             run_motor_bringup_test_arg,
             serial_port_arg,
             joy_device_arg,
             camera_ip_arg,
+            lidar_serial_port_arg,
+            lidar_sync_gpiochip_arg,
+            usb_camera_device_arg,
             hardware_config_arg,
             safety_config_arg,
+            monitor_battery_arg,
+            use_audio_arg,
             OpaqueFunction(function=preflight_or_raise),
             safety_gateway,
             teleop,
             hardened_bridge,
+            buzzer_song_creator,
             camera_bridge,
+            lidar,
+            lidar_tf,
+            ultrasonic_tf,
+            usb_camera,
             motor_bringup_test,
         ]
     )

@@ -31,15 +31,22 @@ extern "C" {
 // Function Codes
 typedef enum {
     FUNC_SYS              = 0x00,
+    FUNC_BUZZER           = 0x04,
     FUNC_MOTOR            = 0x03,
     FUNC_ENCODER          = 0x10,
     FUNC_BATTERY          = 0x11,
     FUNC_IMU              = 0x12,
     FUNC_SELF_TEST        = 0x13,
+    FUNC_ULTRASONIC       = 0x14,
     FUNC_HEARTBEAT        = 0xF0,
     FUNC_ACK              = 0xF1,
     FUNC_ERROR            = 0xFF
 } FunctionCode;
+
+// Buzzer sub-commands
+typedef enum {
+    BUZZER_SUBCMD_SET_TONE = 0x01
+} BuzzerSubCommand;
 
 // Motor Sub-commands
 typedef enum {
@@ -112,6 +119,14 @@ typedef struct __attribute__((packed)) {
     float gyro_z;            // Gyroscope Z (rad/s)
 } IMUTelemetry;
 
+/** @brief HC-SR04 echo measurement in millimetres and microseconds. */
+typedef struct __attribute__((packed)) {
+    uint16_t distance_mm;
+    uint16_t echo_us;
+    uint8_t valid;
+    uint8_t reserved;
+} UltrasonicTelemetry;
+
 /**
  * @brief Complete telemetry struct for burst transmission
  * Combines all telemetry into single packed structure
@@ -120,6 +135,7 @@ typedef struct __attribute__((packed)) {
     EncoderTelemetry encoder;
     BatteryTelemetry battery;
     IMUTelemetry imu;
+    UltrasonicTelemetry ultrasonic;
     uint32_t timestamp_ms;    // System timestamp
 } CompleteTelemetry;
 

@@ -11,6 +11,8 @@
 
   <exec_depend>robot_teleop</exec_depend>
   <exec_depend>robot_drivers</exec_depend>
+  <exec_depend>agent_core</exec_depend>
+  <exec_depend>robot_audio</exec_depend>
   <exec_depend>perception</exec_depend>
   <exec_depend>navigation</exec_depend>
   <exec_depend>terrain_adaptation</exec_depend>
@@ -18,6 +20,9 @@
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>rosgraph_msgs</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>nav2_bringup</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

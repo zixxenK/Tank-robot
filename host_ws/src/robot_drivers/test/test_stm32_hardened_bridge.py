@@ -12,7 +12,9 @@ from robot_drivers.stm32_hardened_bridge import (
     SYNC_1,
     SYNC_2,
     FUNC_MOTOR,
+    FUNC_BUZZER,
     FUNC_HEARTBEAT,
+    FUNC_ULTRASONIC,
     MOTOR_SUBCMD_SET_SPEED,
 )
 
@@ -53,6 +55,16 @@ class TestCRC8(unittest.TestCase):
         calculated_crc = crc8_ccitt(extracted_body)
 
         self.assertEqual(extracted_crc, calculated_crc)
+
+    def test_buzzer_tone_frame_uses_protocol_extension(self):
+        """A buzzer tone is encoded as subcommand + little-endian uint16 Hz."""
+        payload = bytes([0x01]) + struct.pack("<H", 440)
+        body = bytes([FUNC_BUZZER, len(payload)]) + payload
+        frame = bytes([SYNC_1, SYNC_2]) + body + bytes([crc8_ccitt(body)])
+
+        self.assertEqual(frame[2], FUNC_BUZZER)
+        self.assertEqual(frame[3], 3)
+        self.assertEqual(frame[4:], payload + bytes([crc8_ccitt(body)]))
 
 
 class TestCircularBuffer(unittest.TestCase):
@@ -246,6 +258,25 @@ class TestFrameParser(unittest.TestCase):
         # Check stats
         stats = parser.get_stats()
         self.assertEqual(stats["valid_frames"], 1)
+
+    def test_ultrasonic_telemetry_frame(self):
+        """Parse the six-byte HC-SR04 telemetry payload."""
+        parser = FrameParser()
+        payload = struct.pack("<HHBB", 1234, 7198, 1, 0)
+        body = bytes([FUNC_ULTRASONIC, len(payload)]) + payload
+        frame = bytes([SYNC_1, SYNC_2]) + body + bytes([
+            crc8_ccitt(body)
+        ])
+
+        result = None
+        for byte in frame:
+            result = parser.process_byte(byte)
+
+        self.assertIsNotNone(result)
+        function_code, parsed_payload = result
+        self.assertEqual(function_code, FUNC_ULTRASONIC)
+        self.assertEqual(struct.unpack("<HHBB", parsed_payload),
+                         (1234, 7198, 1, 0))
 
     def test_invalid_crc(self):
         """Test rejection of invalid CRC."""

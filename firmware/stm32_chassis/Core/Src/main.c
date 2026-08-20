@@ -234,7 +234,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE END Callback 0 */
   /* TIM14 is the registered HAL timebase callback. It is dispatched by
    * TIM8_TRG_COM_TIM14_IRQHandler(), not from this legacy callback. */
-  (void)htim;
+  /* PA8 is a plain GPIO in this production image. TIM12 supplies the
+   * half-period callbacks used to generate the buzzer square wave. */
+  if (htim == &htim12) {
+    HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_SET);
+  }
   /* USER CODE BEGIN Callback 1 */
 
   /* USER CODE END Callback 1 */

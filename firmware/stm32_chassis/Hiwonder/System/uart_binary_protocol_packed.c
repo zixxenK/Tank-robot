@@ -15,10 +15,14 @@
 #include "motor_control.h"
 #include "imu_integration.h"
 #include "battery_integration.h"
+#include "buzzer.h"
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+/* Real Hiwonder buzzer instance supplied by buzzer_porting.c. */
+extern BuzzerObjectTypeDef *buzzers[1];
 
 // ============================================================================
 // CRC-8-CCITT LOOKUP TABLE
@@ -436,6 +440,26 @@ void binary_protocol_process_frame(BinaryProtocolContext *ctx, uint8_t func, uin
              * Keep the function code reserved for wire compatibility. */
             break;
 
+        case FUNC_BUZZER:
+            /* Payload: [subcommand][frequency uint16 little-endian]. */
+            if (payload_len != 3 || payload[0] != BUZZER_SUBCMD_SET_TONE ||
+                buzzers[0] == NULL) {
+                break;
+            }
+            {
+                uint16_t frequency = (uint16_t)payload[1] |
+                                      ((uint16_t)payload[2] << 8);
+                if (frequency > 20000U) {
+                    break;
+                }
+                if (frequency == 0U) {
+                    (void)buzzer_off(buzzers[0]);
+                } else {
+                    (void)buzzer_on(buzzers[0], frequency);
+                }
+            }
+            break;
+
         case FUNC_MOTOR:
             if (payload_len < 2) {
                 break;
@@ -627,6 +651,17 @@ void binary_protocol_send_telemetry_burst(BinaryProtocolContext *ctx) {
                            MAX_FRAME_SIZE);
     if (frame_len > 0) {
         binary_protocol_queue_frame(ctx, FUNC_IMU, frame_buffer + FRAME_HEADER_SIZE,
+                                    frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
+    }
+
+    frame_len = build_frame(FUNC_ULTRASONIC,
+                            (const uint8_t *)&ctx->telemetry.ultrasonic,
+                            sizeof(UltrasonicTelemetry),
+                            frame_buffer,
+                            MAX_FRAME_SIZE);
+    if (frame_len > 0) {
+        binary_protocol_queue_frame(ctx, FUNC_ULTRASONIC,
+                                    frame_buffer + FRAME_HEADER_SIZE,
                                     frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
     }
 }

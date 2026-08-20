@@ -92,10 +92,16 @@ void Error_Handler(void);
 #define SERIAL_SERVO_TX_GPIO_Port GPIOC
 #define SERIAL_SERVO_RX_Pin GPIO_PIN_7
 #define SERIAL_SERVO_RX_GPIO_Port GPIOC
-#define PWM_SERVO_3_Pin GPIO_PIN_8
-#define PWM_SERVO_3_GPIO_Port GPIOC
-#define PWM_SERVO_4_Pin GPIO_PIN_9
-#define PWM_SERVO_4_GPIO_Port GPIOC
+#define HC_SR04_TRIG_Pin GPIO_PIN_8
+#define HC_SR04_TRIG_GPIO_Port GPIOC
+#define HC_SR04_ECHO_Pin GPIO_PIN_9
+#define HC_SR04_ECHO_GPIO_Port GPIOC
+/* Retain the generated names for legacy code that is not part of the
+ * production motor image. PC8/PC9 belong to the HC-SR04 in this image. */
+#define PWM_SERVO_3_Pin HC_SR04_TRIG_Pin
+#define PWM_SERVO_3_GPIO_Port HC_SR04_TRIG_GPIO_Port
+#define PWM_SERVO_4_Pin HC_SR04_ECHO_Pin
+#define PWM_SERVO_4_GPIO_Port HC_SR04_ECHO_GPIO_Port
 #define BUZZER_Pin GPIO_PIN_8
 #define BUZZER_GPIO_Port GPIOA
 #define PWM_SERVO_1_Pin GPIO_PIN_11

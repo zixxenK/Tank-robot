@@ -33,10 +33,10 @@ from rclpy.qos import (
     QoSReliabilityPolicy,
 )
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool, Int32MultiArray, Empty, String
+from std_msgs.msg import Bool, Int32, Int32MultiArray, Empty, String
 from std_srvs.srv import SetBool
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
-from sensor_msgs.msg import BatteryState, Imu, JointState
+from sensor_msgs.msg import BatteryState, Imu, JointState, Range
 from nav_msgs.msg import Odometry
 
 # Protocol Constants
@@ -50,21 +50,25 @@ BUFFER_SIZE = 4096
 
 # Function Codes
 FUNC_SYS = 0x00
+FUNC_BUZZER = 0x04
 FUNC_MOTOR = 0x03
 FUNC_ENCODER = 0x10
 FUNC_BATTERY = 0x11
 FUNC_IMU = 0x12
 FUNC_SELF_TEST = 0x13
+FUNC_ULTRASONIC = 0x14
 FUNC_HEARTBEAT = 0xF0
 FUNC_ACK = 0xF1
 FUNC_ERROR = 0xFF
 VALID_FUNCTION_CODES = {
     FUNC_SYS,
+    FUNC_BUZZER,
     FUNC_MOTOR,
     FUNC_ENCODER,
     FUNC_BATTERY,
     FUNC_IMU,
     FUNC_SELF_TEST,
+    FUNC_ULTRASONIC,
     FUNC_HEARTBEAT,
     FUNC_ACK,
     FUNC_ERROR,
@@ -73,6 +77,8 @@ VALID_FUNCTION_CODES = {
 # Motor Sub-commands
 MOTOR_SUBCMD_SET_SPEED = 0x01
 MOTOR_SUBCMD_EMERGENCY_STOP = 0x02
+BUZZER_SUBCMD_SET_TONE = 0x01
+BUZZER_MAX_FREQUENCY_HZ = 20000
 
 # Reflected CRC-8/MAXIM table retained for wire compatibility.
 CRC8_TABLE = [
@@ -115,6 +121,9 @@ class TelemetryData:
     imu_gyro: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     timestamp: float = 0.0
     battery_received: bool = False  # Track if we've ever received a battery frame
+    ultrasonic_distance_m: float = float("nan")
+    ultrasonic_echo_us: int = 0
+    ultrasonic_valid: bool = False
 
 
 class CircularBuffer:
@@ -379,6 +388,7 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("startup_grace_period", 2.0)
         self.declare_parameter("enable_motor_test_services", True)
         self.declare_parameter("motor_test_speed", 0.10)
+        self.declare_parameter("buzzer_frequency_topic", "/buzzer/frequency")
 
         # Get parameter values
         self._serial_port = self.get_parameter("serial_port").value
@@ -424,6 +434,9 @@ class STM32HardenedBridge(Node):
             0.01,
             min(1.0, float(self.get_parameter("motor_test_speed").value)),
         )
+        self._buzzer_frequency_topic = str(
+            self.get_parameter("buzzer_frequency_topic").value
+        )
 
         # State variables — protected by _state_lock for thread safety
         self._state_lock = threading.Lock()
@@ -434,6 +447,7 @@ class STM32HardenedBridge(Node):
         self._last_cmd_vel_time = 0.0
         self._last_send_time = time.monotonic()
         self._last_sent_pair: Optional[Tuple[int, int]] = (None, None)
+        self._stop_command_sent = False
         self._last_encoder_time = 0.0
         self._connection_loss_time = 0.0
         self._reconnect_attempt_time = 0.0
@@ -512,6 +526,9 @@ class STM32HardenedBridge(Node):
             BatteryState, "/stm32/battery", 10
         )
         self._imu_pub = self.create_publisher(Imu, "/stm32/imu", 10)
+        self._ultrasonic_pub = self.create_publisher(
+            Range, "/ultrasonic/range", 10
+        )
         self._odom_pub = self.create_publisher(Odometry, "/stm32/odom", 10)
         self._diagnostics_pub = self.create_publisher(
             DiagnosticArray, "/stm32/diagnostics", 10
@@ -543,6 +560,32 @@ class STM32HardenedBridge(Node):
                 "Motor proof controls ready: "
                 "/stm32/motor_1/enable and /stm32/motor_2/enable"
             )
+        self._buzzer_frequency_sub = self.create_subscription(
+            Int32,
+            self._buzzer_frequency_topic,
+            self._buzzer_frequency_callback,
+            10,
+        )
+
+    def _buzzer_frequency_callback(self, message: Int32) -> None:
+        """Forward a validated tone/off command to the STM32 buzzer."""
+        try:
+            frequency = int(message.data)
+        except (TypeError, ValueError):
+            self.get_logger().error("Rejected non-integer buzzer frequency")
+            return
+
+        if frequency < 0 or frequency > BUZZER_MAX_FREQUENCY_HZ:
+            self.get_logger().error(
+                f"Rejected buzzer frequency {frequency}; expected 0.."
+                f"{BUZZER_MAX_FREQUENCY_HZ} Hz"
+            )
+            return
+
+        payload = bytes([BUZZER_SUBCMD_SET_TONE]) + struct.pack(
+            "<H", frequency
+        )
+        self._send_frame(FUNC_BUZZER, payload)
 
     def _setup_timers(self):
         """Set up ROS2 timers."""
@@ -605,6 +648,7 @@ class STM32HardenedBridge(Node):
                 self._cmd_ang = 0.0
                 self._last_cmd_vel_time = 0.0
                 self._last_sent_pair = (None, None)
+                self._stop_command_sent = False
                 self._motion_armed = False
                 self._estop_active = False
                 self._motor_test_targets = None
@@ -799,6 +843,7 @@ class STM32HardenedBridge(Node):
             last_send = self._last_send_time
             last_sent = self._last_sent_pair
             estop_active = self._estop_active
+            stop_command_sent = self._stop_command_sent
             motor_test_targets = self._motor_test_targets
 
         if motor_test_targets is not None:
@@ -814,13 +859,12 @@ class STM32HardenedBridge(Node):
                     int(motor_test_targets[0] * self._max_speed),
                     int(motor_test_targets[1] * self._max_speed),
                 )
+                self._stop_command_sent = False
             return
 
         if not motion_armed:
-            if not estop_active:
+            if not stop_command_sent and not estop_active:
                 self._send_emergency_stop()  # Not armed is not an emergency
-            else:
-                self._send_emergency_stop(silent=True)
             return
 
         # Check command timeout
@@ -829,10 +873,8 @@ class STM32HardenedBridge(Node):
 
         if stale:
             # No recent commands, send stop (normal idle, not emergency)
-            if not estop_active:
+            if not stop_command_sent and not estop_active:
                 self._send_emergency_stop()
-            else:
-                self._send_emergency_stop(silent=True)
             return
 
         # Apply slew rate limiting
@@ -904,6 +946,8 @@ class STM32HardenedBridge(Node):
         payload.extend(struct.pack("<Bf", 1, right_rps))  # Motor 1 (right)
 
         self._send_frame(FUNC_MOTOR, bytes(payload))
+        with self._state_lock:
+            self._stop_command_sent = False
 
     def _send_emergency_stop(self, silent: bool = False, emergency: bool = False):
         """Send emergency stop command.
@@ -919,6 +963,7 @@ class STM32HardenedBridge(Node):
         self._send_frame(FUNC_MOTOR, bytes([MOTOR_SUBCMD_EMERGENCY_STOP, 0]))
         with self._state_lock:
             self._last_sent_pair = (0, 0)
+            self._stop_command_sent = True
             # Only latch e-stop state for actual emergencies, not normal idle/timeout
             if emergency:
                 self._estop_active = True
@@ -978,9 +1023,18 @@ class STM32HardenedBridge(Node):
                 self.get_logger().debug(f"Received ACK: {payload.hex()}")
 
             elif function_code == FUNC_ERROR:
-                self.get_logger().error(
-                    f"Received error from STM32: {payload.hex()}"
-                )
+                # The frozen firmware protocol reports the expected stopped
+                # state as FUNC_ERROR/0x01. It is emitted after the initial
+                # safety stop and is not a hardware fault. Keep unexpected
+                # error codes visible at ERROR level.
+                if payload == b"\x01":
+                    self.get_logger().debug(
+                        "STM32 acknowledged emergency-stop state"
+                    )
+                else:
+                    self.get_logger().error(
+                        f"Received error from STM32: {payload.hex()}"
+                    )
 
             elif function_code == FUNC_ENCODER:
                 self._parse_encoder_telemetry(payload)
@@ -990,6 +1044,9 @@ class STM32HardenedBridge(Node):
 
             elif function_code == FUNC_IMU:
                 self._parse_imu_telemetry(payload)
+
+            elif function_code == FUNC_ULTRASONIC:
+                self._parse_ultrasonic_telemetry(payload)
 
             elif function_code == FUNC_SELF_TEST:
                 self._parse_self_test_result(payload)
@@ -1070,6 +1127,33 @@ class STM32HardenedBridge(Node):
         except struct.error as e:
             self.get_logger().error(f"Error parsing IMU data: {e}")
 
+    def _parse_ultrasonic_telemetry(self, payload: bytes):
+        """Parse and publish the HC-SR04 range telemetry frame."""
+        if len(payload) < 6:
+            self.get_logger().warn(
+                f"Invalid ultrasonic payload length: {len(payload)}"
+            )
+            return
+
+        distance_mm, echo_us, valid = struct.unpack("<HHB", payload[:5])
+        with self._telemetry_lock:
+            self._telemetry.ultrasonic_distance_m = distance_mm / 1000.0
+            self._telemetry.ultrasonic_echo_us = echo_us
+            self._telemetry.ultrasonic_valid = bool(valid)
+            self._telemetry.timestamp = time.monotonic()
+
+        message = Range()
+        message.header.stamp = self.get_clock().now().to_msg()
+        message.header.frame_id = "ultrasonic_link"
+        message.radiation_type = Range.ULTRASOUND
+        message.field_of_view = 0.523599
+        message.min_range = 0.02
+        message.max_range = 4.0
+        message.range = (
+            distance_mm / 1000.0 if valid else float("nan")
+        )
+        self._ultrasonic_pub.publish(message)
+
     def _parse_self_test_result(self, payload: bytes):
         """Parse self-test result payload."""
         if len(payload) < 4:  # status (1) + test_id (1) + error_code (2)
@@ -1134,6 +1218,9 @@ class STM32HardenedBridge(Node):
                 imu_accel=self._telemetry.imu_accel,
                 imu_gyro=self._telemetry.imu_gyro,
                 timestamp=self._telemetry.timestamp,
+                ultrasonic_distance_m=self._telemetry.ultrasonic_distance_m,
+                ultrasonic_echo_us=self._telemetry.ultrasonic_echo_us,
+                ultrasonic_valid=self._telemetry.ultrasonic_valid,
             )
 
         stamp = self.get_clock().now().to_msg()
@@ -1379,7 +1466,10 @@ def main(args=None):
         pass
     finally:
         bridge.destroy_node()
-        rclpy.shutdown()
+        # ros2 launch may already have shut down the default context after
+        # SIGINT. Avoid a second shutdown raising RCLError during teardown.
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
