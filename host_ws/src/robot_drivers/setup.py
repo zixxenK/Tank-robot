@@ -29,6 +29,8 @@ setup(
             "telemetry_markers = robot_drivers.telemetry_markers:main",
             "stl50b2_lidar = robot_drivers.stl50b2_lidar:main",
             "usb_webcam_bridge = robot_drivers.usb_webcam_bridge:main",
+            "compressed_image_bridge = robot_drivers.compressed_image_bridge:main",
+            "odom_tf_broadcaster = robot_drivers.odom_tf_broadcaster:main",
         ],
     },
 )

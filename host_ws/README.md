@@ -17,25 +17,27 @@ ros2 launch robot_bringup stl50b2.launch.py
 See [`docs/lidar_scanner/STL-50B2_ROCK64.md`](../docs/lidar_scanner/STL-50B2_ROCK64.md)
 for UART2 device-tree and GPIO validation.
 
-For the combined Rock64 visualization graph:
+For the PC-side visualization graph:
 
 ```bash
-ros2 launch robot_bringup rock64_dashboard.launch.py \
-  use_lidar:=true use_camera_bridge:=true use_usb_camera:=true \
-  use_slam:=true use_nav2:=false use_rviz:=true
+bash deployment/pc/run_dashboard.sh
 ```
 
-This exposes ROS topics through rosbridge on port 9091. The existing HTTPS
-endpoint at `https://192.168.1.139:9090/system` is Cockpit's system page, not a
-ROS dashboard and is not implemented in this repository. It cannot display
-`/scan` or camera topics merely because ROS nodes are running. A ROS-aware
-frontend must connect to `ws://192.168.1.139:9091` (or a reverse proxy must
-forward that WebSocket); port 9090 should not be reused for rosbridge.
+The Rock64 acquisition service publishes the ROS graph over DDS. The PC-side
+launch starts the odometry TF completion, Foxglove Bridge on
+`ws://127.0.0.1:8765`, and online SLAM Toolbox. Open Foxglove Desktop on the
+PC and connect to that WebSocket. The existing HTTPS endpoint at
+`https://192.168.1.139:9090/system` is Cockpit's system page, not a ROS
+dashboard and is not implemented in this repository. It should not be reused
+for ROS or Foxglove traffic.
 
-The deployment service currently starts the canonical hardware bringup only.
-The combined dashboard graph is intentionally manual and deferred while the
-sensor links are commissioned. Nav2 remains opt-in until the robot's odom, TF
-tree, costmap parameters, and safety-gated velocity path are validated.
+The deployment service starts hardware acquisition only. The PC dashboard is
+manual and read-only. Nav2 remains opt-in until the robot's odom, TF tree,
+costmap parameters, and safety-gated velocity path are validated.
+
+The historical `rock64_dashboard.launch.py` name remains as a compatibility
+alias for the PC-only launch; it no longer starts hardware or heavy autonomy
+on the Rock64. See [`deployment/pc/README.md`](../deployment/pc/README.md).
 
 Build from this folder:
 

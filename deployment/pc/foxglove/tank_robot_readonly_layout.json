@@ -1,0 +1,47 @@
+{
+  "format": "tank-robot-foxglove-layout-v1",
+  "name": "Tank Robot - Read Only Commissioning",
+  "connection": {
+    "type": "foxglove-websocket",
+    "url": "ws://127.0.0.1:8765"
+  },
+  "panels": [
+    {
+      "type": "3d",
+      "title": "Map and LiDAR",
+      "topics": ["/map", "/scan", "/tf", "/tf_static"],
+      "fixed_frame": "map"
+    },
+    {
+      "type": "image",
+      "title": "ESP32 camera",
+      "topic": "/camera/image_raw/compressed"
+    },
+    {
+      "type": "image",
+      "title": "USB webcam",
+      "topic": "/camera/usb/image_raw/compressed"
+    },
+    {
+      "type": "plot",
+      "title": "Range and motion",
+      "topics": ["/ultrasonic/range", "/stm32/odom", "/stm32/imu"]
+    },
+    {
+      "type": "raw_messages",
+      "title": "Health",
+      "topics": [
+        "/stm32/diagnostics",
+        "/safety/diagnostics",
+        "/teleop/ps5_status"
+      ]
+    }
+  ],
+  "read_only": true,
+  "forbidden_publish_topics": [
+    "/cmd_vel",
+    "/ranger/cmd_vel_safe",
+    "/agent/cmd_vel_proposed",
+    "/nav2/cmd_vel"
+  ]
+}

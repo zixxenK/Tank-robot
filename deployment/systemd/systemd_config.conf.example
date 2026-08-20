@@ -18,7 +18,9 @@ SERIAL_PORT=/dev/rock64_stm32
 CAMERA_IP_STATION=192.168.1.125
 
 # Set to true to launch the ESP32 camera bridge node
-USE_CAMERA_BRIDGE=false
+USE_CAMERA_BRIDGE=true
+USE_COMPRESSED_CAMERA_TRANSPORT=true
+CAMERA_JPEG_QUALITY=70
 
 # Launch the direct STL-50B2 driver from normal robot bringup.
 USE_LIDAR=true
@@ -27,7 +29,7 @@ LIDAR_SYNC_GPIOCHIP=/dev/gpiochip2
 
 # Launch the USB webcam bridge. The ESP32 camera remains /camera/image_raw;
 # the USB camera is published independently as /camera/usb/image_raw.
-USE_USB_CAMERA=false
+USE_USB_CAMERA=true
 USB_CAMERA_DEVICE=/dev/video0
 
 # The web dashboard is external to this repository. ROS topics can be exposed

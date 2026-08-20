@@ -112,6 +112,25 @@ def generate_launch_description() -> LaunchDescription:
         ),
         description="V4L2 device for the USB webcam",
     )
+    use_compressed_camera_transport_arg = DeclareLaunchArgument(
+        "use_compressed_camera_transport",
+        default_value=EnvironmentVariable(
+            "USE_COMPRESSED_CAMERA_TRANSPORT",
+            default_value="false",
+        ),
+        description=(
+            "Republish camera frames as depth-one JPEG topics for PC/Foxglove "
+            "transport"
+        ),
+    )
+    camera_jpeg_quality_arg = DeclareLaunchArgument(
+        "camera_jpeg_quality",
+        default_value=EnvironmentVariable(
+            "CAMERA_JPEG_QUALITY",
+            default_value="70",
+        ),
+        description="JPEG quality for compressed camera transport",
+    )
     hardware_config_arg = DeclareLaunchArgument(
         "hardware_config",
         default_value=PathJoinSubstitution(
@@ -270,6 +289,40 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(LaunchConfiguration("use_usb_camera")),
         output="screen",
     )
+    esp32_camera_compressed = Node(
+        package="robot_drivers",
+        executable="compressed_image_bridge",
+        name="esp32_camera_compressed",
+        parameters=[
+            {
+                "input_topic": "/camera/image_raw",
+                "output_topic": "/camera/image_raw/compressed",
+                "jpeg_quality": LaunchConfiguration("camera_jpeg_quality"),
+                "frame_id": "camera_link",
+            }
+        ],
+        condition=IfCondition(
+            LaunchConfiguration("use_compressed_camera_transport")
+        ),
+        output="screen",
+    )
+    usb_camera_compressed = Node(
+        package="robot_drivers",
+        executable="compressed_image_bridge",
+        name="usb_camera_compressed",
+        parameters=[
+            {
+                "input_topic": "/camera/usb/image_raw",
+                "output_topic": "/camera/usb/image_raw/compressed",
+                "jpeg_quality": LaunchConfiguration("camera_jpeg_quality"),
+                "frame_id": "usb_camera_link",
+            }
+        ],
+        condition=IfCondition(
+            LaunchConfiguration("use_compressed_camera_transport")
+        ),
+        output="screen",
+    )
     motor_bringup_test = Node(
         package="robot_drivers",
         executable="motor_bringup_test",
@@ -292,6 +345,8 @@ def generate_launch_description() -> LaunchDescription:
             lidar_serial_port_arg,
             lidar_sync_gpiochip_arg,
             usb_camera_device_arg,
+            use_compressed_camera_transport_arg,
+            camera_jpeg_quality_arg,
             hardware_config_arg,
             safety_config_arg,
             monitor_battery_arg,
@@ -306,6 +361,8 @@ def generate_launch_description() -> LaunchDescription:
             lidar_tf,
             ultrasonic_tf,
             usb_camera,
+            esp32_camera_compressed,
+            usb_camera_compressed,
             motor_bringup_test,
         ]
     )

@@ -62,6 +62,8 @@ LIDAR_SERIAL_PORT="${LIDAR_SERIAL_PORT:-/dev/ttyS2}"
 LIDAR_SYNC_GPIOCHIP="${LIDAR_SYNC_GPIOCHIP:-/dev/gpiochip2}"
 USE_USB_CAMERA="${USE_USB_CAMERA:-false}"
 USB_CAMERA_DEVICE="${USB_CAMERA_DEVICE:-/dev/video0}"
+USE_COMPRESSED_CAMERA_TRANSPORT="${USE_COMPRESSED_CAMERA_TRANSPORT:-false}"
+CAMERA_JPEG_QUALITY="${CAMERA_JPEG_QUALITY:-70}"
 if [[ "${USE_HARDWARE_BRIDGE}" == "true" && ! -e "${SERIAL_PORT}" ]]; then
   echo "[robot_start] ERROR: Serial port ${SERIAL_PORT} not found." >&2
   exit 1
@@ -105,4 +107,6 @@ exec ros2 launch robot_bringup rock64_bringup.launch.py \
   lidar_serial_port:="${LIDAR_SERIAL_PORT}" \
   lidar_sync_gpiochip:="${LIDAR_SYNC_GPIOCHIP}" \
   use_usb_camera:="${USE_USB_CAMERA}" \
-  usb_camera_device:="${USB_CAMERA_DEVICE}"
+  usb_camera_device:="${USB_CAMERA_DEVICE}" \
+  use_compressed_camera_transport:="${USE_COMPRESSED_CAMERA_TRANSPORT}" \
+  camera_jpeg_quality:="${CAMERA_JPEG_QUALITY}"
