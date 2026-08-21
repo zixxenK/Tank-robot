@@ -9,7 +9,7 @@ User=rock64
 Group=rock64
 
 # Load deployment configuration
-EnvironmentFile=/opt/rock64-robot/deployment/systemd/systemd_config.conf
+EnvironmentFile=-/opt/rock64-robot/deployment/systemd/systemd_config.conf
 
 # Working directory (will be updated by apply_systemd.sh)
 WorkingDirectory=/opt/rock64-robot

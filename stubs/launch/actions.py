@@ -24,6 +24,14 @@ class OpaqueFunction:
 
 
 class IncludeLaunchDescription:
-    def __init__(self, launch_description_source=None, launch_arguments=None):
+    def __init__(self, launch_description_source=None, launch_arguments=None,
+                 condition=None):
         self.launch_description_source = launch_description_source
         self.launch_arguments = launch_arguments
+        self.condition = condition
+
+
+class TimerAction:
+    def __init__(self, period=0.0, actions=None):
+        self.period = period
+        self.actions = actions if actions is not None else []

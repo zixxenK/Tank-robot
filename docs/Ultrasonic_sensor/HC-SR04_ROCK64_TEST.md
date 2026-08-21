@@ -6,19 +6,15 @@ flashed board has the HC-SR04 image.
 
 ## Firmware validation
 
-From an ARM toolchain environment:
+From the Rock64:
 
 ```bash
-cmake -S firmware/stm32_chassis -B firmware/stm32_chassis/build/rock64 \
-  -DCMAKE_TOOLCHAIN_FILE=firmware/stm32_chassis/cmake/gcc-arm-none-eabi.cmake
-cmake --build firmware/stm32_chassis/build/rock64
+bash deployment/scripts/rock64_update_and_flash.sh
 ```
 
-Flash only with the controller disconnected from the HC-SR04:
-
-```bash
-cmake --build firmware/stm32_chassis/build/rock64 --target flash
-```
+This is the only supported STM32 release path. It builds on the Rock64, flashes
+through the Rock64-connected ST-Link, verifies readback, starts the image, and
+runs the safe UART proof before any sensor or motor validation.
 
 The image configures PC8 as the trigger output and PA12 as a rising/falling
 edge input. The legacy PC8/PC9 servo configuration is not safe for this test.

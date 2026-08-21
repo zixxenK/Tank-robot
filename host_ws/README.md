@@ -27,9 +27,9 @@ The Rock64 acquisition service publishes the ROS graph over DDS. The PC-side
 launch starts the odometry TF completion, Foxglove Bridge on
 `ws://127.0.0.1:8765`, and online SLAM Toolbox. Open Foxglove Desktop on the
 PC and connect to that WebSocket. The existing HTTPS endpoint at
-`https://192.168.1.139:9090/system` is Cockpit's system page, not a ROS
-dashboard and is not implemented in this repository. It should not be reused
-for ROS or Foxglove traffic.
+`https://192.168.1.139:9090/system` is Cockpit's external system page, not a
+ROS dashboard; it is outside this repository and must not be reused for ROS or
+Foxglove traffic.
 
 The deployment service starts hardware acquisition only. The PC dashboard is
 manual and read-only. Nav2 remains opt-in until the robot's odom, TF tree,

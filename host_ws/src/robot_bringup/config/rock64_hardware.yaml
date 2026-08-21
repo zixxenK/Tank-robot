@@ -19,7 +19,7 @@
     track_width_m: 0.194
     wheel_separation: 0.194  # Track width in meters (matches track_width_m)
     wheel_radius: 0.065      # TODO: Measure actual wheel/sprocket radius
-    encoder_ticks_per_rev: 3960  # From motors_param.h: 11 pulses * 4 edges * 90:1 gearbox
+    encoder_ticks_per_rev: 1980  # JGB3865-520R45: 11 pulses * 4 edges * 45:1 gearbox
     max_track_speed_mps: 0.8
     input_topic: /cmd_vel
     left_topic: /tracks/left_cmd
@@ -29,6 +29,8 @@
     serial_port: /dev/rock64_stm32
     baud_rate: 1000000
     max_speed: 255
+    motor_output_limit: 1.0   # Full signed command range; STM32 PID/protection remains authoritative
+    stall_current_limit_a: 1.5 # Motor rating reference; current protection is enforced on the controller
     command_rate_hz: 50.0
     cmd_timeout: 0.25
     enable_motor_test_services: true

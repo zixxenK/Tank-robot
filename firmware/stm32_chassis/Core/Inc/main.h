@@ -96,18 +96,14 @@ void Error_Handler(void);
 #define HC_SR04_TRIG_GPIO_Port GPIOC
 #define HC_SR04_ECHO_Pin GPIO_PIN_12
 #define HC_SR04_ECHO_GPIO_Port GPIOA
-/* Retain generated names for legacy code.  PA12 is now reserved for the
- * HC-SR04 ECHO input; PC9 is left unused rather than driven as a servo. */
-#define PWM_SERVO_3_Pin HC_SR04_TRIG_Pin
-#define PWM_SERVO_3_GPIO_Port HC_SR04_TRIG_GPIO_Port
-#define PWM_SERVO_4_Pin GPIO_PIN_9
-#define PWM_SERVO_4_GPIO_Port GPIOC
+/* Only PWM_SERVO_1 is available in the production image.  PC8 and PA12 are
+ * owned by the HC-SR04, and PC9 is intentionally unused.  Do not add aliases
+ * for those pins here: a legacy alias makes it too easy for a caller to drive
+ * an ultrasonic signal as if it were a servo output. */
 #define BUZZER_Pin GPIO_PIN_8
 #define BUZZER_GPIO_Port GPIOA
 #define PWM_SERVO_1_Pin GPIO_PIN_11
 #define PWM_SERVO_1_GPIO_Port GPIOA
-#define PWM_SERVO_2_Pin HC_SR04_ECHO_Pin
-#define PWM_SERVO_2_GPIO_Port HC_SR04_ECHO_GPIO_Port
 #define SBUS_RX_Pin GPIO_PIN_2
 #define SBUS_RX_GPIO_Port GPIOD
 #define BLE_TX_Pin GPIO_PIN_5

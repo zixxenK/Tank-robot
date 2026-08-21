@@ -9,10 +9,11 @@ typedef enum {
 	MOTOR_TYPE_JGB528,
 }MotorTypeEnum;
 
-/* 电机轴每转产生11个脉冲,  计数器在AB相上升下降沿均计数即计数值为脉冲数的4倍, 减速比为90.0。
- * 即电机输出轴每转一圈计数器计数值改变 11.0 * 4.0 * 90.0 = 3960
+/* 电机轴每转产生11个脉冲,  计数器在AB相上升下降沿均计数即计数值为脉冲数的4倍, 减速比为45.0:1。
+ * 即电机输出轴每转一圈计数器计数值改变 11.0 * 4.0 * 45.0 = 1980
  */
-#define MOTOR_JGB520_TICKS_PER_CIRCLE 3960.0f
+/* Tank-Robot production motor: JGB3865-520R45-12, 11 PPR * 4 edges * 45:1. */
+#define MOTOR_JGB520_TICKS_PER_CIRCLE 1980.0f
 #define MOTOR_JGB520_PID_KP  63.0f
 #define MOTOR_JGB520_PID_KI  2.6f
 #define MOTOR_JGB520_PID_KD  2.4f
@@ -45,10 +46,11 @@ typedef enum {
 #define MOTOR_JGB528_PID_KD  12.0f
 #define MOTOR_JGB528_RPS_LIMIT 1.1f 
 
-/* 电机轴每转产生11个脉冲,  计数器在AB相上升下降沿均计数即计数值为脉冲数的4倍, 减速比为90.0。
- * 即电机输出轴每转一圈计数器计数值改变 11.0 * 4.0 * 90.0 = 3960
+/* 电机轴每转产生11个脉冲,  计数器在AB相上升下降沿均计数即计数值为脉冲数的4倍, 减速比为45.0:1。
+ * 即电机输出轴每转一圈计数器计数值改变 11.0 * 4.0 * 45.0 = 1980
  */
-#define MOTOR_DEFAULT_TICKS_PER_CIRCLE 3960.0f
+/* Default follows the Tank-Robot production JGB3865-520R45-12 motor. */
+#define MOTOR_DEFAULT_TICKS_PER_CIRCLE 1980.0f
 #define MOTOR_DEFAULT_PID_KP  63.0f
 #define MOTOR_DEFAULT_PID_KI  2.6f
 #define MOTOR_DEFAULT_PID_KD  2.4f

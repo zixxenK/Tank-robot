@@ -5,8 +5,6 @@ Press WASD / arrow keys to drive the tank; spacebar to stop.
 """
 
 import sys
-import tty
-import termios
 import threading
 
 import rclpy
@@ -53,6 +51,18 @@ class KeyboardTeleop(Node):
         print(BANNER)
 
     def _get_key(self) -> str:
+        # Keep Linux terminal dependencies out of module import time.  This
+        # lets Windows CI import and inspect every packaged node while the
+        # actual keyboard node still fails clearly if launched without a
+        # POSIX terminal implementation.
+        try:
+            import termios
+            import tty
+        except ImportError as exc:
+            raise RuntimeError(
+                "keyboard_teleop requires a POSIX terminal (termios/tty)"
+            ) from exc
+
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
         try:

@@ -21,7 +21,10 @@ All packages are properly configured with `ament_cmake_python` build system:
 
 ### ✅ Robot Bringup Package
 - **package.xml**: Updated with dependencies on perception, navigation, terrain_adaptation
-- **Launch**: `full_stack.launch.py` launches complete autonomous stack
+- **Launch**: `full_stack.launch.py` includes the canonical Rock64 hardware
+  bringup (STM32 bridge, safety gateway, and acquisition nodes) before adding
+  perception, navigation, and terrain adaptation. Do not launch it alongside
+  `rock64_bringup.launch.py`, or duplicate safety/bridge owners will be created.
 
 ## Topic Wiring Diagram
 
@@ -166,10 +169,25 @@ source install/setup.bash
 
 1. **Camera → Perception**: ESP32 camera publishes images to `/camera/image_raw`
 2. **Perception → Navigation**: Object/obstacle detections published for higher-level planning
-3. **Navigation → Terrain**: Path planner outputs `/cmd_vel_planned`
+3. **Navigation → Terrain**: Path planner outputs `/cmd_vel_planned`; when
+   terrain adaptation is disabled, the finite-value relay forwards this topic
+   to `/cmd_vel`
 4. **IMU → Terrain**: STM32 publishes IMU data to `/stm32/imu`
 5. **Terrain → Safety**: Adaptive controller outputs adapted `/cmd_vel`
 6. **Safety → Hardware**: Safety gateway outputs `/ranger/cmd_vel_safe` to STM32
+
+Autonomous path following also fails closed until both `/stm32/odom` and a
+valid `/map` have arrived. Occupancy grids are applied at their published
+dimensions/resolution, and unknown (`-1`) cells are treated as occupied.
+
+### Battery availability boundary
+
+The ROS battery path is implemented end to end, but the current motor-only
+STM32 image intentionally sends an unavailable voltage because the board has
+only one uncalibrated battery ADC channel. Keep `MONITOR_BATTERY=false` until
+the divider is calibrated against the physical pack. The hardware acceptance
+runner reports this as an explicit `SKIP`; enable `MONITOR_BATTERY=true` to
+make finite battery telemetry a required acceptance stage.
 
 ## Configuration Files
 

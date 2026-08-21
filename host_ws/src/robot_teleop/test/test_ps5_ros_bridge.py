@@ -149,6 +149,15 @@ def test_mode_combo_detection(bridge: PS5RosBridge) -> None:
     assert combos_recorded == [("L1", "CROSS"), ("R1", "TRIANGLE")]
 
 
+def test_mode_combo_is_status_only(bridge: PS5RosBridge) -> None:
+    """Unassigned combos are observable but cannot create motion authority."""
+    bridge._on_mode_combo("L1", "CROSS")
+
+    assert bridge._last_mode_combo == "L1+CROSS"
+    assert bridge._status_pub.last_msg.data == "mode_combo=L1+CROSS"
+    assert not bridge._estop_latched
+
+
 def test_find_joystick_device_fallback(tmp_path) -> None:
     """find_joystick_device detects existing devices and falls back cleanly."""
     # Non-existent device returns None if no /dev/input devices exist

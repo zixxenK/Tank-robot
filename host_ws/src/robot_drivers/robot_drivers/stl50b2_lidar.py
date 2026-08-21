@@ -27,6 +27,21 @@ class SyncInputError(RuntimeError):
     """Required header-pin synchronization input is unavailable."""
 
 
+def _as_bool(value: object, default: bool = False) -> bool:
+    """Parse ROS bool parameters safely, including legacy string values."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off", ""}:
+            return False
+    return default
+
+
 class GpioSyncReader:
     """Read rising edges from ROCK64 GPIO2_A3 (header pin 12).
 
@@ -213,12 +228,14 @@ class STL50B2Lidar(Node):
         )
         self._range_min = float(self._parameter("range_min_m", 0.05))
         self._range_max = float(self._parameter("range_max_m", 50.0))
-        self._clockwise = bool(self._parameter("clockwise", False))
+        self._clockwise = _as_bool(
+            self._parameter("clockwise", False), False
+        )
         chip = self._parameter("sync_gpiochip", "/dev/gpiochip2")
         line = int(self._parameter("sync_line_offset", 3))
         global_number = int(self._parameter("sync_global_number", 67))
-        sync_fallback = bool(
-            self._parameter("allow_sysfs_gpio_fallback", True)
+        sync_fallback = _as_bool(
+            self._parameter("allow_sysfs_gpio_fallback", True), True
         )
 
         bins = round(360.0 / self._angle_increment_deg)

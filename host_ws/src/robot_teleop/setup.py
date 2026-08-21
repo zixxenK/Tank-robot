@@ -25,6 +25,7 @@ setup(
             "ps5_ros_bridge    = robot_teleop.ps5_ros_bridge:main",
             "keyboard_teleop   = robot_teleop.keyboard_teleop:main",
             "cmd_vel_to_tracks = robot_teleop.cmd_vel_to_tracks:main",
+            "cmd_vel_relay     = robot_teleop.cmd_vel_relay:main",
             "ps5_device_check  = robot_teleop.ps5_device_check:main",
         ],
     },

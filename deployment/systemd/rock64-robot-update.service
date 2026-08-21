@@ -1,5 +1,5 @@
 [Unit]
-Description=Tank-robot self-update (git pull + conditional rebuild)
+Description=Tank-robot fallback self-update (git pull + conditional rebuild)
 After=network-online.target
 Wants=network-online.target
 

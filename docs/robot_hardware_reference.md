@@ -134,11 +134,18 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Max current per motor channel | 2A |
 | Software | ROS1 and ROS2 SDKs (Python 3), full source for motor control / attitude calc / PC comms |
 
+> **Production-image pin ownership (current):** The legacy four-servo header
+> labels do not describe the active firmware assignment. J1/PA11 is the only
+> enabled SG90 output; J2/PA12 is HC-SR04 ECHO; J4/PC8 is HC-SR04 TRIG; and
+> PC9 is intentionally unused. The older four-servo/timer-remapping notes in
+> this reference document are historical and must not be used to reassign
+> PA12 or PC8.
+
 ### Cross-reference to this project's `rock64_ranger_fw.ioc`
 | Reference board feature | Project's STM32 pin | Match |
 |---|---|---|
 | 4× encoder motor ports | TIM2/TIM3/TIM4/TIM5, CH1+CH2 encoder mode | Exact peripheral match; only 2 of 4 channels are wired to the physical chassis motors (left/right track) |
-| PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | Present but configured as plain `GPIO_Output` in the .ioc, **not** bound to a timer channel — needs remapping onto TIM1 or TIM9 for real hardware PWM |
+| Reference PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | Legacy four-header layout; the production image reserves PA12/PC8 for HC-SR04, leaves PC9 unused, and enables SG90 J1/PA11 only |
 | Serial bus servo port | USART6 (PC6 TX / PC7 RX) + PE7/PE8 as TX/RX bus-direction-enable | Matches Hiwonder's half-duplex bus-servo driver topology exactly |
 | SBUS input | UART5 RX (PD2), 100000 baud, 9-bit, even parity, 2 stop bits | Standard SBUS framing, matches |
 | Rock64 host link | USART1 (PA9 TX / PA10 RX), 1,000,000 baud | WCH USB-UART motor link on the product connector labeled UART1 |
@@ -148,11 +155,11 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Battery sense | ADC1 IN8 on PB0, labeled BATTERY | Standard voltage-divider ADC monitoring |
 | Motor enable | PD3, `GPIO_Input`, labeled MOTOR_ENABLE | Matches reference board's separate motor-enable switch |
 
-**Open item worth resolving in firmware:** the four PWM_SERVO pins are wired as plain GPIO outputs
-in the current `.ioc`, so as configured they can only bit-bang PWM (CPU-timed) rather than use
-hardware timer PWM. TIM1 (4 channels) and TIM9 (2 channels) are both enabled elsewhere in the file
-with PWM-generation channel configs, suggesting the intent was hardware PWM — check whether
-PA11/PA12/PC8/PC9 need remapping onto those timers' alternate-function channels.
+**Production pin ownership is resolved in the current image:** PA11 is the
+single CPU-timed SG90 output, PA12 is the HC-SR04 ECHO EXTI input, PC8 is the
+HC-SR04 TRIG output, and PC9 is intentionally unused. The legacy four-servo
+object array remains only as a compatibility API; channels 2–4 are no-ops and
+must not be wired as active servo outputs.
 
 ---
 
@@ -323,53 +330,17 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 | PD13 | GPIO_Output (LCD_DC) | LCD data/command | LCD data/command select |
 | PD14 | GPIO_Output (LCD_RES) | LCD reset | LCD hardware reset |
 
-### GPIO Outputs (PWM Servo) — CONFIGURATION ISSUE
+### GPIO / HC-SR04 / SG90 ownership (production image)
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PA11 | GPIO_Output (PWM_SERVO_1) | PWM servo 1 | **ISSUE:** Configured as GPIO, not hardware PWM |
-| PA12 | GPIO_Output (PWM_SERVO_2) | PWM servo 2 | **ISSUE:** Configured as GPIO, not hardware PWM |
-| PC8 | GPIO_Output (PWM_SERVO_3) | PWM servo 3 | **ISSUE:** Configured as GPIO, not hardware PWM |
-| PC9 | GPIO_Output (PWM_SERVO_4) | PWM servo 4 | **ISSUE:** Configured as GPIO, not hardware PWM |
+| PA11 | `PWM_SERVO_1` GPIO output | SG90 J1 | Sole production PWM servo output |
+| PA12 | `HC_SR04_ECHO` rising/falling EXTI input | HC-SR04 J2 signal | Never drive as a servo output |
+| PC8 | `HC_SR04_TRIG` GPIO output | HC-SR04 J4 signal | 10 us trigger pulse |
+| PC9 | `UNUSED_PC9` analog | None | Intentionally not assigned |
 
-**Configuration Issue:** These pins are configured as plain GPIO outputs instead of being mapped to timer channels for hardware PWM generation. This limits them to CPU-timed bit-banging PWM instead of efficient hardware PWM. TIM1 and TIM9 have available PWM channels that could be remapped to these pins.
-
-### Pin Configuration Issues & Recommendations
-
-#### Issue 1: PWM Servo Pins Not Using Hardware PWM
-**Problem:** PA11, PA12, PC8, PC9 are configured as GPIO_Output instead of timer PWM channels.
-
-**Impact:**
-- Servo control must use CPU-timed bit-banging PWM instead of hardware PWM
-- Higher CPU usage and less precise timing
-- Potential jitter in servo position control
-- Inconsistent with Hiwonder reference board design
-
-**Available Timer Channels:**
-- TIM1: PE9 (CH1), PE11 (CH2), PE13 (CH3), PE14 (CH4) - already configured for PWM
-- TIM9: PE5 (CH1), PE6 (CH2) - already configured but unused
-- TIM10: PB8 (CH1) - already configured but unused
-- TIM11: PB9 (CH1) - already configured but unused
-
-**Recommendation Options:**
-1. **Remap PA11/PA12 to TIM1/TIM9:**
-   - PA11 can be remapped to TIM1_CH1 (AF1) or TIM9_CH1 (AF3)
-   - PA12 can be remapped to TIM1_CH2 (AF1) or TIM9_CH2 (AF3)
-   - Requires changing alternate function in CubeMX
-
-2. **Remap PC8/PC9 to TIM3/TIM4:**
-   - PC8 can be remapped to TIM3_CH3 (AF2)
-   - PC9 can be remapped to TIM3_CH4 (AF2)
-   - Requires enabling TIM3 PWM generation in CubeMX
-
-3. **Use Existing PWM Pins:**
-   - Reassign servo connections to use PE9/PE11/PE13/PE14 (TIM1) or PE5/PE6 (TIM9)
-   - Requires hardware rewiring but no CubeMX timer reconfiguration
-
-**Recommended Approach:** Option 1 (remap PA11/PA12 to TIM9) as it:
-- Provides hardware PWM without hardware changes
-- TIM9 is a 16-bit timer suitable for servo PWM (50Hz, 1-2ms pulse)
-- Minimal CubeMX reconfiguration required
-- Matches typical servo PWM requirements
+The legacy reference-board timer-remapping suggestions are historical and do
+not apply to the production image. Changing PA12 or PC8 back to servo outputs
+would break ultrasonic capture and is not an approved firmware change.
 
 #### Issue 2: WCH motor transport documentation
 **Resolution:** The approved custom image uses the physical UART1 connector

@@ -44,6 +44,19 @@ fi
 # graph and stale serial bridge.
 export HOST_WS_PATH="${REPO_ROOT}/host_ws"
 
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
+export RMW_IMPLEMENTATION="${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
+export ROS_LOCALHOST_ONLY="${ROS_LOCALHOST_ONLY:-0}"
+if [[ "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "1" || "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "true" ]]; then
+  if [[ -z "${ROS_DISCOVERY_SERVER:-}" && -z "${ROCK64_IP:-}" ]]; then
+    echo "[robot_start] ERROR: discovery-server mode requires ROCK64_IP or ROS_DISCOVERY_SERVER." >&2
+    exit 1
+  fi
+  export ROS_DISCOVERY_SERVER="${ROS_DISCOVERY_SERVER:-${ROCK64_IP}:11811}"
+else
+  unset ROS_DISCOVERY_SERVER
+fi
+
 # ── Environment detection & validation ────────────────────────────────────
 echo "[robot_start] Rock64 Ranger starting..."
 echo "[robot_start] Hostname : $(hostname)"
@@ -58,7 +71,10 @@ USE_TELEOP="${USE_TELEOP:-true}"
 PS5_JOY_DEVICE="${PS5_JOY_DEVICE:-/dev/input/ps5_controller}"
 MONITOR_BATTERY="${MONITOR_BATTERY:-false}"
 USE_AUDIO="${USE_AUDIO:-true}"
-USE_LIDAR="${USE_LIDAR:-true}"
+# LiDAR is optional and the canonical deployment config defaults it off until
+# the UART and sync GPIO are physically commissioned. Do not surprise-boot a
+# driver against an absent /dev/ttyS2 when the config file is missing.
+USE_LIDAR="${USE_LIDAR:-false}"
 LIDAR_SERIAL_PORT="${LIDAR_SERIAL_PORT:-/dev/ttyS2}"
 LIDAR_SYNC_GPIOCHIP="${LIDAR_SYNC_GPIOCHIP:-/dev/gpiochip2}"
 LIDAR_BAUDRATE="${LIDAR_BAUDRATE:-115200}"

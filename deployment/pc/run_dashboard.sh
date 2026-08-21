@@ -30,8 +30,14 @@ fi
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
 export RMW_IMPLEMENTATION="${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
 export ROS_LOCALHOST_ONLY="0"
-# The Rock64 hosts the deterministic discovery server so WSL NAT does not
-# have to carry DDS multicast between the PC and the robot.
-export ROS_DISCOVERY_SERVER="${ROS_DISCOVERY_SERVER:-192.168.1.139:11811}"
+# Normal LAN DDS discovery is the default. Preserve an explicitly supplied
+# server, or opt in to the Rock64 server with ROCK64_USE_DISCOVERY_SERVER=1.
+if [[ -n "${ROS_DISCOVERY_SERVER:-}" ]]; then
+  export ROS_DISCOVERY_SERVER
+elif [[ "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "1" || "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "true" ]]; then
+  export ROS_DISCOVERY_SERVER="${ROCK64_IP:-192.168.1.139}:11811"
+else
+  unset ROS_DISCOVERY_SERVER
+fi
 
 exec ros2 launch robot_bringup pc_dashboard.launch.py "$@"

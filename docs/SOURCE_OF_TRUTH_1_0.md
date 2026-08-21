@@ -16,6 +16,8 @@ Treat it as authoritative for all future firmware, Rock64, and agent work.
 | Motor protocol TX | USART1 bounded blocking writes |
 | Serial-servo bus | `USART6` |
 | Programming/debug | ST-Link `0483:3748` over SWD only |
+| Motors | Hiwonder JGB3865-520R45-12, 12V, 45:1, 1980 ticks/output rev |
+| Host motor output cap | 60% normalized command by default; STM32 PID remains authoritative |
 
 `USART3` on `PD8/PD9` is the stock Hiwonder 7in1/factory reference endpoint.
 It is not the Rock64 host link for this robot and must not be selected for a
@@ -32,6 +34,15 @@ powershell -File scripts/reflash_rock64.ps1 -Port UART1
 The workflow must verify the ST-Link readback before testing the motor link.
 The stable serial device is `/dev/rock64_stm32`; do not use ST-Link or native
 USB CDC as the motor-data port.
+
+Development PCs must never flash the STM32 directly. PC-side scripts may sync
+source to the Rock64 and invoke the Rock64-owned release workflow, but OpenOCD
+or ST-Link programming from Windows/WSL is intentionally blocked.
+
+The Rock64 Pi-2 header bus allocation is documented in
+[ROCK64_PI2_BUS_PINOUT.md](ROCK64_PI2_BUS_PINOUT.md). Those UART/I2C/SPI pins
+are for direct Rock64 sensors; they do not replace the production WCH
+USB-UART motor link.
 
 For a raised-track bench test, the bounded direct test is:
 

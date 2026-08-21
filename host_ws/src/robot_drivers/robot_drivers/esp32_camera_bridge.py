@@ -24,6 +24,10 @@ from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import Image
 
 
+MAX_MJPEG_BUFFER_BYTES = 8 * 1024 * 1024
+FRAME_FRESHNESS_TIMEOUT_S = 5.0
+
+
 class ESP32CameraBridge(Node):
     """Streams MJPEG from ESP32 camera and republishes as ROS Image."""
 
@@ -58,6 +62,7 @@ class ESP32CameraBridge(Node):
         self._decode_errors = 0
         self._stream_errors = 0
         self._stream_connected = False
+        self._last_frame_time = 0.0
 
         self._thread = threading.Thread(target=self._stream_loop, daemon=True)
         self._thread.start()
@@ -78,6 +83,19 @@ class ESP32CameraBridge(Node):
                         if not chunk:
                             break
                         buf += chunk
+                        if len(buf) > MAX_MJPEG_BUFFER_BYTES:
+                            # Preserve the newest possible frame boundary and
+                            # discard an unbounded malformed prefix.
+                            boundary_start = buf.rfind(boundary)
+                            if boundary_start >= 0:
+                                buf = buf[boundary_start:]
+                            else:
+                                buf = buf[-MAX_MJPEG_BUFFER_BYTES:]
+                            self._stream_errors += 1
+                            self.get_logger().warn(
+                                "MJPEG parser buffer exceeded limit; "
+                                "discarded stale stream data"
+                            )
 
                         # Parse MJPEG boundary
                         while boundary in buf:
@@ -97,6 +115,8 @@ class ESP32CameraBridge(Node):
                             buf = payload[next_bound:]
                             self._publish_frame(jpeg)
                 self._stream_connected = False
+                if self._running:
+                    self._stop_wait(2.0)
 
             except Exception as exc:  # noqa: BLE001
                 self._stream_connected = False
@@ -121,12 +141,27 @@ class ESP32CameraBridge(Node):
         msg.header.frame_id = "camera_link"
         self._pub.publish(msg)
         self._frame_count += 1
+        self._last_frame_time = time.monotonic()
+
+    def _stop_wait(self, seconds: float) -> None:
+        """Wait between reconnects without delaying shutdown unnecessarily."""
+        deadline = time.monotonic() + max(0.0, seconds)
+        while self._running:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                return
+            time.sleep(min(0.1, remaining))
 
     def _publish_diagnostics(self):
         """Publish stream and frame counters for dashboard health checks."""
         status = DiagnosticStatus()
         status.name = "esp32_camera_bridge: ESP32 camera"
-        if self._stream_connected and self._frame_count:
+        frame_fresh = (
+            self._last_frame_time > 0.0
+            and time.monotonic() - self._last_frame_time
+            <= FRAME_FRESHNESS_TIMEOUT_S
+        )
+        if self._stream_connected and frame_fresh:
             status.level = DiagnosticStatus.OK
             status.message = "Streaming frames"
         elif self._stream_connected:
@@ -143,6 +178,7 @@ class ESP32CameraBridge(Node):
                     value=str(self._stream_connected),
                 ),
                 KeyValue(key="frames", value=str(self._frame_count)),
+                KeyValue(key="frame_fresh", value=str(frame_fresh)),
                 KeyValue(key="decode_errors", value=str(self._decode_errors)),
                 KeyValue(key="stream_errors", value=str(self._stream_errors)),
             ]
@@ -156,6 +192,8 @@ class ESP32CameraBridge(Node):
         self._running = False
         if hasattr(self, "_diagnostics_timer"):
             self._diagnostics_timer.cancel()
+        if hasattr(self, "_thread") and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
         super().destroy_node()
 
 

@@ -2,10 +2,11 @@
 """Base path planner interface and utilities."""
 
 import numpy as np
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
 import heapq
+import math
 
 
 class PlannerType(Enum):
@@ -66,24 +67,75 @@ class GridMap:
             height: Height in meters
             resolution: Grid cell size in meters
         """
-        self._width = width
-        self._height = height
-        self._resolution = resolution
+        if width <= 0 or height <= 0 or resolution <= 0:
+            raise ValueError("grid dimensions and resolution must be positive")
+        self._width = float(width)
+        self._height = float(height)
+        self._resolution = float(resolution)
         self._grid_width = int(width / resolution)
         self._grid_height = int(height / resolution)
         self._grid = np.zeros((self._grid_height, self._grid_width), dtype=np.uint8)
         self._obstacles: List[Obstacle] = []
+        self._origin = Point(0.0, 0.0)
+
+    @property
+    def resolution(self) -> float:
+        """Return the cell resolution in metres."""
+        return self._resolution
+
+    @property
+    def grid_width(self) -> int:
+        """Return the number of horizontal cells in the map."""
+        return self._grid_width
+
+    @property
+    def grid_height(self) -> int:
+        """Return the number of vertical cells in the map."""
+        return self._grid_height
+
+    def reconfigure_from_occupancy_grid(
+        self,
+        width: int,
+        height: int,
+        resolution: float,
+    ) -> None:
+        """Match the grid exactly to a ROS OccupancyGrid geometry.
+
+        The previous planner kept its startup-sized grid even after receiving
+        a map with different dimensions or resolution. That made obstacle
+        coordinates inconsistent with ``world_to_grid`` and could silently
+        plan through occupied cells.
+        """
+        width = int(width)
+        height = int(height)
+        resolution = float(resolution)
+        if width <= 0 or height <= 0 or not math.isfinite(resolution):
+            raise ValueError("occupancy grid geometry must be finite and positive")
+        if resolution <= 0.0:
+            raise ValueError("occupancy grid resolution must be positive")
+
+        self._resolution = resolution
+        self._grid_width = width
+        self._grid_height = height
+        self._width = width * resolution
+        self._height = height * resolution
+        self._grid = np.zeros((height, width), dtype=np.uint8)
+        self._obstacles.clear()
+
+    def set_origin(self, origin: Point) -> None:
+        """Set the world coordinate of the grid's lower-left corner."""
+        self._origin = Point(float(origin.x), float(origin.y))
 
     def world_to_grid(self, point: Point) -> Tuple[int, int]:
         """Convert world coordinates to grid coordinates."""
-        grid_x = int(point.x / self._resolution)
-        grid_y = int(point.y / self._resolution)
+        grid_x = math.floor((point.x - self._origin.x) / self._resolution)
+        grid_y = math.floor((point.y - self._origin.y) / self._resolution)
         return grid_x, grid_y
 
     def grid_to_world(self, grid_x: int, grid_y: int) -> Point:
         """Convert grid coordinates to world coordinates."""
-        x = grid_x * self._resolution
-        y = grid_y * self._resolution
+        x = self._origin.x + (grid_x + 0.5) * self._resolution
+        y = self._origin.y + (grid_y + 0.5) * self._resolution
         return Point(x, y)
 
     def is_occupied(self, grid_x: int, grid_y: int) -> bool:
@@ -136,7 +188,16 @@ class GridMap:
         for dx, dy in directions:
             nx, ny = grid_x + dx, grid_y + dy
             if 0 <= nx < self._grid_width and 0 <= ny < self._grid_height:
-                if not self.is_occupied(nx, ny):
+                # Do not cut diagonally through two touching obstacles.
+                diagonal_blocked = (
+                    dx != 0
+                    and dy != 0
+                    and (
+                        self.is_occupied(grid_x + dx, grid_y)
+                        or self.is_occupied(grid_x, grid_y + dy)
+                    )
+                )
+                if not diagonal_blocked and not self.is_occupied(nx, ny):
                     neighbors.append((nx, ny))
         
         return neighbors

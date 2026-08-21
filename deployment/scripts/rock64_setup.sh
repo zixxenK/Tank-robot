@@ -171,6 +171,7 @@ cat > "${DEPLOY_DIR}/systemd/systemd_config.conf" <<EOF
 
 # Network
 ROCK64_IP=${ROCK64_IP}
+ROCK64_USE_DISCOVERY_SERVER=0
 
 # Hardware
 SERIAL_PORT=${SERIAL_PORT}
@@ -183,6 +184,8 @@ CAMERA_JPEG_QUALITY=70
 USE_AUDIO=true
 USE_TELEOP=true
 PS5_JOY_DEVICE=/dev/input/ps5_controller
+MONITOR_BATTERY=false
+ROCK64_SELF_UPDATE_ENABLED=false
 
 # Direct LiDAR acquisition
 USE_LIDAR=false
@@ -198,7 +201,8 @@ USE_HARDWARE_BRIDGE=true
 ROS_DISTRO=${RESOLVED_DISTRO}
 ROS_DOMAIN_ID=42
 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-ROS_DISCOVERY_SERVER=${ROCK64_IP}:11811
+# Discovery server mode is opt-in. source_host_ws.sh and robot_start.sh derive
+# this address from ROCK64_IP only when ROCK64_USE_DISCOVERY_SERVER=1.
 ROBOT_NAMESPACE=rock64_1
 HOST_WS_PATH=${HOST_WS}
 EOF

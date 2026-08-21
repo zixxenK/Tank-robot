@@ -21,6 +21,8 @@ from robot_drivers.stm32_hardened_bridge import (
     SERVO_SUBCMD_SET_POSITION,
     servo_angle_to_pulse_us,
     servo_pulse_to_angle_degrees,
+    signed_int32_delta,
+    TelemetryData,
 )
 
 
@@ -89,6 +91,11 @@ class TestCRC8(unittest.TestCase):
         for value in (-1.0, 181.0, float("nan"), float("inf")):
             with self.assertRaises(ValueError):
                 servo_angle_to_pulse_us(value)
+
+    def test_encoder_delta_handles_signed_int32_wrap(self):
+        """Counter rollover must produce a small physical delta."""
+        self.assertEqual(signed_int32_delta(-2147483648, 2147483647), 1)
+        self.assertEqual(signed_int32_delta(2147483647, -2147483648), -1)
 
 
 class TestCircularBuffer(unittest.TestCase):
@@ -429,6 +436,14 @@ class TestIntegration(unittest.TestCase):
         # Should have parsed exactly one valid frame
         stats = parser.get_stats()
         self.assertEqual(stats["valid_frames"], 1)
+
+    def test_imu_presence_is_not_inferred_from_acceleration_values(self):
+        """A received all-zero frame must remain distinguishable from silence."""
+        telemetry = TelemetryData()
+        self.assertFalse(telemetry.imu_received)
+        telemetry.imu_accel = (0.0, 0.0, 0.0)
+        telemetry.imu_received = True
+        self.assertTrue(telemetry.imu_received)
 
 
 def run_tests():

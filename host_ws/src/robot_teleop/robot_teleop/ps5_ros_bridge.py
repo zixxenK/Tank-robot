@@ -26,18 +26,11 @@ Physical chassis (docs/robot_hardware_reference.md §2, Hiwonder SKU 21030201
     Encoder                        : 11 PPR hall quadrature, motor shaft
     Layout                         : 2 drive motors total (left track, right track) — not 4WD
 
->>> UNRESOLVED SPEC CONFLICT — do not silently resolve, re-check each session:
-    docs/robot_hardware_reference.md names the motor "...R45-12" (R45 = 45:1
-    gearbox, which the same doc computes as 1,980 ticks/rev), but the
-    firmware actually compiled and running selects the 90:1 constant set for
-    all 4 channels:
-        chassis_porting.c:107-117   -> set_motor_type(motors[i], MOTOR_TYPE_JGB520)
-        motors_param.h               -> MOTOR_JGB520_TICKS_PER_CIRCLE = 3960.0f
-                                         (11 PPR * 4x quad * 90:1)
-    rock64_hardware.yaml's encoder_ticks_per_rev: 3960 agrees with the
-    firmware, not the product-page gear ratio in the doc. Until someone
-    physically confirms the gearbox ratio (count shaft turns per output
-    revolution), trust the firmware constant (3960) for anything tick-based.
+Motor/encoder contract:
+    JGB3865-520R45-12 uses a 45:1 gearbox. With 11 PPR Hall quadrature counted
+    on all 4 edges, rock64_hardware.yaml's encoder_ticks_per_rev is:
+
+        11 pulses/rev * 4 edges/pulse * 45 = 1980 ticks/output-rev
 
 Effective host-side speed ceiling actually enforced on the wire (NOT the
 JGB520 PID hard clamp of 1.5 rps in encoder_motor.c:71, which never binds
@@ -55,10 +48,10 @@ figure below inherits that uncertainty until it's measured with calipers.
 
 stm32_hardened_bridge.py's own conversion (for reference, not duplicated
 here): left_vel = lin - ang; right_vel = lin + ang; both divided by
-max(1.0, |left_vel|, |right_vel|) before scaling to max_speed=255 PWM
-counts. This node's calculate_velocities() below produces exactly the
-inverse encoding on purpose (unbraked round-trip is the identity), so the
-per-track ratio requested here survives that downstream normalization
+max(1.0, |left_vel|, |right_vel|) before applying the conservative host
+motor_output_limit cap. This node's calculate_velocities() below produces
+exactly the inverse encoding on purpose (unbraked round-trip is the identity),
+so the per-track ratio requested here survives that downstream normalization
 unchanged even at stick saturation.
 """
 
@@ -339,7 +332,7 @@ class PS5RosBridge(Node):
         #     optional speed ceiling below; NOT used to reshape steering math.
         self.declare_parameter("track_width_m",      0.194)
         self.declare_parameter("wheel_radius",       0.065)  # TODO unmeasured, see module docstring
-        self.declare_parameter("encoder_ticks_per_rev", 3960)
+        self.declare_parameter("encoder_ticks_per_rev", 1980)
         self.declare_parameter("firmware_rps_ceiling", self._FIRMWARE_RPS_CEILING)
         self.declare_parameter("enforce_physical_speed_ceiling", True)
 
@@ -388,7 +381,7 @@ class PS5RosBridge(Node):
 
         self._track_width = float(self.get_parameter("track_width_m").value or 0.194)
         self._wheel_radius = float(self.get_parameter("wheel_radius").value or 0.065)
-        self._ticks_per_rev = int(self.get_parameter("encoder_ticks_per_rev").value or 3960)
+        self._ticks_per_rev = int(self.get_parameter("encoder_ticks_per_rev").value or 1980)
         self._firmware_rps_ceiling = float(
             self.get_parameter("firmware_rps_ceiling").value or self._FIRMWARE_RPS_CEILING
         )
@@ -448,6 +441,7 @@ class PS5RosBridge(Node):
         self._armed = not self._require_arm
         self._estop_latched = False
         self._last_mode = "NORMAL"
+        self._last_mode_combo = ""
 
         self._joy_fd = self._open_joystick(self._joy_dev)
 
@@ -550,8 +544,22 @@ class PS5RosBridge(Node):
             self._on_mode_combo("R1", btn_name)
 
     def _on_mode_combo(self, modifier: str, action_button: str):
-        """Extensible handler for one-shot L1/R1 + button combos."""
-        pass
+        """Record a one-shot modifier combo without issuing motion commands.
+
+        Combos are intentionally status-only until a specific, reviewed
+        action is assigned to one.  Previously this extension point silently
+        discarded every event, which made controller commissioning and
+        diagnostics impossible to verify.
+        """
+        combo = f"{str(modifier).upper()}+{str(action_button).upper()}"
+        self._last_mode_combo = combo
+        self.get_logger().info(
+            f"[Mode Combo] {combo} recorded; no motion action is assigned"
+        )
+        if self._status_pub is not None:
+            status = String()
+            status.data = f"mode_combo={combo}"
+            self._status_pub.publish(status)
 
     def _current_mode_scale(self) -> tuple[float, str]:
         """Continuous throttle/steer scale from L1 (precision) / R1 (boost)."""

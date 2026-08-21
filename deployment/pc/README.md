@@ -1,5 +1,35 @@
 # PC Foxglove dashboard
 
+## One-command ready robot workflow
+
+Use the PC as the deployment authority and the Rock64 as the runtime owner:
+
+```powershell
+.\deployment\pc\robot_ready.ps1
+```
+
+This transfers the current source/configuration, rebuilds the Rock64 host
+workspace with the repository's safe sync script, restarts the single
+`rock64-robot.service` hardware owner, and attaches the read-only Foxglove
+dashboard over SSH. It does not flash the STM32 by default. For a deliberate
+firmware release, use `-FlashFirmware` with the tracks secured and the ST-Link
+connected.
+
+For hands-off deployment of tested changes, commit them locally and run:
+
+```powershell
+.\deployment\pc\watch_commits_and_sync.ps1
+```
+
+The watcher intentionally ignores dirty working trees and deploys only new
+commits. The Rock64 systemd service is enabled at installation, so it starts
+the robot graph automatically whenever the Rock64 receives power and boots.
+
+The current design exposes the complete robot in one dashboard connection:
+the Rock64 publishes sensors and safety state, while the PC runs the display,
+TF completion, and optional SLAM. Motion remains on the PS5/safety path; the
+dashboard is read-only by design.
+
 The PC dashboard is intentionally separate from the Rock64 acquisition
 service. The Rock64 publishes hardware data over ROS 2 DDS; WSL2 Ubuntu 22.04
 runs the PC-side TF completion, Foxglove Bridge, and SLAM Toolbox.

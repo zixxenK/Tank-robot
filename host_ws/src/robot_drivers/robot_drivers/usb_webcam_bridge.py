@@ -3,6 +3,7 @@
 import glob
 import os
 import threading
+import time
 
 import cv2
 import rclpy
@@ -25,6 +26,7 @@ class UsbWebcamBridge(Node):
         self.declare_parameter("width", 640)
         self.declare_parameter("height", 480)
         self.declare_parameter("fps", 15.0)
+        self.declare_parameter("frame_timeout_s", 2.0)
 
         requested_device = str(self.get_parameter("device").value).strip()
         if requested_device.lower() == "auto":
@@ -45,6 +47,9 @@ class UsbWebcamBridge(Node):
         self._width = int(self.get_parameter("width").value)
         self._height = int(self.get_parameter("height").value)
         self._fps = float(self.get_parameter("fps").value)
+        self._frame_timeout_s = max(
+            0.5, float(self.get_parameter("frame_timeout_s").value)
+        )
         image_qos = QoSProfile(
             depth=1,
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
@@ -61,6 +66,7 @@ class UsbWebcamBridge(Node):
         self._open_failures = 0
         self._read_failures = 0
         self._capture_open = False
+        self._last_frame_time = 0.0
         self._thread = threading.Thread(
             target=self._capture_loop,
             name="usb-webcam",
@@ -103,6 +109,7 @@ class UsbWebcamBridge(Node):
                 message.header.frame_id = self._frame_id
                 self._publisher.publish(message)
                 self._frame_count += 1
+                self._last_frame_time = time.monotonic()
                 self._stop.wait(period)
             capture.release()
             self._capture = None
@@ -112,7 +119,12 @@ class UsbWebcamBridge(Node):
         """Publish V4L2 counters for dashboard health checks."""
         status = DiagnosticStatus()
         status.name = "usb_webcam_bridge: USB camera"
-        if self._capture_open and self._frame_count:
+        frame_fresh = (
+            self._last_frame_time > 0.0
+            and time.monotonic() - self._last_frame_time
+            <= self._frame_timeout_s
+        )
+        if self._capture_open and frame_fresh:
             status.level = DiagnosticStatus.OK
             status.message = "Streaming frames"
         elif self._capture_open:
@@ -126,6 +138,7 @@ class UsbWebcamBridge(Node):
                 KeyValue(key="device", value=str(self._device)),
                 KeyValue(key="capture_open", value=str(self._capture_open)),
                 KeyValue(key="frames", value=str(self._frame_count)),
+                KeyValue(key="frame_fresh", value=str(frame_fresh)),
                 KeyValue(key="open_failures", value=str(self._open_failures)),
                 KeyValue(key="read_failures", value=str(self._read_failures)),
             ]

@@ -21,6 +21,7 @@ def generate_launch_description():
                 'goal_topic': '/goal_pose',
                 'path_topic': '/planned_path',
                 'cmd_vel_topic': '/cmd_vel',
+                'odom_topic': '/stm32/odom',
                 'diagonal': True,
             }],
             output='screen',

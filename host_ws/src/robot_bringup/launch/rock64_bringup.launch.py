@@ -311,6 +311,7 @@ def generate_launch_description() -> LaunchDescription:
             "width": 640,
             "height": 480,
             "fps": 15.0,
+            "frame_timeout_s": 2.0,
         }],
         condition=IfCondition(LaunchConfiguration("use_usb_camera")),
         output="screen",

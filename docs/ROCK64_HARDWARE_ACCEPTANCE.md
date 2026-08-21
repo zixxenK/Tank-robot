@@ -52,20 +52,26 @@ The runner performs and prints these stages one at a time:
 
 1. STM32 UART: requires multiple fresh, CRC-valid firmware frames.
 2. Encoders: requires fresh left and right count messages.
-3. IMU: requires finite, physically plausible acceleration and gyro samples.
-4. HC-SR04: requires multiple fresh, finite echoes in its valid range.
-5. PS5: requires `connected=1`, then prompts for one real stick/button input
+3. Odometry: requires fresh finite pose/twist messages with a unit quaternion;
+   this proves the derived navigation input, not only the raw encoder topic.
+4. IMU: requires finite, physically plausible acceleration and gyro samples.
+5. HC-SR04: requires multiple fresh, finite echoes in its valid range.
+6. Battery voltage: reported as `SKIP` by default because this firmware image
+   has one uncalibrated ADC channel. Set `MONITOR_BATTERY=true` (or
+   `require_battery:=true`) after the divider and pack are calibrated to make
+   finite 9.0–13.0 V telemetry a required stage.
+7. PS5: requires `connected=1`, then prompts for one real stick/button input
    while the ROS emergency stop holds the motors.
-6. ESP32 camera: requires advancing, valid `/camera/image_raw` frames.
-7. USB camera: requires advancing, valid `/camera/usb/image_raw` frames.
-8. STL-50B2: skipped unless `--with-lidar` is supplied.
-9. SG90: commands center/low/high/center and requires a fresh STM32
+8. ESP32 camera: requires advancing, valid `/camera/image_raw` frames.
+9. USB camera: requires advancing, valid `/camera/usb/image_raw` frames.
+10. STL-50B2: skipped unless `--with-lidar` is supplied.
+11. SG90: commands center/low/high/center and requires a fresh STM32
    acknowledgement after every position. Watch the servo make the sweep; an
    SG90 has no position-feedback wire, so ROS can prove the command and PWM
    path but cannot electrically measure the horn angle.
-10. M1/left track: at the fixed 0.10 commissioning speed, requires left
-    encoder movement and little right-encoder movement.
-11. M2/right track: performs the corresponding independent proof.
+12. M1/left track: at the fixed 0.10 commissioning speed, requires left
+   encoder movement and little right-encoder movement.
+13. M2/right track: performs the corresponding independent proof.
 
 Every exit path requests both motor stops and latches `/safety/e_stop=true`.
 After inspecting the result, press the PS5 **Options** button to clear that

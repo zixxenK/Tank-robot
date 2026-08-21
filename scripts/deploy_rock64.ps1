@@ -44,11 +44,12 @@ try {
       "--exclude=.git", "--exclude=.idea", "--exclude=.vscode",
       "--exclude=.pytest_cache", "--exclude=firmware/stm32_chassis/build",
       "--exclude=firmware/esp32_sensors/.pio",
+      "--exclude=deployment/scripts/archive",
       "--exclude=host_ws/build", "--exclude=host_ws/install", "--exclude=host_ws/log",
       "--exclude=log", "--exclude=*.bin", "--exclude=*.elf", "--exclude=*.hex",
       "--exclude=*.map", "--exclude=firmware_backup", "--exclude=ros2_ws_backup",
       "--exclude=microros_agent_ws", "--exclude=uart_ros_bridge",
-      "deployment", "scripts", "host_ws/src", "firmware/stm32_chassis", "firmware/esp32_sensors", "Makefile"
+      "deployment", "scripts", "tests", "stubs", "docs", "host_ws/src", "firmware/stm32_chassis", "firmware/esp32_sensors", "Makefile", "pytest.ini", "run_e2e.sh", "run_e2e.ps1"
     )
     Invoke-NativeChecked "tar.exe" $tarArgs
   } finally {
@@ -58,9 +59,34 @@ try {
   Write-Host "Uploading archive to $target ..."
   Invoke-NativeChecked "scp.exe" @("$archive", "$target`:$remoteArchive")
 
-  $extract = "mkdir -p '$RemoteRoot'; tar -xzf '$remoteArchive' -C '$RemoteRoot'; rm -f '$remoteArchive'"
+  $extract = @"
+set -e
+mkdir -p '$RemoteRoot'
+# The archive is the complete source snapshot for these owned trees. Remove
+# only those trees first so files deleted locally cannot remain as stale ROS
+# nodes, launch files, or firmware sources on the Rock64.
+rm -f '$RemoteRoot/.codex-preserved-systemd_config.conf'
+if [ -f '$RemoteRoot/deployment/systemd/systemd_config.conf' ]; then
+  # Keep the Rock64's machine-local operator configuration across replacement
+  # of the tracked deployment tree.
+  cp '$RemoteRoot/deployment/systemd/systemd_config.conf' \
+     '$RemoteRoot/.codex-preserved-systemd_config.conf'
+fi
+rm -rf '$RemoteRoot/deployment' '$RemoteRoot/scripts' '$RemoteRoot/tests' '$RemoteRoot/stubs' '$RemoteRoot/docs' '$RemoteRoot/host_ws/src' '$RemoteRoot/firmware/stm32_chassis' '$RemoteRoot/firmware/esp32_sensors'
+rm -f '$RemoteRoot/Makefile' '$RemoteRoot/pytest.ini' '$RemoteRoot/run_e2e.sh' '$RemoteRoot/run_e2e.ps1'
+tar --no-same-owner -xzf '$remoteArchive' -C '$RemoteRoot'
+if [ -f '$RemoteRoot/.codex-preserved-systemd_config.conf' ]; then
+  mkdir -p '$RemoteRoot/deployment/systemd'
+  cp '$RemoteRoot/.codex-preserved-systemd_config.conf' \
+     '$RemoteRoot/deployment/systemd/systemd_config.conf'
+fi
+rm -f '$RemoteRoot/.codex-preserved-systemd_config.conf'
+rm -f '$remoteArchive'
+find '$RemoteRoot/scripts' '$RemoteRoot/deployment/scripts' -type f -name '*.sh' -exec chmod 0755 {} +
+chmod 0755 '$RemoteRoot/run_e2e.sh'
+"@
   Write-Host "Installing source on Rock64 ..."
-  Invoke-NativeChecked "ssh.exe" @("-tt", $target, $extract)
+  Invoke-NativeChecked "ssh.exe" @($target, $extract)
 
   $remoteCommand = "STM32_BUILD_JOBS=4 bash '$RemoteRoot/deployment/scripts/rock64_update_and_flash.sh'"
   Write-Host "Starting mandatory Rock64 build/flash/proof workflow for UART1/USART1. Sudo may prompt for the Rock64 password."

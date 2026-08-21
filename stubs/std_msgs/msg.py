@@ -12,6 +12,11 @@ class Float32:
         self.data = 0.0
 
 
+class Float32MultiArray:
+    def __init__(self, data=None):
+        self.data = list(data) if data is not None else []
+
+
 class String:
     def __init__(self, data=""):
         self.data = data

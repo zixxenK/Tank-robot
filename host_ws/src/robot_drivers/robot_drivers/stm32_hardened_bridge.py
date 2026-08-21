@@ -22,7 +22,7 @@ import threading
 import queue
 import math
 from typing import Dict, Optional, Tuple, Union
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import rclpy
 import serial
@@ -93,6 +93,8 @@ SERVO_SUBCMD_SET_POSITION = 0x01
 SERVO_CHANNEL_J1 = 0
 SERVO_PROTOCOL_MIN_PULSE_US = 1000
 SERVO_PROTOCOL_MAX_PULSE_US = 2000
+INT32_MODULUS = 2**32
+INT32_MAX = 2**31 - 1
 
 
 def servo_angle_to_pulse_us(angle_degrees: float) -> int:
@@ -111,6 +113,16 @@ def servo_pulse_to_angle_degrees(pulse_us: int) -> int:
         raise ValueError("servo pulse must be within 1000..2000 microseconds")
     span = SERVO_PROTOCOL_MAX_PULSE_US - SERVO_PROTOCOL_MIN_PULSE_US
     return int(round(180.0 * (pulse - SERVO_PROTOCOL_MIN_PULSE_US) / span))
+
+
+def signed_int32_delta(current: int, previous: int) -> int:
+    """Return a counter delta with one signed-int32 wrap accounted for."""
+    delta = int(current) - int(previous)
+    if delta > INT32_MAX:
+        delta -= INT32_MODULUS
+    elif delta < -INT32_MAX - 1:
+        delta += INT32_MODULUS
+    return delta
 
 
 # Reflected CRC-8/MAXIM table retained for wire compatibility.
@@ -152,6 +164,9 @@ class TelemetryData:
     battery_current: float = 0.0
     imu_accel: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     imu_gyro: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    # A zero acceleration vector is a legal wire value during a transient
+    # sensor state; do not use it as the sentinel for "no IMU frame".
+    imu_received: bool = False
     timestamp: float = 0.0
     battery_received: bool = False  # Track if we've ever received a battery frame
     ultrasonic_distance_m: float = float("nan")
@@ -407,6 +422,10 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("serial_port", "/dev/rock64_stm32")
         self.declare_parameter("baud_rate", 1000000)
         self.declare_parameter("max_speed", 255)
+        # Use the complete signed motor-command range. The STM32 remains the
+        # authority for PID, watchdog, e-stop, and electrical protection.
+        self.declare_parameter("motor_output_limit", 1.0)
+        self.declare_parameter("stall_current_limit_a", 1.5)
         self.declare_parameter("command_rate_hz", 50.0)
         self.declare_parameter("cmd_timeout", 0.25)
         self.declare_parameter("reconnect_interval", 2.0)
@@ -417,10 +436,13 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("wheel_separation", 0.194)  # meters (track width)
         self.declare_parameter("wheel_radius", 0.065)  # meters
         self.declare_parameter(
-            "encoder_ticks_per_rev", 3960  # 11 PPR * 4 edges * 90:1 gearbox
+            "encoder_ticks_per_rev", 1980  # 11 PPR * 4 edges * 45:1 gearbox
         )
-        self.declare_parameter("battery_min_voltage", 9.0)
-        self.declare_parameter("battery_max_voltage", 12.0)
+        # Documented stock pack is 11.1V nominal (12.6V full). Keep the
+        # display range aligned with the safety gateway's 9.5V critical and
+        # 10.5V warning thresholds; this does not enable battery gating.
+        self.declare_parameter("battery_min_voltage", 9.5)
+        self.declare_parameter("battery_max_voltage", 12.6)
         self.declare_parameter("startup_grace_period", 2.0)
         self.declare_parameter("enable_motor_test_services", True)
         self.declare_parameter("motor_test_speed", 0.10)
@@ -437,6 +459,18 @@ class STM32HardenedBridge(Node):
         self._serial_port = self.get_parameter("serial_port").value
         self._baud_rate = self.get_parameter("baud_rate").value
         self._max_speed = int(self.get_parameter("max_speed").value)
+        self._motor_output_limit = max(
+            0.05,
+            min(1.0, float(self.get_parameter("motor_output_limit").value)),
+        )
+        self._stall_current_limit_a = max(
+            0.1,
+            min(1.5, float(self.get_parameter("stall_current_limit_a").value)),
+        )
+        self._command_speed_limit = max(
+            1,
+            int(round(self._max_speed * self._motor_output_limit)),
+        )
         self._command_rate_hz = float(
             self.get_parameter("command_rate_hz").value
         )
@@ -803,6 +837,13 @@ class STM32HardenedBridge(Node):
                 self._motor_test_targets = None
                 self._motor_test_deadline = 0.0
 
+            # A reconnect can follow an STM32 reset, which resets encoder
+            # counters to zero. Preserve the host pose but discard the old
+            # differentiation baseline so odometry cannot jump by billions of
+            # ticks on the first post-reconnect sample.
+            with self._odom_lock:
+                self._prev_odom_time = None
+
             self.get_logger().info(
                 f"Connected to Hiwonder UART1/USART1 motor link "
                 f"{self._serial_port}"
@@ -1042,13 +1083,13 @@ class STM32HardenedBridge(Node):
             # stopped. This prevents a centered PS5 command from racing the
             # individual motor test.
             self._send_motor_command(
-                int(motor_test_targets[0] * self._max_speed),
-                int(motor_test_targets[1] * self._max_speed),
+                int(motor_test_targets[0] * self._command_speed_limit),
+                int(motor_test_targets[1] * self._command_speed_limit),
             )
             with self._state_lock:
                 self._last_sent_pair = (
-                    int(motor_test_targets[0] * self._max_speed),
-                    int(motor_test_targets[1] * self._max_speed),
+                    int(motor_test_targets[0] * self._command_speed_limit),
+                    int(motor_test_targets[1] * self._command_speed_limit),
                 )
                 self._stop_command_sent = False
             return
@@ -1095,14 +1136,20 @@ class STM32HardenedBridge(Node):
         # Convert to motor speeds
         left_speed = int(
             max(
-                -self._max_speed,
-                min(self._max_speed, left_vel * self._max_speed),
+                -self._command_speed_limit,
+                min(
+                    self._command_speed_limit,
+                    left_vel * self._command_speed_limit,
+                ),
             )
         )
         right_speed = int(
             max(
-                -self._max_speed,
-                min(self._max_speed, right_vel * self._max_speed),
+                -self._command_speed_limit,
+                min(
+                    self._command_speed_limit,
+                    right_vel * self._command_speed_limit,
+                ),
             )
         )
 
@@ -1313,9 +1360,19 @@ class STM32HardenedBridge(Node):
             gyro_y = struct.unpack("<f", payload[16:20])[0]
             gyro_z = struct.unpack("<f", payload[20:24])[0]
 
+            values = (
+                accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z
+            )
+            if not all(math.isfinite(value) for value in values):
+                self.get_logger().warn(
+                    "Rejected IMU frame containing NaN or infinity"
+                )
+                return
+
             with self._telemetry_lock:
                 self._telemetry.imu_accel = (accel_x, accel_y, accel_z)
                 self._telemetry.imu_gyro = (gyro_x, gyro_y, gyro_z)
+                self._telemetry.imu_received = True
                 self._telemetry.timestamp = time.monotonic()
 
         except struct.error as e:
@@ -1333,10 +1390,14 @@ class STM32HardenedBridge(Node):
         # New firmware uses the reserved byte as a low-level state code;
         # accept legacy five-byte payloads while exposing state when present.
         state = payload[5] if len(payload) >= 6 else 0
+        distance_m = distance_mm / 1000.0
+        valid_measurement = (
+            bool(valid) and 0.02 <= distance_m <= 4.0
+        )
         with self._telemetry_lock:
             self._telemetry.ultrasonic_distance_m = distance_mm / 1000.0
             self._telemetry.ultrasonic_echo_us = echo_us
-            self._telemetry.ultrasonic_valid = bool(valid)
+            self._telemetry.ultrasonic_valid = valid_measurement
             self._telemetry.ultrasonic_state = int(state)
             self._telemetry.timestamp = time.monotonic()
 
@@ -1348,7 +1409,9 @@ class STM32HardenedBridge(Node):
         message.min_range = 0.02
         message.max_range = 4.0
         message.range = (
-            distance_mm / 1000.0 if valid else float("nan")
+            distance_m
+            if valid_measurement
+            else float("nan")
         )
         self._ultrasonic_pub.publish(message)
 
@@ -1438,19 +1501,10 @@ class STM32HardenedBridge(Node):
         with self._telemetry_lock:
             if now - self._telemetry.timestamp > self._encoder_timeout:
                 return  # Stale data
-            tel = TelemetryData(
-                encoder_left=self._telemetry.encoder_left,
-                encoder_right=self._telemetry.encoder_right,
-                battery_voltage=self._telemetry.battery_voltage,
-                battery_current=self._telemetry.battery_current,
-                imu_accel=self._telemetry.imu_accel,
-                imu_gyro=self._telemetry.imu_gyro,
-                timestamp=self._telemetry.timestamp,
-                ultrasonic_distance_m=self._telemetry.ultrasonic_distance_m,
-                ultrasonic_echo_us=self._telemetry.ultrasonic_echo_us,
-                ultrasonic_valid=self._telemetry.ultrasonic_valid,
-                ultrasonic_state=self._telemetry.ultrasonic_state,
-            )
+            # Copy every field under the lock.  An explicit field-by-field
+            # reconstruction previously dropped battery_received, which made
+            # valid battery frames disappear before reaching /stm32/battery.
+            tel = replace(self._telemetry)
 
         stamp = self.get_clock().now().to_msg()
 
@@ -1477,8 +1531,8 @@ class STM32HardenedBridge(Node):
         if prev_time is not None:
             dt = tel.timestamp - prev_time
             if dt > 0.0:
-                d_left = tel.encoder_left - prev_left
-                d_right = tel.encoder_right - prev_right
+                d_left = signed_int32_delta(tel.encoder_left, prev_left)
+                d_right = signed_int32_delta(tel.encoder_right, prev_right)
                 meters_per_tick = (
                     2.0 * math.pi * self._wheel_radius
                 ) / float(self._encoder_ticks_per_rev)
@@ -1517,7 +1571,7 @@ class STM32HardenedBridge(Node):
             self._battery_pub.publish(battery_msg)
 
         # Publish IMU data
-        if tel.imu_accel != (0.0, 0.0, 0.0):
+        if tel.imu_received:
             imu_msg = Imu()
             imu_msg.header.stamp = stamp
             imu_msg.header.frame_id = "imu_link"
@@ -1556,8 +1610,8 @@ class STM32HardenedBridge(Node):
             return
 
         # Calculate delta ticks
-        d_left = left_enc - prev_left
-        d_right = right_enc - prev_right
+        d_left = signed_int32_delta(left_enc, prev_left)
+        d_right = signed_int32_delta(right_enc, prev_right)
 
         # Convert ticks to distance (meters)
         meters_per_tick = (2.0 * math.pi * self._wheel_radius) / float(

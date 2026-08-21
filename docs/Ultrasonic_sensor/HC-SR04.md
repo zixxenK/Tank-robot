@@ -181,7 +181,7 @@ The production wiring for this robot is:
 | TRIG | J4 signal `S` → `PC8` |
 | ECHO | J2 signal `S` → `PA12` |
 
-Split the four sensor wires across J4 and J5 exactly as shown. Do not use the
+Split the four sensor wires across J4 and J2 exactly as shown. Do not use the
 I2C, SBUS, Rock64, or ESP32 camera connectors, and use the printed `S`, `+5V`,
 and `GND` labels rather than wire-colour assumptions.
 
@@ -198,6 +198,10 @@ bridge publishes valid readings on `/ultrasonic/range` as
 are published as NaN and must not be treated as an obstacle. The bridge also
 reports `valid`, `echo_us`, and the current cycle state in
 `/stm32/diagnostics`.
+
+PA12 is EXTI12 and therefore uses the `EXTI15_10_IRQn` vector. The firmware
+must enable that vector; enabling `EXTI9_5_IRQn` does not service the echo pin.
+Accepted echo widths are bounded to the ROS 4.0 m `max_range` contract.
 
 Safe test order:
 

@@ -23,7 +23,8 @@ from rclpy.qos import (
     QoSProfile,
     QoSReliabilityPolicy,
 )
-from sensor_msgs.msg import Image, Imu, Joy, LaserScan, Range
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import BatteryState, Image, Imu, Joy, LaserScan, Range
 from std_msgs.msg import Bool, Float32, Int32MultiArray, String, UInt16
 from std_srvs.srv import SetBool
 
@@ -182,6 +183,66 @@ def validate_range_values(
             f"distance {value:.3f}m is outside {lower:.3f}..{upper:.3f}m"
         )
     return True, f"distance={value:.3f}m"
+
+
+def validate_battery_voltage(
+    voltage: object,
+    minimum: float = 9.0,
+    maximum: float = 13.0,
+) -> Tuple[bool, str]:
+    """Validate a finite voltage from the configured single ADC channel."""
+    try:
+        value = float(voltage)
+    except (TypeError, ValueError, OverflowError):
+        return False, "battery voltage is not numeric"
+    if not math.isfinite(value):
+        return False, "battery voltage is NaN or infinity"
+    if not minimum <= value <= maximum:
+        return False, (
+            f"battery voltage {value:.3f}V is outside "
+            f"{minimum:.1f}..{maximum:.1f}V"
+        )
+    return True, f"voltage={value:.3f}V"
+
+
+def validate_odometry(message: object) -> Tuple[bool, str]:
+    """Validate finite odometry pose/twist and a usable orientation."""
+    try:
+        pose = message.pose.pose
+        twist = message.twist.twist
+        position = (
+            float(pose.position.x),
+            float(pose.position.y),
+            float(pose.position.z),
+        )
+        orientation = (
+            float(pose.orientation.x),
+            float(pose.orientation.y),
+            float(pose.orientation.z),
+            float(pose.orientation.w),
+        )
+        velocity = (
+            float(twist.linear.x),
+            float(twist.linear.y),
+            float(twist.linear.z),
+            float(twist.angular.x),
+            float(twist.angular.y),
+            float(twist.angular.z),
+        )
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        return False, "odometry pose or twist fields are missing/non-numeric"
+
+    if not all(
+        math.isfinite(value) for value in position + orientation + velocity
+    ):
+        return False, "odometry contains NaN or infinity"
+    quaternion_norm = math.sqrt(sum(value * value for value in orientation))
+    if not 0.9 <= quaternion_norm <= 1.1:
+        return False, f"orientation quaternion norm={quaternion_norm:.4f}"
+    return True, (
+        f"position=({position[0]:.3f},{position[1]:.3f})m "
+        f"quaternion_norm={quaternion_norm:.4f}"
+    )
 
 
 def _stamp_to_ns(stamp: object) -> Optional[int]:
@@ -358,6 +419,9 @@ class HardwareTestRunner(Node):
         self._require_lidar = self._boolean_parameter(
             "require_lidar", False
         )
+        self._require_battery = self._boolean_parameter(
+            "require_battery", False
+        )
         self._motor_run_s = min(
             3.0,
             max(0.25, self._float_parameter("motor_run_seconds", 1.0)),
@@ -405,12 +469,14 @@ class HardwareTestRunner(Node):
         self._encoders: Deque[Tuple[float, Tuple[int, ...]]] = deque(
             maxlen=256
         )
+        self._odometry: Deque[Tuple[float, object]] = deque(maxlen=128)
         self._imu: Deque[
             Tuple[float, Tuple[Tuple[float, ...], Tuple[float, ...]]]
         ] = deque(maxlen=128)
         self._ranges: Deque[Tuple[float, Tuple[float, float, float]]] = (
             deque(maxlen=256)
         )
+        self._battery: Deque[Tuple[float, float]] = deque(maxlen=128)
         self._ps5: Deque[Tuple[float, str]] = deque(maxlen=128)
         self._joy: Deque[
             Tuple[float, Tuple[Tuple[float, ...], Tuple[int, ...]]]
@@ -465,7 +531,16 @@ class HardwareTestRunner(Node):
             self._encoder_callback,
             10,
         )
+        self.create_subscription(
+            Odometry, "/stm32/odom", self._odometry_callback, 10
+        )
         self.create_subscription(Imu, "/stm32/imu", self._imu_callback, 10)
+        self.create_subscription(
+            BatteryState,
+            "/stm32/battery",
+            self._battery_callback,
+            sensor_qos,
+        )
         self.create_subscription(
             Range,
             "/ultrasonic/range",
@@ -547,6 +622,10 @@ class HardwareTestRunner(Node):
             values = ()
         self._encoders.append((time.monotonic(), values))
 
+    def _odometry_callback(self, message: Odometry) -> None:
+        """Retain derived odometry for the navigation-path acceptance stage."""
+        self._odometry.append((time.monotonic(), message))
+
     def _imu_callback(self, message: Imu) -> None:
         acceleration = (
             float(message.linear_acceleration.x),
@@ -569,6 +648,14 @@ class HardwareTestRunner(Node):
             float(message.max_range),
         )
         self._ranges.append((time.monotonic(), values))
+
+    def _battery_callback(self, message: BatteryState) -> None:
+        """Retain voltage for the optional calibrated battery proof."""
+        try:
+            voltage = float(message.voltage)
+        except (TypeError, ValueError, OverflowError):
+            voltage = float("nan")
+        self._battery.append((time.monotonic(), voltage))
 
     def _ps5_callback(self, message: String) -> None:
         self._ps5.append((time.monotonic(), str(message.data)))
@@ -729,10 +816,33 @@ class HardwareTestRunner(Node):
         if not ready:
             return False, (
                 f"received {len(samples)}/{self._samples_required} fresh "
-                "finite plausible messages on /stm32/imu"
+                "finite plausible messages on /stm32/imu; verify the "
+                "MPU6050 is powered and connected to STM32 I2C2 "
+                "(PB10=SCL, PB11=SDA; address 0x68 or 0x69)"
             )
         acceleration, gyro = samples[-1]  # type: ignore[misc]
         _, detail = validate_imu_values(acceleration, gyro)
+        return True, f"{len(samples)} fresh samples; {detail}"
+
+    def _test_odometry(self) -> Tuple[bool, str]:
+        """Verify the bridge's encoder-derived odometry is usable by planning."""
+        since = time.monotonic()
+
+        def valid(value: object) -> bool:
+            return validate_odometry(value)[0]
+
+        ready = self._spin_until(
+            lambda: len(self._fresh(self._odometry, since, valid))
+            >= self._samples_required,
+            self._timeout_s,
+        )
+        samples = self._fresh(self._odometry, since, valid)
+        if not ready:
+            return False, (
+                f"received {len(samples)}/{self._samples_required} fresh "
+                "finite odometry messages on /stm32/odom"
+            )
+        _, detail = validate_odometry(samples[-1])
         return True, f"{len(samples)} fresh samples; {detail}"
 
     def _test_ultrasonic(self) -> Tuple[bool, str]:
@@ -757,6 +867,28 @@ class HardwareTestRunner(Node):
         distance, minimum, maximum = samples[-1]  # type: ignore[misc]
         _, detail = validate_range_values(distance, minimum, maximum)
         return True, f"{len(samples)} fresh valid echoes; {detail}"
+
+    def _test_battery(self) -> Tuple[bool, str]:
+        """Verify battery telemetry only when ADC validation is requested."""
+        since = time.monotonic()
+
+        def valid(value: object) -> bool:
+            return validate_battery_voltage(value)[0]
+
+        ready = self._spin_until(
+            lambda: len(self._fresh(self._battery, since, valid))
+            >= self._samples_required,
+            self._timeout_s,
+        )
+        samples = self._fresh(self._battery, since, valid)
+        if not ready:
+            return False, (
+                f"received {len(samples)}/{self._samples_required} fresh "
+                "finite battery voltages on /stm32/battery; verify the "
+                "ADC divider calibration and pack connection"
+            )
+        _, detail = validate_battery_voltage(samples[-1])
+        return True, f"{len(samples)} fresh samples; {detail}"
 
     def _test_ps5(self) -> Tuple[bool, str]:
         self._set_estop(True)
@@ -1212,8 +1344,21 @@ class HardwareTestRunner(Node):
         try:
             self._run_stage("STM32 bridge alive", self._test_bridge_alive)
             self._run_stage("STM32 encoder stream", self._test_encoders)
+            self._run_stage("STM32 odometry", self._test_odometry)
             self._run_stage("STM32 IMU", self._test_imu)
             self._run_stage("HC-SR04 ultrasonic", self._test_ultrasonic)
+            if self._require_battery:
+                self._run_stage("STM32 battery voltage", self._test_battery)
+            else:
+                started = time.monotonic()
+                self._record(
+                    "STM32 battery voltage",
+                    SKIP,
+                    False,
+                    "not requested; set require_battery:=true after ADC "
+                    "divider calibration",
+                    started,
+                )
             self._run_stage("PS5 controller", self._test_ps5)
             self._run_stage(
                 "ESP32 camera",

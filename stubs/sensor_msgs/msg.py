@@ -6,11 +6,26 @@ class BatteryState:
         self.header = Header()
         self.voltage = float("nan")
         self.current = float("nan")
+        self.percentage = float("nan")
+        self.power_supply_status = 0
 
 
 class Image:
     def __init__(self):
         self.header = Header()
+        self.height = 0
+        self.width = 0
+        self.encoding = ""
+        self.is_bigendian = 0
+        self.step = 0
+        self.data = b""
+
+
+class CompressedImage:
+    def __init__(self):
+        self.header = Header()
+        self.format = ""
+        self.data = b""
 
 
 class _Vector3:
@@ -67,3 +82,8 @@ class Range:
         self.min_range = 0.0
         self.max_range = 0.0
         self.range = 0.0
+
+
+class Float32MultiArray:
+    def __init__(self, data=None):
+        self.data = list(data) if data is not None else []

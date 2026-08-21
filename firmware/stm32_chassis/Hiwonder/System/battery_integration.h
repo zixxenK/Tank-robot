@@ -22,7 +22,7 @@ extern "C" {
  * @return 0 on success, negative on error
  * 
  * Initializes ADC with:
- * - Dual-channel DMA mode
+ * - Two-rank DMA mode (battery voltage plus internal VREFINT)
  * - Filter priming with 10 samples to prevent startup false positives
  * - Voltage divider scaling (11x ratio)
  * - Moving average filter (5% new, 95% old)
@@ -52,13 +52,13 @@ float Battery_GetCurrent(void);
 
 /**
  * @brief Check if battery voltage is low
- * @return true if voltage < 7.0V (2S LiPo low threshold)
+ * @return true if voltage < 10.5V (documented 11.1V/3S pack warning)
  */
 bool Battery_IsLowVoltage(void);
 
 /**
  * @brief Check if battery voltage is critical
- * @return true if voltage < 6.5V (2S LiPo critical threshold)
+ * @return true if voltage < 9.5V (documented 11.1V/3S pack cutoff)
  */
 bool Battery_IsCriticalVoltage(void);
 

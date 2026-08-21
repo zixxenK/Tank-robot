@@ -32,6 +32,10 @@
       "title": "Health",
       "topics": [
         "/stm32/diagnostics",
+        "/stm32/battery",
+        "/stm32/bridge_alive",
+        "/stm32/self_test_result",
+        "/stm32/servo/state_degrees",
         "/lidar/diagnostics",
         "/camera/diagnostics",
         "/camera/usb/diagnostics",

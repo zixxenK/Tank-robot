@@ -1,24 +1,27 @@
 # Silent Failures Audit - Tank Robot
-**Last Updated:** 2026-08-06  
-**Commit Baseline:** f5e8366  
+**Last Updated:** 2026-08-21
+**Commit Baseline:** current working tree
 **Flash Target:** Rock64 (aarch64)
 
 The validated production wiring and transport assignment are defined by
 [`SOURCE_OF_TRUTH_1_0.md`](SOURCE_OF_TRUTH_1_0.md).
 
-This document catalogs all silent failures currently breaking the robot, prioritized by severity for the Rock64 flashing workflow. Items marked **FIXED** have been verified resolved in current HEAD.
+This document catalogs known silent failures and their historical fixes for
+the Rock64 flashing workflow. Items marked **FIXED** have been verified
+resolved in the current checkout. The odometry and e-stop entries below are
+retained as audit history, not active defects.
 
 ---
 
 ## Executive Summary
 
-**Active Silent Failures:** 3  
-**Previously Fixed:** 6 (archived for reference)
+**Active Silent Failures:** 0
+**Previously Fixed:** 7 (archived for reference)
 
 ### Critical (Blocks Operation)
-1. **ARM Toolchain Architecture Mismatch** - Rock64-specific build failure
-2. **Odometry Parameter Mismatch** - /odom wrong by 55% (track width) and 4x (encoder)
-3. **E-Stop State Latch Bug** - Suppresses fault warnings after first idle
+1. **ARM Toolchain Architecture Mismatch** - RESOLVED in toolchain scripts
+2. **Odometry Parameter Mismatch** - RESOLVED in canonical hardware YAML
+3. **E-Stop State Latch Bug** - RESOLVED in current bridge command loop
 
 ### Previously Fixed (Verified)
 - Production UART mapping mismatch
@@ -30,26 +33,20 @@ This document catalogs all silent failures currently breaking the robot, priorit
 
 ---
 
-## Active Silent Failures
+## Previously Active Silent Failures (all resolved)
 
-### 1. ARM Toolchain Architecture Mismatch (CRITICAL)
+### 1. ARM Toolchain Architecture Mismatch (RESOLVED)
 
 **Location:** `scripts/install_toolchain_local.sh:15`, `scripts/check_toolchain.sh:37-38`
 
-**Problem:**
-Both scripts hardcode x86_64-only ARM toolchain downloads:
-```bash
-gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2
-```
+**Historical problem:**
+The local installer used to download an x86_64-only archive on every host.
+On Rock64 (aarch64), that produced a toolchain which could not execute.
 
-On Rock64 (aarch64), this either:
-- Fails loudly during download/extraction
-- Silently produces a toolchain that cannot execute
-
-**Impact:**
-- Firmware builds fail on Rock64
-- Forces cross-compilation from Windows/WSL
-- Breaks self-update workflow on robot
+**Historical impact:**
+- Firmware builds failed on Rock64
+- The fallback installer could leave an unusable toolchain in place
+- The self-update workflow could fail late during firmware compilation
 
 **Root Cause:**
 `rock64_setup.sh` correctly uses `apt install gcc-arm-none-eabi` for aarch64, but these fallback scripts were never updated.
@@ -61,32 +58,31 @@ arm-none-eabi-gcc --version
 # If this fails or shows x86_64 in path, the bug is active
 ```
 
-**Fix:**
-```bash
-# scripts/install_toolchain_local.sh line 15:
-# OLD:
-wget https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2
+**Current fix:**
+`install_toolchain_local.sh` uses an existing compiler when available, only
+downloads the legacy archive on x86_64, and refuses that archive on aarch64.
+`check_toolchain.sh` searches native/system locations and gives the Rock64
+native-package command when no compiler is present.
 
-# NEW (detect architecture):
-ARCH=$(uname -m)
-if [ "$ARCH" = "aarch64" ]; then
-    TOOLCHAIN_ARCH="aarch64-linux"
-else
-    TOOLCHAIN_ARCH="x86_64-linux"
-fi
-wget https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-${TOOLCHAIN_ARCH}.tar.bz2
+**Verification:**
+```bash
+arm-none-eabi-gcc --version
+cd firmware/stm32_chassis
+cmake --preset Release
+cmake --build --preset Release -j4
 ```
 
-Apply same fix to `scripts/check_toolchain.sh:37-38`.
-
-**Execution Order:**
-- FIRST: Verify current toolchain state on Rock64
-- Apply fix to both scripts
-- Test build on Rock64 after fix
+The local Windows checkout has passed the Release build after the watchdog
+integration; the Rock64 still needs the native build check when it is online.
 
 ---
 
-### 2. Odometry Parameter Mismatch (HIGH)
+### 2. Odometry Parameter Mismatch (RESOLVED)
+
+This historical finding is resolved in the current checkout. The canonical
+`rock64_hardware.yaml` now supplies `wheel_separation`, `wheel_radius`, and
+`encoder_ticks_per_rev`, matching the bridge parameter declarations. A
+physical odometry validation is still required after hardware deployment.
 
 **Location:** 
 - `host_ws/src/robot_drivers/robot_drivers/stm32_hardened_bridge.py:405-411`
@@ -105,15 +101,15 @@ But YAML config uses different key name (rock64_hardware.yaml:12):
 track_width_m: 0.194  # Correct value, but wrong key name
 ```
 
-Real hardware values from motors_param.h:
+Current production values from motors_param.h:
 ```c
-#define MOTOR_DEFAULT_TICKS_PER_CIRCLE 3960.0f  // Line 51
-#define MOTOR_JGB520_TICKS_PER_CIRCLE 3960.0f    // Line 15
+#define MOTOR_DEFAULT_TICKS_PER_CIRCLE 1980.0f
+#define MOTOR_JGB520_TICKS_PER_CIRCLE 1980.0f
 ```
 
 **Impact:**
 - Track width: 0.3m (default) vs 0.194m (actual) = **55% error** in odometry
-- Encoder ticks: 1000 (default) vs 3960 (actual) = **4x error** in odometry
+- Encoder ticks: stale defaults vs 1980 (actual 45:1 motor) corrupt odometry
 - `/odom` topic publishes wildly incorrect position estimates
 - Navigation/path planning will fail
 - ROS2 silently ignores mismatched parameter names (no error)
@@ -126,12 +122,12 @@ Real hardware values from motors_param.h:
 **Root Cause:**
 Parameter key name drift between bridge declaration and YAML config.
 
-**Fix:**
+**Fix (current):**
 ```yaml
 # host_ws/src/robot_bringup/config/rock64_hardware.yaml - ADD these lines:
 wheel_separation: 0.194  # Track width in meters
 wheel_radius: 0.065      # TODO: Measure actual wheel/sprocket radius
-encoder_ticks_per_rev: 3960  # From motors_param.h: 11 pulses * 4 edges * 90:1 gearbox
+encoder_ticks_per_rev: 1980  # JGB3865-520R45: 11 pulses * 4 edges * 45:1 gearbox
 ```
 
 **Verification:**
@@ -149,7 +145,12 @@ ros2 param get /stm32_hardened_bridge encoder_ticks_per_rev
 
 ---
 
-### 3. E-Stop State Latch Bug (MEDIUM)
+### 3. E-Stop State Latch Bug (RESOLVED)
+
+This historical finding is resolved in the current checkout. The bridge
+refreshes its e-stop reporting state when it sends a command, so later stop
+and fault transitions are visible again. Repeated e-stop validation remains a
+hardware acceptance step.
 
 **Location:** `host_ws/src/robot_drivers/robot_drivers/stm32_hardened_bridge.py:798`
 
@@ -216,6 +217,14 @@ ros2 launch robot_bringup rock64_bringup.launch.py
 
 ## Previously Fixed (Verified Resolved)
 
+### STM32 IWDG Watchdog (FIXED; hardware proof pending)
+- **File:** `firmware/stm32_chassis/Hiwonder/System/watchdog.c`
+- **Status:** Real register-level IWDG initialization, reset-cause capture,
+  and refresh are wired to the packed protocol task.
+- **Verified:** The STM32 Release image builds successfully. A controlled
+  hardware hang/reset test remains required before calling the reset path
+  field-proven.
+
 ### Production UART Mapping (FIXED)
 - **File:** `firmware/stm32_chassis/Core/Src/usart.c`, `uart_binary_protocol_integration_packed.c`
 - **Status:** USART1 correctly configured on PA9/PA10 at 1,000,000 baud
@@ -254,24 +263,24 @@ ros2 launch robot_bringup rock64_bringup.launch.py
 
 Given you're flashing from Rock64, execute in this order:
 
-### Phase 1: Toolchain Fix (Do This First)
-1. Verify current toolchain: `arm-none-eabi-gcc --version` on Rock64
-2. Apply fix to `scripts/install_toolchain_local.sh` and `scripts/check_toolchain.sh`
-3. Reinstall toolchain if needed
-4. Test build: `cd firmware/stm32_chassis && cmake --preset Debug && cmake --build --preset Debug`
+### Phase 1: Toolchain Verification
+1. Run `scripts/check_toolchain.sh` on Rock64.
+2. If missing, install the native distro packages shown by the script.
+3. Test build: `cd firmware/stm32_chassis && cmake --preset Release && cmake --build --preset Release`
 
-### Phase 2: Parameter Fix (Independent)
-1. Add missing parameters to `host_ws/src/robot_bringup/config/rock64_hardware.yaml`
-2. Rebuild host_ws: `colcon build --symlink-install`
-3. Restart bridge and verify parameter values
+### Phase 2: Host and service verification
+1. Run the PC-authoritative `deployment/pc/robot_ready.ps1` workflow.
+2. Confirm `rock64-robot.service` restarts onto the newly built workspace.
+3. Verify the expected node and telemetry contracts before motor power.
 
-### Phase 3: E-Stop Latch Fix (Independent)
-1. Apply fix to `host_ws/src/robot_drivers/robot_drivers/stm32_hardened_bridge.py:798`
-2. Rebuild host_ws: `colcon build --symlink-install`
-3. Test with repeated e-stop triggers
+### Phase 3: Hardware acceptance
+1. Flash only with the robot secured and the ST-Link connected to the Rock64.
+2. Verify the UART, odometry, HC-SR04, IMU, battery, e-stop, and watchdog
+   behavior using the documented acceptance scripts.
+3. Test repeated e-stop and controlled watchdog reset behavior.
 
 ### Phase 4: Verification
-1. Flash firmware to STM32 via OpenOCD
+1. Run `bash deployment/scripts/rock64_update_and_flash.sh` on the Rock64
 2. Run `deployment/scripts/diagnose.sh` on Rock64
 3. Manual bring-up: `source deployment/scripts/source_host_ws.sh && ros2 launch robot_bringup rock64_bringup.launch.py`
 4. Verify odometry accuracy with teleop test
@@ -281,10 +290,10 @@ Given you're flashing from Rock64, execute in this order:
 
 ## Dependencies
 
-- **Toolchain fix** blocks firmware builds on Rock64
-- **Parameter fix** and **E-stop latch fix** are independent
-- All fixes require host_ws rebuild after application
-- Firmware flash required after any C code changes (none in current active failures)
+- The native Rock64 toolchain must be verified before board-side firmware builds.
+- Host source changes require a Rock64 workspace rebuild and service restart.
+- Firmware C changes require a deliberate firmware build and flash before
+  hardware behavior can change.
 
 ---
 

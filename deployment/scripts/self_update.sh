@@ -38,7 +38,9 @@ if git diff --name-only "${CURRENT_SHA}" "${REMOTE_SHA}" | grep -q '^host_ws/'; 
 fi
 
 if git diff --name-only "${CURRENT_SHA}" "${REMOTE_SHA}" | grep -q '^firmware/'; then
-  echo "[self_update] firmware/ changed - NOT auto-flashing STM32. Flash manually: make stm32-flash"
+  echo "[self_update] firmware/ changed - NOT auto-flashing STM32."
+  echo "[self_update] For a deliberate release, run on the Rock64:"
+  echo "[self_update]   bash deployment/scripts/rock64_update_and_flash.sh"
 fi
 
 echo "[self_update] Done at $(date)."

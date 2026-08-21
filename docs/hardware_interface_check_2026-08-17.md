@@ -53,13 +53,11 @@ implementation. It does contain:
   `Portings\pwm_servo_porting.c`.
 - PWM servo command handling in `System\packet_handle.c`.
 
-The corresponding current STM32 pin labels are `PA11`/`PA12` for
-`PWM_SERVO_1`/`PWM_SERVO_2`, `PC8`/`PC9` for `PWM_SERVO_3`/`PWM_SERVO_4`, and
-`PD5`/`PD6` for `BLE_TX`/`BLE_RX`; see
-`firmware/stm32_chassis/Core/Inc/main.h`. The SG90 is therefore compatible
-only if its signal wire is connected to one of those PWM outputs and the
-firmware command path is used. A servo has no electrical identity that Linux
-can discover.
+The legacy board labels remain printed on the headers, but the current
+production image deliberately overrides their ownership: PA11/J1 is the sole
+SG90 output, PA12/J2 is HC-SR04 ECHO, PC8/J4 is HC-SR04 TRIG, and PC9 is
+unused. The SG90 command path therefore supports J1 only. A servo has no
+electrical identity that Linux can discover.
 
 ## Confirmed no-extra-board HC-SR04 wiring
 
@@ -69,8 +67,8 @@ as follows:
 | Board header | STM32 pin | Use in this robot |
 |---|---|---|
 | J1 | PA11 / `PWM_SERVO_1` | Keep SG90 here |
-| J2 | PA12 / `PWM_SERVO_2` | HC-SR04 `ECHO` signal |
-| J4 | PC8 / `PWM_SERVO_3` | HC-SR04 `TRIG` signal |
+| J2 | PA12 / `HC_SR04_ECHO` (legacy servo-header label) | HC-SR04 `ECHO` signal |
+| J4 | PC8 / `HC_SR04_TRIG` (legacy servo-header label) | HC-SR04 `TRIG` signal |
 
 Use the signal (`S`) contact of J4 for `TRIG` and the signal (`S`) contact of
 J2 for `ECHO`. Use the `+5V` and `GND` contacts on either PWM header for the
@@ -79,12 +77,12 @@ lead therefore needs its wires split across two three-pin headers; it does
 not plug into the I2C or SBUS socket.
 
 The STM32F407VET6 datasheet marks PA11, PA12, PC8, and PC9 as FT
-(5-V-tolerant) I/O, but the complete board-level input path and active
-firmware still need to be verified. Use a resistor divider or level shifter
-unless that exact path is confirmed safe. The controller must be flashed with
-the HC-SR04 firmware first: PC8/TRIG is an output and PA12/ECHO is an
-input/timer capture pin. Do not connect ECHO while the current firmware still
-configures PA12 as `GPIO_Output`.
+(5-V-tolerant) I/O, but the complete board-level input path still needs to be
+verified. Use a resistor divider or level shifter unless that exact path is
+confirmed safe. The controller must be flashed with the current HC-SR04
+image first: PC8/TRIG is an output and PA12/ECHO is a rising/falling EXTI
+input using the cycle counter. Do not flash an older image that drives PA12
+or PC8 as a servo.
 
 This mapping is cross-checked against Hiwonder's official controller hardware
 course, section “4-Lane Servo Port”, and the project's
@@ -102,6 +100,13 @@ They show the Rock64/USB-host area, the red STM32 controller, the blue USB hub,
 and the attached wiring. The images support the physical bench context, but
 they do not provide enough resolution to prove an HC-SR04 signal pin, a
 specific Wi-Fi dongle model, or an SG90 PWM channel.
+
+> **Current production-image correction:** The printed legacy servo labels are
+> not the active pin assignment. PA11/J1 is the sole SG90 output; PA12/J2 is
+> HC-SR04 ECHO; PC8/J4 is HC-SR04 TRIG; and PC9 is unused. The current image
+> configures PA12 as a rising/falling EXTI input, not a servo output or timer
+> capture input. Do not flash an older image that drives PA12 or PC8 as a
+> servo.
 
 ## Next safe actions
 

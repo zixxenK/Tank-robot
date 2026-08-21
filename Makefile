@@ -7,15 +7,16 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 FIRMWARE_DIR := $(REPO_ROOT)/firmware/stm32_chassis
 HOST_WS := $(REPO_ROOT)/host_ws
 
-.PHONY: help test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd onecmd-sim hardware-acceptance hardware-acceptance-raised robot-start motor-forward motor-back motor-stop motor-sequence rock64-update
+.PHONY: help e2e test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd onecmd-sim hardware-acceptance hardware-acceptance-raised robot-start motor-forward motor-back motor-stop motor-sequence rock64-update
 
 help:
 	@echo "Targets:"
+	@echo "  e2e             Run complete one-shot E2E mission with Mission Report"
 	@echo "  test            Run host unit tests with repository ROS stubs"
 	@echo "  stm32-config   Configure STM32 CMake build in firmware tree"
 	@echo "  stm32-build    Build STM32 firmware in firmware tree"
-	@echo "  stm32-flash    Flash STM32 firmware (requires OpenOCD/ST-Link)"
-	@echo "  rock64-update  Build host + STM32 and flash from the Rock64"
+	@echo "  stm32-flash    Rock64-only STM32 flash guard/delegation target"
+	@echo "  rock64-update  Build host + STM32 and flash from the updated Rock64"
 	@echo "  host-build     Build host ROS2 workspace (host_ws preferred)"
 	@echo "  host-launch    Launch Rock64 bringup from active host workspace"
 	@echo "  host-sim       One-shot install deps + build + Gazebo telemetry launch"
@@ -37,13 +38,24 @@ help:
 host-print:
 	@echo "HOST_WS=$(HOST_WS)"
 
+e2e:
+	@if command -v python3 >/dev/null 2>&1; then \
+		python3 "$(REPO_ROOT)/scripts/e2e_mission.py"; \
+	else \
+		python "$(REPO_ROOT)/scripts/e2e_mission.py"; \
+	fi
+
 test:
-	@PYTHONPATH="$(REPO_ROOT)/stubs:$(HOST_WS)/src/agent_core:$(HOST_WS)/src/robot_drivers" \
-		python -m pytest \
-			"$(HOST_WS)/src/agent_core/test/test_safety_gateway.py" \
-			"$(HOST_WS)/src/agent_core/test/test_lmstudio_client.py" \
-			"$(HOST_WS)/src/agent_core/test/test_lmstudio_nodes.py" \
-			"$(HOST_WS)/src/robot_drivers/test/test_stm32_hardened_bridge.py" -q
+	@PYTHONPATH="$(REPO_ROOT)/stubs:$(HOST_WS)/src/agent_core:$(HOST_WS)/src/robot_drivers:$(HOST_WS)/src/robot_teleop:$(HOST_WS)/src/robot_audio:$(HOST_WS)/src/navigation:$(HOST_WS)/src/perception:$(HOST_WS)/src/telemetry_logger:$(HOST_WS)/src/terrain_adaptation" \
+		python -m pytest tests \
+			"$(HOST_WS)/src/agent_core/test" \
+			"$(HOST_WS)/src/robot_drivers/test" \
+			"$(HOST_WS)/src/robot_teleop/test" \
+			"$(HOST_WS)/src/robot_audio/test" \
+			--ignore="$(HOST_WS)/src/agent_core/test/test_flake8.py" \
+			--ignore="$(HOST_WS)/src/agent_core/test/test_pep257.py" \
+			--ignore="$(HOST_WS)/src/robot_drivers/test/test_flake8.py" \
+			--ignore="$(HOST_WS)/src/robot_drivers/test/test_pep257.py" -q
 
 stm32-config:
 	@cd "$(FIRMWARE_DIR)" && cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake
@@ -52,7 +64,14 @@ stm32-build: stm32-config
 	@cmake --build "$(FIRMWARE_DIR)/build" -j4
 
 stm32-flash:
-	@bash "$(REPO_ROOT)/scripts/flash_stm32.sh"
+	@if [ "$$(uname -m)" = "aarch64" ]; then \
+		bash "$(REPO_ROOT)/deployment/scripts/rock64_update_and_flash.sh"; \
+	else \
+		echo "Direct STM32 flashing from a PC is disabled."; \
+		echo "Run the Rock64-owned workflow from Windows PowerShell:"; \
+		echo "  .\\scripts\\deploy_rock64.ps1"; \
+		exit 1; \
+	fi
 
 rock64-update:
 	@bash "$(REPO_ROOT)/deployment/scripts/rock64_update_and_flash.sh"

@@ -16,6 +16,11 @@ set -u
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
 export RMW_IMPLEMENTATION="${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
 export ROS_LOCALHOST_ONLY="${ROS_LOCALHOST_ONLY:-0}"
+if [[ "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "1" || "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "true" ]]; then
+  export ROS_DISCOVERY_SERVER="${ROS_DISCOVERY_SERVER:-${ROCK64_IP:-}:11811}"
+else
+  unset ROS_DISCOVERY_SERVER
+fi
 
 set +u
 # shellcheck source=/dev/null

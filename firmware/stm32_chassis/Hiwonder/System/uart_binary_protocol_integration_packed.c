@@ -24,6 +24,7 @@
 #include "status_integration.h"
 #include "hc_sr04.h"
 #include "sg90_servo.h"
+#include "watchdog.h"
 #include "buzzer.h"
 #include "main.h"
 #include "usart.h"
@@ -76,6 +77,12 @@ void binary_protocol_integration_init_packed(void) {
      * arrive. Status beeps reuse this same hardware object. */
     buzzers_init();
     (void)Status_Init();
+
+    if (!Watchdog_Init() || Watchdog_WasReset()) {
+        /* A previous IWDG reset is useful diagnostic information, but does
+         * not prevent the motor link from recovering after a clean reboot. */
+        Status_SetLEDWarning();
+    }
 
     // Initialize motor control layer first. Startup PWM values are explicitly
     // cleared below so merely booting the image cannot request motion.
@@ -194,8 +201,16 @@ void binary_protocol_telemetry_task(void) {
         // Normal operation indicator
         Status_SetLEDNormal();
     } else if (imu_status == -2) {
-        // Not time yet (rate limiting) - use last valid values
-        // This is normal behavior, not an error
+        /* Not time yet (rate limiting): retain the last valid sample.  The
+         * telemetry task runs faster than the IMU's 50 Hz acquisition rate;
+         * publishing the zero-initialized locals here would make the host
+         * topic alternate between real data and placeholders. */
+        accel_x = protocol_ctx.telemetry.imu.accel_x;
+        accel_y = protocol_ctx.telemetry.imu.accel_y;
+        accel_z = protocol_ctx.telemetry.imu.accel_z;
+        gyro_x = protocol_ctx.telemetry.imu.gyro_x;
+        gyro_y = protocol_ctx.telemetry.imu.gyro_y;
+        gyro_z = protocol_ctx.telemetry.imu.gyro_z;
     } else {
         // IMU error occurred
         Status_SetLEDWarning();
@@ -272,6 +287,7 @@ void binary_protocol_task(void *argument) {
     for (;;) {
         binary_protocol_main_task();
         binary_protocol_telemetry_task();
+        Watchdog_Refresh();
 
         /* The idle-DMA callback wakes this task immediately after a burst;
          * the timeout keeps the motor watchdog/PID loop alive when the link

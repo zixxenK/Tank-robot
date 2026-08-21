@@ -8,6 +8,7 @@ class Node:
         arguments=None,
         output=None,
         condition=None,
+        **kwargs,
     ):
         self.package = package
         self.executable = executable
@@ -16,3 +17,4 @@ class Node:
         self.arguments = arguments if arguments is not None else []
         self.output = output
         self.condition = condition
+        self.extra = kwargs

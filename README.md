@@ -7,6 +7,32 @@ The validated 1.0 hardware/software contract is recorded in
 [docs/SOURCE_OF_TRUTH_1_0.md](docs/SOURCE_OF_TRUTH_1_0.md). Read that before
 changing UART ownership, flashing, or selecting hardware profiles.
 
+## One-Shot E2E Mission
+
+For normal development and operator validation, use the single mission command:
+
+```bash
+./run_e2e.sh
+```
+
+On Windows PowerShell:
+
+```powershell
+.\run_e2e.ps1
+```
+
+Equivalent Make target:
+
+```bash
+make e2e
+```
+
+The mission runner performs environment setup, offline full-stack contract
+tests, available firmware and ROS builds, safe non-motion Rock64 hardware
+acceptance when the robot service is present, and cleanup. Build and test logs
+are captured under `log/e2e/`; the console shows only the Tank-Robot System
+Report with overall status, subsystem status, anomalies, and next steps.
+
 ## Control Architecture
 
 ```text
@@ -50,6 +76,10 @@ Native USB CDC is diagnostic-only
 and ST-Link is flash/debug-only. Legacy ASCII bridges, duplicate workspaces,
 and placeholder micro-ROS paths have been removed.
 
+Rock64 Pi-2 header wiring for direct Rock64 sensors is documented in
+[docs/ROCK64_PI2_BUS_PINOUT.md](docs/ROCK64_PI2_BUS_PINOUT.md). The STM32 motor
+controller remains on the validated WCH USB-UART `/dev/rock64_stm32` path.
+
 ## STM32 Build
 
 The firmware uses ARM GNU Toolchain and Ninja:
@@ -74,9 +104,18 @@ an alternate host UART; the stock USART3/PD8-PD9 mapping belongs only to the
 Generated images are under `firmware/stm32_chassis/build/<preset>/`. Building
 does not flash the controller.
 
+Firmware flashing is never performed directly from a PC. Use
+`.\scripts\deploy_rock64.ps1` from Windows or
+`bash deployment/scripts/rock64_update_and_flash.sh` on the Rock64 so the
+updated robot host owns ST-Link access, readback verification, and the safe
+UART proof.
+
 ## Host Build and Test
 
 Target environment: Ubuntu 22.04 with ROS 2 Humble.
+
+The preferred host validation path is the one-shot mission runner above. For
+focused package work, the lower-level commands remain available:
 
 ```bash
 source /opt/ros/humble/setup.bash
@@ -93,16 +132,32 @@ $env:PYTHONPATH = "$(Resolve-Path stubs);$(Resolve-Path host_ws/src/agent_core);
 python -m pytest host_ws/src/agent_core/test host_ws/src/robot_drivers/test -q
 ```
 
+Offline launch and ROS-shim contract tests are also available without a ROS
+installation. The repository `pytest.ini` supplies the offline import paths
+and excludes generated ROS build/install trees:
+
+```powershell
+python -m pytest -q
+```
+
 ## Bringup
 
-After the STM32 firmware and ROS workspace have been deployed, start the
-complete Rock64 hardware graph with one command:
+After the STM32 firmware and ROS workspace have been deployed, validate the
+robot through the non-motion E2E mission:
+
+```bash
+./run_e2e.sh
+```
+
+For persistent operation after validation, start the complete Rock64 hardware
+graph with:
 
 ```bash
 bash scripts/onecmd.sh
 ```
 
-Run every non-motion acceptance stage in order with:
+For focused hardware diagnostics, run every non-motion acceptance stage in
+order with:
 
 ```bash
 bash scripts/hardware_acceptance.sh
@@ -215,6 +270,19 @@ controller, use:
 ```powershell
 .\scripts\sync_rock64_safe.ps1 -RestartService
 ```
+
+For the normal all-in-one PC operator workflow (sync, Rock64 rebuild,
+service restart, and read-only dashboard), use:
+
+```powershell
+.\deployment\pc\robot_ready.ps1
+```
+
+The Rock64 systemd service is enabled at setup and starts the hardware graph
+automatically after the board powers on. For automatic deployment of tested
+local changes, commit them and run
+`.\deployment\pc\watch_commits_and_sync.ps1`; it intentionally does not
+deploy uncommitted edits or flash firmware unattended.
 
 The script preserves a source backup on the Rock64, builds the ROS packages and
 STM32 Release image there, flashes and verifies the STM32 through the Rock64

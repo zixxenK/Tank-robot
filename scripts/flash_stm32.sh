@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # flash_stm32.sh — Flash STM32F407VGTx using ST-Link
-# Uses OpenOCD with verification when available; st-flash is the fallback.
+# Rock64-only STM32 build/flash helper. Development PCs must delegate to
+# scripts/deploy_rock64.ps1 so the updated Rock64 owns ST-Link access,
+# udev rules, /dev/rock64_stm32 proof, and service restart.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,10 +28,22 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "${DO_BUILD}" != true || "${DO_VERIFY}" == true || "${DO_ERASE}" == true ]]; then
+  if [[ "$(uname -m)" != "aarch64" ]]; then
+    echo "[flash] ERROR: direct STM32 flashing is disabled outside the Rock64." >&2
+    echo "[flash] Run from the PC: ./scripts/deploy_rock64.ps1" >&2
+    echo "[flash] Or run on the Rock64: bash deployment/scripts/rock64_update_and_flash.sh" >&2
+    exit 1
+  fi
+fi
+
 if [[ "${DO_BUILD}" == true ]]; then
   echo "[flash] Building firmware..."
   cd "${FIRMWARE_DIR}"
-  cmake --fresh -S . -B build/Release \
+  # CMake 3.22 (the version available on the supported Rock64 image) does
+  # not implement --fresh. Reconfigure the fixed Release build directory;
+  # CMake invalidates changed inputs while preserving toolchain compatibility.
+  cmake -S . -B build/Release \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -G 'Unix Makefiles'
   cmake --build build/Release -j"${STM32_BUILD_JOBS:-4}"
@@ -96,8 +110,8 @@ if command -v st-flash >/dev/null 2>&1; then
   fi
 elif command -v openocd >/dev/null 2>&1; then
   echo "[flash] Using OpenOCD..."
-  # Rock64 OpenOCD 0.11 uses hla_swd. Override this for a newer desktop
-  # build with: OPENOCD_TRANSPORT=swd ./scripts/flash_stm32.sh ...
+  # Rock64 OpenOCD 0.11 uses hla_swd. Override this for newer Rock64
+  # packages with: OPENOCD_TRANSPORT=swd ./scripts/flash_stm32.sh ...
   OPENOCD_TRANSPORT="${OPENOCD_TRANSPORT:-hla_swd}"
   # This board has a physical RST button but no connected NRST wire.  The
   # OpenOCD `program ... reset` helper therefore fails while trying to drive

@@ -54,6 +54,11 @@ USE_AUDIO=true
 # Defaults to false so motor teleoperation is not blocked by missing ADC readings.
 MONITOR_BATTERY=false
 
+# The local PC deployment workflow is the primary source of truth. Set this
+# true only when the Rock64 is intentionally allowed to pull from its Git
+# origin as a fallback update source.
+ROCK64_SELF_UPDATE_ENABLED=false
+
 # ── ROS2 ───────────────────────────────────────────────────────────────────
 # Set to: humble or auto (auto mode supports Ubuntu 22.04 only)
 ROS_DISTRO=auto

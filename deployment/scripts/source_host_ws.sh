@@ -29,10 +29,19 @@ export ROS_LOCALHOST_ONLY="${ROS_LOCALHOST_ONLY:-0}"
 # old helper silently forced every shell into a discovery-server route, which
 # made stale server/daemon state hide an otherwise healthy ROS graph.  Opt in
 # explicitly when a server is actually deployed.
-if [[ "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "1" && \
-      "${ROS_LOCALHOST_ONLY}" != "1" && \
-      -z "${ROS_DISCOVERY_SERVER:-}" && -n "${ROCK64_IP:-}" ]]; then
-  export ROS_DISCOVERY_SERVER="${ROCK64_IP}:11811"
+if [[ "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "1" || \
+      "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "true" ]]; then
+  if [[ "${ROS_LOCALHOST_ONLY}" == "1" ]]; then
+    echo "[source_host_ws] ERROR: discovery-server mode cannot use ROS_LOCALHOST_ONLY=1." >&2
+    return 1
+  fi
+  if [[ -z "${ROS_DISCOVERY_SERVER:-}" && -z "${ROCK64_IP:-}" ]]; then
+    echo "[source_host_ws] ERROR: discovery-server mode requires ROCK64_IP or ROS_DISCOVERY_SERVER." >&2
+    return 1
+  fi
+  if [[ -z "${ROS_DISCOVERY_SERVER:-}" ]]; then
+    export ROS_DISCOVERY_SERVER="${ROCK64_IP}:11811"
+  fi
 fi
 export FASTDDS_BUILTIN_TRANSPORTS="${FASTDDS_BUILTIN_TRANSPORTS:-UDPv4}"
 

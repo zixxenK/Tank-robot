@@ -61,7 +61,9 @@ merge_all_hardware_config() {
 restore_service() {
   if [[ "${SERVICE_WAS_ACTIVE}" == true ]]; then
     echo "[rock64_update] Restarting ${SERVICE}..."
-    as_root systemctl restart "${SERVICE}" || true
+    if ! as_root systemctl restart "${SERVICE}"; then
+      echo "[rock64_update] WARNING: failed to restart ${SERVICE} during cleanup." >&2
+    fi
   fi
 }
 
@@ -126,7 +128,8 @@ fi
 
 echo "[rock64_update] Building ROS packages..."
 colcon build --symlink-install \
-  --packages-up-to agent_core robot_bringup robot_drivers robot_teleop robot_audio
+  --packages-up-to agent_core robot_bringup robot_drivers robot_teleop robot_audio \
+  navigation perception telemetry_logger terrain_adaptation
 
 echo "[rock64_update] Building STM32 Release image..."
 export STM32_BUILD_JOBS="${STM32_BUILD_JOBS:-4}"
@@ -160,16 +163,20 @@ echo "[rock64_update] Firmware is running and the safe UART proof passed."
 set +u
 source "${HOST_WS}/install/setup.bash"
 set -u
-restore_service
-SERVICE_WAS_ACTIVE=false
-trap - EXIT
 
-if systemctl is-active --quiet "${SERVICE}"; then
+if [[ "${SERVICE_WAS_ACTIVE}" == true ]]; then
+  echo "[rock64_update] Restarting ${SERVICE} on the rebuilt workspace..."
+  if ! as_root systemctl restart "${SERVICE}"; then
+    die "${SERVICE} failed to restart after the update"
+  fi
+  if ! systemctl is-active --quiet "${SERVICE}"; then
+    die "${SERVICE} did not become active after the update"
+  fi
   echo "[rock64_update] ${SERVICE} is active."
-elif [[ "${SERVICE_WAS_ACTIVE}" == false ]]; then
-  echo "[rock64_update] ${SERVICE} was inactive before deployment; leaving it stopped."
 else
-  die "${SERVICE} did not become active after the update"
+  echo "[rock64_update] ${SERVICE} was inactive before deployment; leaving it stopped."
 fi
 
+SERVICE_WAS_ACTIVE=false
+trap - EXIT
 echo "[rock64_update] Update complete. Backup retained at ${BACKUP_DIR}."

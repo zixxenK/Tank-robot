@@ -17,8 +17,10 @@ from robot_drivers.hardware_test_runner import (
     observe_image,
     parse_ps5_connected,
     required_failure_count,
+    validate_battery_voltage,
     validate_encoder_values,
     validate_imu_values,
+    validate_odometry,
     validate_range_values,
 )
 
@@ -79,6 +81,36 @@ def test_ultrasonic_validation_requires_finite_in_range_echo() -> None:
     assert validate_range_values(0.75, 0.02, 4.0)[0]
     assert not validate_range_values(float("nan"), 0.02, 4.0)[0]
     assert not validate_range_values(4.5, 0.02, 4.0)[0]
+
+
+def test_battery_validation_rejects_unavailable_and_implausible_voltage() -> None:
+    assert validate_battery_voltage(11.1)[0]
+    assert not validate_battery_voltage(float("nan"))[0]
+    assert not validate_battery_voltage(8.0)[0]
+
+
+def test_odometry_validation_requires_finite_pose_twist_and_unit_quaternion() -> None:
+    """Navigation must not accept placeholder or malformed odometry."""
+    message = SimpleNamespace(
+        pose=SimpleNamespace(
+            pose=SimpleNamespace(
+                position=SimpleNamespace(x=0.0, y=0.0, z=0.0),
+                orientation=SimpleNamespace(x=0.0, y=0.0, z=0.0, w=1.0),
+            )
+        ),
+        twist=SimpleNamespace(
+            twist=SimpleNamespace(
+                linear=SimpleNamespace(x=0.0, y=0.0, z=0.0),
+                angular=SimpleNamespace(x=0.0, y=0.0, z=0.0),
+            )
+        ),
+    )
+    assert validate_odometry(message)[0]
+    message.pose.pose.orientation.w = 0.0
+    assert not validate_odometry(message)[0]
+    message.pose.pose.orientation.w = 1.0
+    message.pose.pose.position.x = float("nan")
+    assert not validate_odometry(message)[0]
 
 
 def _image(stamp_ns: int, data_length: int = 18) -> SimpleNamespace:

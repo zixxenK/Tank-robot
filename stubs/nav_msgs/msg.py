@@ -26,3 +26,24 @@ class Odometry:
         self.twist = _TwistWithCovariance()
         self.pose.pose.position.x = float(x)
         self.pose.pose.position.y = float(y)
+
+
+class MapMetaData:
+    def __init__(self):
+        self.width = 0
+        self.height = 0
+        self.resolution = 0.0
+        self.origin = type("Origin", (), {"position": Point()})()
+
+
+class OccupancyGrid:
+    def __init__(self):
+        self.header = Header()
+        self.info = MapMetaData()
+        self.data = []
+
+
+class Path:
+    def __init__(self):
+        self.header = Header()
+        self.poses = []

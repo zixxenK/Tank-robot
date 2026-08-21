@@ -55,7 +55,9 @@
 /* #define HAL_HASH_MODULE_ENABLED */
 #define HAL_I2C_MODULE_ENABLED
 /* #define HAL_I2S_MODULE_ENABLED */
-/* #define HAL_IWDG_MODULE_ENABLED */
+/* HAL_IWDG_MODULE_ENABLED is intentionally not enabled: this checkout does
+ * not carry the optional HAL IWDG source.  watchdog.c uses the STM32 register
+ * interface directly so the safety watchdog remains part of the image. */
 /* #define HAL_LTDC_MODULE_ENABLED */
 /* #define HAL_RNG_MODULE_ENABLED */
 /* #define HAL_RTC_MODULE_ENABLED */

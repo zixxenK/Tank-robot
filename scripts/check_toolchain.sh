@@ -1,44 +1,29 @@
-#!/bin/bash
-# Check for ARM toolchain installation
+#!/usr/bin/env bash
+# Check for a runnable ARM GNU toolchain on the current architecture.
+
+set -Eeuo pipefail
 
 echo "Checking for ARM toolchain installation..."
 
-# Check if arm-none-eabi-gcc is in PATH
-if command -v arm-none-eabi-gcc &> /dev/null; then
-    echo "✅ ARM toolchain found in PATH:"
-    which arm-none-eabi-gcc
+if command -v arm-none-eabi-gcc >/dev/null 2>&1; then
+    echo "ARM toolchain found in PATH: $(command -v arm-none-eabi-gcc)"
     arm-none-eabi-gcc --version
     exit 0
 fi
 
-# Check common installation locations
-echo "❌ ARM toolchain not found in PATH"
-echo "Checking common installation locations..."
-
-for location in \
-    "/usr/bin/arm-none-eabi-gcc" \
-    "/usr/local/bin/arm-none-eabi-gcc" \
-    "$HOME/gcc-arm-none-eabi-*/bin/arm-none-eabi-gcc" \
-    "/opt/gcc-arm-none-eabi-*/bin/arm-none-eabi-gcc"; do
-    
-    if ls $location 2>/dev/null; then
-        echo "✅ Found ARM toolchain at: $location"
-        echo "Add to PATH with: export PATH=$(dirname $location):\$PATH"
+echo "ARM toolchain not found in PATH; checking common locations..."
+USER_HOME="$(getent passwd "$(id -un)" | cut -d: -f6)"
+while IFS= read -r location; do
+    if [[ -x "${location}" ]]; then
+        echo "Found ARM toolchain at: ${location}"
+        echo "Add to PATH with: export PATH=$(dirname "${location}"):\$PATH"
         exit 0
     fi
-done
+done < <(find /usr/bin /usr/local/bin /opt "${USER_HOME}" \
+    -type f -name arm-none-eabi-gcc -perm -u+x 2>/dev/null)
 
-echo "❌ ARM toolchain not found in common locations"
-echo ""
-echo "You need the ARM GNU toolchain to build the STM32 firmware."
-echo ""
-echo "Option 1: Install locally without sudo:"
-echo "  cd ~"
-echo "  wget https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2"
-echo "  tar -xjf gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2"
-echo "  export PATH=\$HOME/gcc-arm-none-eabi-10.3-2021.10/bin:\$PATH"
-echo ""
-echo "Option 2: Request sudo access for system installation:"
-echo "  sudo apt-get install gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib"
-
+echo "ARM toolchain not found on $(uname -m)." >&2
+echo "Install the supported native packages on Rock64:" >&2
+echo "  sudo apt-get install gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib" >&2
+echo "Or run scripts/install_toolchain_local.sh on an x86_64 development host." >&2
 exit 1

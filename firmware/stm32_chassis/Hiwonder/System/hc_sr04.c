@@ -14,7 +14,9 @@
 #define HC_SR04_MIN_INTERVAL_MS 60U
 #define HC_SR04_TIMEOUT_MS 35U
 #define HC_SR04_MIN_ECHO_US 100U
-#define HC_SR04_MAX_ECHO_US 25000U
+/* Keep the wire-level limit aligned with the ROS Range max_range of 4.0 m:
+ * 4.0 m * 2,000 us/m / 0.343 m/ms = approximately 23.3 ms. */
+#define HC_SR04_MAX_ECHO_US 23300U
 
 static volatile uint32_t echo_start_cycles;
 static volatile uint32_t last_trigger_ms;
@@ -122,6 +124,11 @@ void hc_sr04_echo_edge(void)
             latest_distance_mm = (uint16_t)((echo_us * 343U) / 2000U);
             measurement_ready = true;
             status_code = HC_SR04_STATUS_VALID;
+        } else {
+            /* The echo transaction completed, but the pulse is outside the
+             * sensor's usable range. Do not leave diagnostics claiming that
+             * the driver is still waiting for a falling edge. */
+            status_code = HC_SR04_STATUS_TIMEOUT;
         }
         waiting_for_rise = false;
     }

@@ -5,9 +5,11 @@
  * CRITICAL IMPLEMENTATION NOTES:
  * 1. Filter buffer primed with first valid ADC read on boot
  * 2. Prevents false-positive low-voltage emergency stop during startup
- * 3. Uses dual-channel ADC with DMA
+ * 3. Uses one external battery ADC rank plus an internal VREFINT rank with DMA
  * 4. Voltage divider: 100k + 10k = 11x scaling
  * 5. ADC reference: 3.3V analog rail
+ * 6. Thresholds match the documented 11.1V (3S) stock pack; this legacy
+ *    monitor remains disabled in the current motor-only telemetry image.
  */
 
 #include "battery_integration.h"
@@ -22,8 +24,8 @@
 #define ADC_REFERENCE_VOLTAGE   3.3f   // STM32 analog supply/reference
 #define ADC_MAX_VALUE           4095   // 12-bit ADC
 #define FILTER_ALPHA            0.05f  // Moving average filter (0.05 new, 0.95 old)
-#define LOW_VOLTAGE_THRESHOLD_V 7.0f   // 7.0V minimum for 2S LiPo
-#define CRITICAL_VOLTAGE_V      6.5f   // 6.5V critical cutoff
+#define LOW_VOLTAGE_THRESHOLD_V 10.5f  // documented 11.1V (3S) pack warning
+#define CRITICAL_VOLTAGE_V      9.5f   // documented 11.1V (3S) pack cutoff
 
 // ============================================================================
 // BATTERY STATE
@@ -35,8 +37,10 @@ static bool current_sense_available = false; // Current sensor validity flag
 static bool battery_initialized = false;
 static bool filter_primed = false;
 
-// ADC DMA buffer (dual channel)
-static uint16_t adc_buffer[2] = {0, 0}; // [0] = voltage sense, [1] = optional current sense
+// ADC DMA buffer (two conversion ranks)
+// [0] is the PB0 battery sense; [1] is internal VREFINT, not a second pack
+// or a current-sense input.
+static uint16_t adc_buffer[2] = {0, 0};
 
 // ============================================================================
 // FILTER PRIMING
@@ -57,12 +61,19 @@ static void prime_filter(void) {
     
     HAL_ADC_Start(&hadc1);
     for (int i = 0; i < prime_samples; i++) {
-        // Read voltage sense channel (rank 1 / adc_buffer[0])
+        // ADC1 is a two-rank sequence: PB0 battery voltage, then VREFINT.
+        // Consume both conversions but only convert rank 1 as battery data.
         if (HAL_ADC_PollForConversion(&hadc1, 10) != HAL_OK) {
             HAL_Delay(10);
             continue;
         }
         uint16_t adc_raw = HAL_ADC_GetValue(&hadc1);
+
+        if (HAL_ADC_PollForConversion(&hadc1, 10) != HAL_OK) {
+            HAL_Delay(10);
+            continue;
+        }
+        (void)HAL_ADC_GetValue(&hadc1); // discard rank 2 (internal VREFINT)
         
         // Convert to voltage
         float adc_voltage = (adc_raw / (float)ADC_MAX_VALUE) * ADC_REFERENCE_VOLTAGE;
@@ -117,7 +128,8 @@ int Battery_Update(void) {
     float adc_voltage = (adc_buffer[0] / (float)ADC_MAX_VALUE) * ADC_REFERENCE_VOLTAGE;
     float instant_voltage = adc_voltage * VOLTAGE_DIVIDER_RATIO;
     
-    // Sanity check: voltage should be between 5V and 15V for 2S LiPo
+    // Sanity check: voltage should be between 5V and 15V for the documented
+    // 11.1V pack profile.
     if (instant_voltage < 5.0f || instant_voltage > 15.0f) {
         return -3; // Out of range
     }
@@ -129,9 +141,9 @@ int Battery_Update(void) {
         battery_voltage = instant_voltage;
     }
     
-    // Optional: Read current sense if available (channel 1)
-    // This would require a current sense amplifier (e.g., INA219)
-    // For now, set to 0.0f and mark as unavailable
+    // No current-sense amplifier or second battery ADC is wired in this image.
+    // Keep current telemetry explicitly unavailable rather than interpreting
+    // the internal VREFINT conversion as a physical current channel.
     battery_current = 0.0f;
     current_sense_available = false;  // Set true only when INA219 or equivalent is wired to adc_buffer[1]
     

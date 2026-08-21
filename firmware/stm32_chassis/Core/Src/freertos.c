@@ -479,13 +479,16 @@ void StartDefaultTask(void *argument)
 __weak void imu_task_entry(void *argument)
 {
   /* USER CODE BEGIN imu_task_entry */
-  /* Infinite loop */
+  (void)argument;
+  /* IMU sampling is owned by binary_protocol_telemetry_task().  The old
+   * generated task also called IMU_Update(), discarded its result, and raced
+   * the telemetry task's 50 Hz rate limiter.  That left the UART telemetry
+   * frame at zero even when the MPU6050 was responding. Keep the generated
+   * task alive for CubeMX/FreeRTOS compatibility, but do not read the sensor
+   * from a second task. */
   for(;;)
   {
-    // Process IMU data at 50Hz
-    float accel[3], gyro[3];
-    IMU_Update(accel, gyro);
-    osDelay(20);  // 50Hz = 20ms delay
+    osDelay(1000);
   }
   /* USER CODE END imu_task_entry */
 }
@@ -634,11 +637,11 @@ __weak void buzzer_timer_callback(void *argument)
 __weak void battery_check_timer_callback(void *argument)
 {
   /* USER CODE BEGIN battery_check_timer_callback */
-  // Update battery monitoring at 1Hz
-  Battery_Update();
-  
-  // Check for low battery condition
-  if (Battery_IsLowVoltage()) {
+  /* Battery_Init is intentionally not called by the current motor-only
+   * production image, and the protocol reports battery telemetry as
+   * unavailable until the ADC path is physically calibrated.  Never inspect
+   * the zero-value battery state as if it were a real low-voltage reading. */
+  if (Battery_Update() == 0 && Battery_IsReady() && Battery_IsLowVoltage()) {
     Status_LowBatteryBeep();
     Status_SetLEDWarning();
   }

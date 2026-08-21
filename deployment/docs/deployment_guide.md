@@ -78,6 +78,29 @@ journalctl -u rock64-robot.service -f
 
 ## Updating and flashing from the Rock64
 
+For the normal local-PC operator workflow, use the unified command:
+
+```powershell
+.\deployment\pc\robot_ready.ps1
+```
+
+It pushes the current checkout, runs the safe Rock64 host rebuild, restarts
+the single hardware service, and opens the read-only Foxglove dashboard. Use
+`-FlashFirmware` only for an intentional secured-robot firmware release. To
+deploy each new tested local commit automatically, run:
+
+```powershell
+.\deployment\pc\watch_commits_and_sync.ps1
+```
+
+The watcher deploys clean committed revisions only. It does not copy partial
+edits or flash firmware unattended.
+
+The Git self-update timer is disabled by the generated default configuration
+so it cannot race the PC deployment path. Set
+`ROCK64_SELF_UPDATE_ENABLED=true` only if the Rock64 should use its Git origin
+as a separate fallback source.
+
 For the non-flashing source/configuration and ROS-only update, use the safe
 Windows path:
 
@@ -86,7 +109,9 @@ Windows path:
 ```
 
 It rebuilds the Rock64 host workspace and optionally restarts the acquisition
-services. It never programs the STM32 or ESP32.
+services. It never programs the STM32 or ESP32. The source replacement removes
+stale tracked launch/scripts, while preserving the Rock64-only
+`deployment/systemd/systemd_config.conf` across the transfer.
 
 From the development PC, the canonical workflow is:
 
@@ -99,7 +124,8 @@ the existing Rock64 source tree, builds the selected ROS packages and the
 STM32 Release image on the Rock64, stops the running service, flashes through
 the Rock64-connected ST-Link, performs readback verification, starts the
 image through SWD, runs `python3 scripts/motor_link_safe_test.py`, and
-restarts the service only after the safe UART proof passes. It always flashes
+restarts the service only after the safe UART proof passes and verifies that
+the service is active again. It always flashes
 and requires both USB devices to be connected to the Rock64:
 
 - WCH motor UART `1a86:55d4`, exposed as `/dev/rock64_stm32` and connected to
@@ -123,6 +149,22 @@ Expected control nodes are:
 
 Before enabling motor power, complete the preflight and raised-track checks in
 `docs/HARDWARE_VALIDATION.md`.
+
+## Battery-powered startup
+
+`rock64-robot.service` is enabled for `multi-user.target`, so the Rock64
+starts the robot graph automatically after its own power rail boots. The
+STM32 exposes one battery measurement through PB0 (`/stm32/battery`); the
+current hardware does not independently measure a second Rock64 battery.
+Therefore software can confirm the motor battery voltage, but it cannot prove
+that two physically separate battery packs are both plugged in without an
+additional power-present signal or ADC channel.
+
+For the production profile, validate the ADC calibration and then set
+`MONITOR_BATTERY=true` in `deployment/systemd/systemd_config.conf`. The safety
+gateway will then keep motion stopped until fresh battery telemetry is present
+and will latch a critical-voltage stop. This gives safe ready-on-boot behavior;
+it is not a substitute for a second battery-present sensor.
 
 For a dedicated raised-track motor check, run:
 

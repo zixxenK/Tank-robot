@@ -10,20 +10,23 @@ static void pwm_servo1_write_pin(uint32_t new_state)
     HAL_GPIO_WritePin(PWM_SERVO_1_GPIO_Port, PWM_SERVO_1_Pin, (GPIO_PinState)new_state);
 }
 
-static void pwm_servo2_write_pin(uint32_t new_state)
-{
-    HAL_GPIO_WritePin(PWM_SERVO_2_GPIO_Port, PWM_SERVO_2_Pin, (GPIO_PinState)new_state);
-}
-
 static void pwm_servo3_write_pin(uint32_t new_state)
 {
-    /* PC8 is reserved for HC-SR04 TRIG in the production image. */
+    /* Channel 3 has no output in the production image: PC8 is HC-SR04 TRIG. */
     (void)new_state;
 }
 
 static void pwm_servo4_write_pin(uint32_t new_state)
 {
-    /* PA12 is reserved for HC-SR04 ECHO in the production image. */
+    /* Channel 4 has no output in the production image: PC9 is unused. */
+    (void)new_state;
+}
+
+static void pwm_servo2_write_pin(uint32_t new_state)
+{
+    /* Channel 2 has no output in the production image: PA12 is HC-SR04 ECHO.
+     * Keeping this as a no-op preserves the legacy four-object API without
+     * ever writing the EXTI input's output latch. */
     (void)new_state;
 }
 

@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""ROS2 node for path planning using A* or Dijkstra."""
+"""ROS2 node for path planning using A* or Dijkstra.
 
+The node only emits a command after it has received a current odometry pose.
+This keeps a missing localization stream fail-closed instead of driving from
+an assumed map-center position.
+"""
+
+import math
 from typing import Optional
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Path as NavPath, OccupancyGrid
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
 from navigation.path_planner import GridMap, Point, Path
 from navigation.astar_planner import AStarPlanner, DijkstraPlanner
@@ -26,7 +33,14 @@ class PathPlannerNode(Node):
         self.declare_parameter("goal_topic", "/goal_pose")
         self.declare_parameter("path_topic", "/planned_path")
         self.declare_parameter("cmd_vel_topic", "/cmd_vel")
+        self.declare_parameter("odom_topic", "/stm32/odom")
         self.declare_parameter("diagonal", True)
+        self.declare_parameter("position_tolerance", 0.12)
+        self.declare_parameter("heading_tolerance", 0.20)
+        self.declare_parameter("max_linear_speed", 0.25)
+        self.declare_parameter("max_angular_speed", 0.8)
+        self.declare_parameter("linear_gain", 0.8)
+        self.declare_parameter("angular_gain", 1.8)
 
         self._planner_type = self.get_parameter("planner_type").value
         self._map_width = self.get_parameter("map_width").value
@@ -35,7 +49,22 @@ class PathPlannerNode(Node):
         self._goal_topic = self.get_parameter("goal_topic").value
         self._path_topic = self.get_parameter("path_topic").value
         self._cmd_vel_topic = self.get_parameter("cmd_vel_topic").value
+        self._odom_topic = str(self.get_parameter("odom_topic").value)
         self._diagonal = self.get_parameter("diagonal").value
+        self._position_tolerance = max(
+            0.01, float(self.get_parameter("position_tolerance").value)
+        )
+        self._heading_tolerance = max(
+            0.01, float(self.get_parameter("heading_tolerance").value)
+        )
+        self._max_linear_speed = max(
+            0.0, float(self.get_parameter("max_linear_speed").value)
+        )
+        self._max_angular_speed = max(
+            0.0, float(self.get_parameter("max_angular_speed").value)
+        )
+        self._linear_gain = max(0.0, float(self.get_parameter("linear_gain").value))
+        self._angular_gain = max(0.0, float(self.get_parameter("angular_gain").value))
 
         # Initialize grid map
         self._grid_map = GridMap(self._map_width, self._map_height, self._resolution)
@@ -52,6 +81,10 @@ class PathPlannerNode(Node):
         self._current_path: Optional[Path] = None
         self._current_waypoint_index = 0
         self._goal: Optional[Point] = None
+        self._current_pose: Optional[Point] = None
+        self._current_yaw = 0.0
+        self._has_published_stop = False
+        self._map_received = False
 
         # Subscribers and publishers
         self._goal_sub = self.create_subscription(
@@ -59,6 +92,9 @@ class PathPlannerNode(Node):
         )
         self._map_sub = self.create_subscription(
             OccupancyGrid, "/map", self._map_callback, 10
+        )
+        self._odom_sub = self.create_subscription(
+            Odometry, self._odom_topic, self._odom_callback, 10
         )
         self._path_pub = self.create_publisher(
             NavPath, self._path_topic, 10
@@ -77,31 +113,115 @@ class PathPlannerNode(Node):
         goal = Point(msg.pose.position.x, msg.pose.position.y)
         self._goal = goal
 
-        # Assume robot starts at center of map (should be replaced with actual odometry)
-        start = Point(self._map_width / 2, self._map_height / 2)
+        self._try_plan_goal()
 
-        # Plan path
-        path = self._planner.plan(start, goal)
+    def _try_plan_goal(self) -> None:
+        """Plan only after both localization and a valid map are available."""
+        if self._goal is None:
+            return
+        if self._current_pose is None:
+            self._current_path = None
+            self._publish_stop()
+            self.get_logger().warn(
+                "Waiting for odometry before planning the requested goal"
+            )
+            return
+        if not self._map_received:
+            self._current_path = None
+            self._publish_stop()
+            self.get_logger().warn(
+                "Waiting for a valid /map before planning the requested goal"
+            )
+            return
+
+        path = self._planner.plan(self._current_pose, self._goal)
 
         if path and not path.is_empty():
             self._current_path = path
             self._current_waypoint_index = 0
             self._publish_path(path)
             self.get_logger().info(f"Path planned with {len(path)} waypoints")
+            self._has_published_stop = False
         else:
+            self._current_path = None
+            self._publish_stop()
             self.get_logger().warn("Failed to plan path")
+
+    def _odom_callback(self, msg: Odometry) -> None:
+        """Track the current robot pose from the configured odometry topic."""
+        position = msg.pose.pose.position
+        orientation = msg.pose.pose.orientation
+        self._current_pose = Point(float(position.x), float(position.y))
+        sin_yaw = 2.0 * (
+            float(orientation.w) * float(orientation.z)
+            + float(orientation.x) * float(orientation.y)
+        )
+        cos_yaw = 1.0 - 2.0 * (
+            float(orientation.y) ** 2 + float(orientation.z) ** 2
+        )
+        self._current_yaw = math.atan2(sin_yaw, cos_yaw)
 
     def _map_callback(self, msg: OccupancyGrid) -> None:
         """Update grid map from occupancy grid."""
-        self._grid_map.clear_all()
+        try:
+            width = int(msg.info.width)
+            height = int(msg.info.height)
+            resolution = float(msg.info.resolution)
+            data = tuple(msg.data)
+        except (AttributeError, TypeError, ValueError, OverflowError) as exc:
+            self.get_logger().warn(f"Rejected malformed occupancy grid: {exc}")
+            return
 
-        for i, occupancy in enumerate(msg.data):
-            if occupancy > 50:  # Occupied threshold
-                grid_x = i % msg.info.width
-                grid_y = i // msg.info.width
-                world_x = grid_x * msg.info.resolution + msg.info.origin.position.x
-                world_y = grid_y * msg.info.resolution + msg.info.origin.position.y
+        expected_cells = width * height
+        if (
+            width <= 0
+            or height <= 0
+            or not math.isfinite(resolution)
+            or resolution <= 0.0
+            or len(data) != expected_cells
+        ):
+            self.get_logger().warn(
+                "Rejected malformed occupancy grid geometry/data: "
+                f"{width}x{height} @ {resolution} with "
+                f"{len(data)}/{expected_cells} cells"
+            )
+            return
+
+        if (
+            self._grid_map.grid_width != width
+            or self._grid_map.grid_height != height
+            or not math.isclose(
+                self._grid_map.resolution,
+                resolution,
+                rel_tol=0.0,
+                abs_tol=1e-9,
+            )
+        ):
+            self._grid_map.reconfigure_from_occupancy_grid(
+                width, height, resolution
+            )
+        self._grid_map.clear_all()
+        self._grid_map.set_origin(
+            Point(msg.info.origin.position.x, msg.info.origin.position.y)
+        )
+
+        for i, occupancy in enumerate(data):
+            # ROS uses -1 for unknown. Treat unknown as occupied so a partial
+            # or unexplored map cannot authorize autonomous motion.
+            if occupancy < 0 or occupancy > 50:  # Occupied or unknown
+                grid_x = i % width
+                grid_y = i // width
+                world_x = (
+                    (grid_x + 0.5) * resolution
+                    + msg.info.origin.position.x
+                )
+                world_y = (
+                    (grid_y + 0.5) * resolution
+                    + msg.info.origin.position.y
+                )
                 self._grid_map.set_obstacle(Point(world_x, world_y))
+        self._map_received = True
+        self._try_plan_goal()
 
     def _publish_path(self, path: Path) -> None:
         """Publish path as NavPath message."""
@@ -122,23 +242,59 @@ class PathPlannerNode(Node):
         self._path_pub.publish(nav_path)
 
     def _follow_path(self) -> None:
-        """Follow current path by publishing velocity commands."""
-        if not self._current_path or self._current_waypoint_index >= len(self._current_path.waypoints):
+        """Follow the path using current odometry and a bounded controller."""
+        if (
+            not self._map_received
+            or not self._current_path
+            or self._current_pose is None
+        ):
+            self._publish_stop()
             return
 
-        # Get current waypoint
+        while self._current_waypoint_index < len(self._current_path.waypoints):
+            waypoint = self._current_path.waypoints[self._current_waypoint_index]
+            if self._current_pose.distance_to(waypoint) > self._position_tolerance:
+                break
+            self._current_waypoint_index += 1
+
+        if self._current_waypoint_index >= len(self._current_path.waypoints):
+            self._current_path = None
+            self._publish_stop()
+            self.get_logger().info("Path goal reached")
+            return
+
         waypoint = self._current_path.waypoints[self._current_waypoint_index]
+        dx = waypoint.x - self._current_pose.x
+        dy = waypoint.y - self._current_pose.y
+        distance = math.hypot(dx, dy)
+        desired_yaw = math.atan2(dy, dx)
+        heading_error = math.atan2(
+            math.sin(desired_yaw - self._current_yaw),
+            math.cos(desired_yaw - self._current_yaw),
+        )
 
-        # Simple proportional controller to move toward waypoint
-        # (In real implementation, this would use actual robot pose from odometry)
         cmd = Twist()
-        cmd.linear.x = 0.3  # Constant forward speed
-        cmd.angular.z = 0.0
-
+        cmd.angular.z = max(
+            -self._max_angular_speed,
+            min(
+                self._max_angular_speed,
+                self._angular_gain * heading_error,
+            ),
+        )
+        if abs(heading_error) <= self._heading_tolerance:
+            cmd.linear.x = min(
+                self._max_linear_speed,
+                self._linear_gain * distance,
+            )
         self._cmd_vel_pub.publish(cmd)
+        self._has_published_stop = False
 
-        # Move to next waypoint (simplified - should check distance to waypoint)
-        self._current_waypoint_index += 1
+    def _publish_stop(self) -> None:
+        """Publish one stop command when the planner is idle or unlocalized."""
+        if self._has_published_stop:
+            return
+        self._cmd_vel_pub.publish(Twist())
+        self._has_published_stop = True
 
 
 def main(args=None) -> None:

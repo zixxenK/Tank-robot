@@ -29,26 +29,14 @@ void imus_init(void)
 
 void imu_task_entry(void *argument)
 {
-    extern osSemaphoreId_t mpu6050_data_readyHandle;
-
-    imus_init();
-    imus[0]->reset(imus[0]);
-
-//    int imu_report_interval = 1;
-//    int count = 0;
-//    struct PacketReportIMU report;
+    (void)argument;
+    /* The production packed protocol task owns MPU6050 initialization,
+     * polling, and UART telemetry.  This legacy task previously initialized
+     * a second MPU6050 object and issued DMA reads on the same I2C2 bus,
+     * contending with the protocol task and starving /stm32/imu. Keep the
+     * generated task slot alive, but never access the shared sensor here. */
     for(;;) {
-        osSemaphoreAcquire(mpu6050_data_readyHandle, osWaitForever);
-        imus[0]->update(imus[0]);
-//        count += 1;
-//        if(count > imu_report_interval) {
-//            count = 0;
-//            report.quat.w = imu1.quat.element.w;
-//            report.quat.x = imu1.quat.element.x;
-//            report.quat.y = imu1.quat.element.y;
-//            report.quat.z = imu1.quat.element.z;
-//            packet_transmit(&packet_controller, PACKET_FUNC_IMU, &report, sizeof(struct PacketReportIMU));
-//        }
+        osDelay(1000);
     }
 }
 

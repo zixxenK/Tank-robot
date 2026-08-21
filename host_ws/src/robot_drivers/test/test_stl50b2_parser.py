@@ -7,6 +7,7 @@ from robot_drivers.stl50b2_parser import (
     SynchronizedScanAssembler,
     crc8,
 )
+from robot_drivers.stl50b2_lidar import _as_bool
 
 
 def _packet(start_angle, end_angle, distance=1000):
@@ -79,3 +80,12 @@ def test_packet_angle_rollover_closes_scan_without_gpio():
     assert scan is not None
     assert scan.stamp_ns == 100
     assert len(scan.points) == POINTS_PER_PACKET
+
+
+def test_lidar_boolean_parameters_accept_ros_strings_without_truthiness_bug():
+    """String launch values such as ``false`` must remain disabled."""
+    assert _as_bool("true") is True
+    assert _as_bool("1") is True
+    assert _as_bool("false") is False
+    assert _as_bool("0") is False
+    assert _as_bool(False, True) is False
