@@ -30,7 +30,6 @@ class MotorBringupTest(Node):
         self.declare_parameter("step_duration", 1.2)
         self.declare_parameter("pause_duration", 0.6)
         self.declare_parameter("publish_rate_hz", 20.0)
-        self.declare_parameter("track_width_m", 0.194)
         self.declare_parameter("start_delay", 1.0)
 
         speed = float(
@@ -45,26 +44,25 @@ class MotorBringupTest(Node):
         publish_rate_hz = float(
             self.get_parameter("publish_rate_hz").value
         )
-        track_width = float(
-            self.get_parameter("track_width_m").value  # type: ignore[arg-type]
-        )
         self._start_delay = float(
             self.get_parameter("start_delay").value  # type: ignore[arg-type]
         )
 
-        # Use differential-drive geometry so each phase isolates one tread.
-        turn_ang = (2.0 * speed) / max(track_width, 1e-3)
+        # The hardened bridge maps left=(linear-angular) and
+        # right=(linear+angular).  Half-speed Twist components therefore
+        # request exactly one full test-speed track without normalization.
+        half_speed = speed / 2.0
 
         # Sequence mirrors firmware self-test intent using cmd_vel only.
         self._phases: List[_Phase] = [
             _Phase("idle", 0.0, 0.0, pause_duration),
-            _Phase("left_forward", speed, -turn_ang, step_duration),
+            _Phase("left_forward", half_speed, -half_speed, step_duration),
             _Phase("idle", 0.0, 0.0, pause_duration),
-            _Phase("left_reverse", -speed, turn_ang, step_duration),
+            _Phase("left_reverse", -half_speed, half_speed, step_duration),
             _Phase("idle", 0.0, 0.0, pause_duration),
-            _Phase("right_forward", speed, turn_ang, step_duration),
+            _Phase("right_forward", half_speed, half_speed, step_duration),
             _Phase("idle", 0.0, 0.0, pause_duration),
-            _Phase("right_reverse", -speed, -turn_ang, step_duration),
+            _Phase("right_reverse", -half_speed, -half_speed, step_duration),
             _Phase("idle", 0.0, 0.0, pause_duration),
         ]
 

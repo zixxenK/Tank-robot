@@ -69,7 +69,7 @@
 "68","PA9","I/O","USART1_TX","DBG_TX","","TIM1_CH2","","","I2C3_SMBA","","","USART1_TX","","","","","","DCMI_D0"
 "69","PA10","I/O","USART1_RX","DBG_RX","","TIM1_CH3","","","","","","USART1_RX","","","USB_OTG_FS_ID","","","DCMI_D1"
 "70","PA11","Output","GPIO_Output","PWM_SERVO_1","","TIM1_CH4","","","","","","USART1_CTS","","CAN1_RX","USB_OTG_FS_DM","","",""
-"71","PA12","Output","GPIO_Output","PWM_SERVO_2","","TIM1_ETR","","","","","","USART1_RTS","","CAN1_TX","USB_OTG_FS_DP","","",""
+"71","PA12","I/O","GPIO_EXTI12","HC_SR04_ECHO","","TIM1_ETR","","","","","","USART1_RTS","","CAN1_TX","USB_OTG_FS_DP","","",""
 "72","PA13","I/O","SYS_JTMS-SWDIO","","SYS_JTMS-SWDIO","","","","","","","","","","","","",""
 "73","VCAP_2","Power","","","","","","","","","","","","","","","",""
 "74","VSS","Power","","","","","","","","","","","","","","","",""

@@ -2,6 +2,7 @@
 # pylint: disable=import-error,no-name-in-module
 """Launch the Rock64 control stack through the canonical safety path."""
 
+import glob
 import os
 import sys
 
@@ -23,6 +24,19 @@ if _LAUNCH_DIR not in sys.path:
 from preflight_check import preflight_or_raise  # noqa: E402
 
 
+def _default_usb_camera_device() -> str:
+    """Resolve the configured camera or the first stable V4L2 index-0 path."""
+    configured = os.environ.get("USB_CAMERA_DEVICE", "auto").strip()
+    if configured and configured.lower() != "auto":
+        return configured
+    stable_devices = [
+        path
+        for path in sorted(glob.glob("/dev/v4l/by-id/*-video-index0"))
+        if os.path.exists(path)
+    ]
+    return stable_devices[0] if stable_devices else "/dev/video0"
+
+
 def generate_launch_description() -> LaunchDescription:
     """Build the canonical teleop -> safety -> hardened bridge graph."""
     use_hardware_bridge_arg = DeclareLaunchArgument(
@@ -42,7 +56,7 @@ def generate_launch_description() -> LaunchDescription:
         "use_camera_bridge",
         default_value=EnvironmentVariable(
             "USE_CAMERA_BRIDGE",
-            default_value="false",
+            default_value="true",
         ),
         description="Launch the ESP32 camera bridge",
     )
@@ -58,7 +72,7 @@ def generate_launch_description() -> LaunchDescription:
         "use_usb_camera",
         default_value=EnvironmentVariable(
             "USE_USB_CAMERA",
-            default_value="false",
+            default_value="true",
         ),
         description="Launch the USB webcam bridge",
     )
@@ -79,7 +93,7 @@ def generate_launch_description() -> LaunchDescription:
         "joy_device",
         default_value=EnvironmentVariable(
             "PS5_JOY_DEVICE",
-            default_value="/dev/input/js0",
+            default_value="/dev/input/ps5_controller",
         ),
         description="Required DualSense Linux joystick device",
     )
@@ -104,19 +118,30 @@ def generate_launch_description() -> LaunchDescription:
         default_value="/dev/gpiochip2",
         description="GPIO chip for STL-50B2 sync on header pin 12",
     )
+    lidar_baudrate_arg = DeclareLaunchArgument(
+        "lidar_baudrate",
+        default_value=EnvironmentVariable(
+            "LIDAR_BAUDRATE", default_value="115200"
+        ),
+        description="STL-50B2 UART baud rate",
+    )
+    lidar_use_sync_arg = DeclareLaunchArgument(
+        "lidar_use_sync",
+        default_value=EnvironmentVariable(
+            "LIDAR_USE_SYNC", default_value="true"
+        ),
+        description="Use GPIO sync edges for LiDAR scan boundaries",
+    )
     usb_camera_device_arg = DeclareLaunchArgument(
         "usb_camera_device",
-        default_value=EnvironmentVariable(
-            "USB_CAMERA_DEVICE",
-            default_value="/dev/video0",
-        ),
+        default_value=_default_usb_camera_device(),
         description="V4L2 device for the USB webcam",
     )
     use_compressed_camera_transport_arg = DeclareLaunchArgument(
         "use_compressed_camera_transport",
         default_value=EnvironmentVariable(
             "USE_COMPRESSED_CAMERA_TRANSPORT",
-            default_value="false",
+            default_value="true",
         ),
         description=(
             "Republish camera frames as depth-one JPEG topics for PC/Foxglove "
@@ -241,7 +266,8 @@ def generate_launch_description() -> LaunchDescription:
         parameters=[
             {
                 "serial_port": LaunchConfiguration("lidar_serial_port"),
-                "baudrate": 115200,
+                "baudrate": LaunchConfiguration("lidar_baudrate"),
+                "use_sync_gpio": LaunchConfiguration("lidar_use_sync"),
                 "frame_id": "base_laser",
                 "scan_topic": "/scan",
                 "sync_gpiochip": LaunchConfiguration("lidar_sync_gpiochip"),
@@ -344,6 +370,8 @@ def generate_launch_description() -> LaunchDescription:
             camera_ip_arg,
             lidar_serial_port_arg,
             lidar_sync_gpiochip_arg,
+            lidar_baudrate_arg,
+            lidar_use_sync_arg,
             usb_camera_device_arg,
             use_compressed_camera_transport_arg,
             camera_jpeg_quality_arg,

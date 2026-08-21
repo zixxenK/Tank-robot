@@ -15,6 +15,7 @@
 #include "motor_control.h"
 #include "imu_integration.h"
 #include "battery_integration.h"
+#include "sg90_servo.h"
 #include "buzzer.h"
 #include <math.h>
 #include <string.h>
@@ -456,6 +457,29 @@ void binary_protocol_process_frame(BinaryProtocolContext *ctx, uint8_t func, uin
                     (void)buzzer_off(buzzers[0]);
                 } else {
                     (void)buzzer_on(buzzers[0], frequency);
+                }
+            }
+            break;
+
+        case FUNC_SERVO:
+            /* Payload/ack: [subcommand][channel][pulse_us LE16]
+             *              [duration_ms LE16].  The dedicated driver owns
+             * only SG90 J1 on PA11; PC8/PA12 remain exclusively HC-SR04. */
+            if (payload_len == sizeof(ServoCommandPayload) &&
+                payload[0] == SERVO_SUBCMD_SET_PULSE) {
+                uint8_t channel = payload[1];
+                uint16_t pulse_us = (uint16_t)payload[2] |
+                                    ((uint16_t)payload[3] << 8);
+                uint16_t duration_ms = (uint16_t)payload[4] |
+                                       ((uint16_t)payload[5] << 8);
+
+                if (SG90Servo_Command(channel, pulse_us, duration_ms)) {
+                    /* Echo only accepted commands so this response is an
+                     * unambiguous host acknowledgement. */
+                    (void)binary_protocol_queue_frame(ctx,
+                                                      FUNC_SERVO,
+                                                      payload,
+                                                      payload_len);
                 }
             }
             break;

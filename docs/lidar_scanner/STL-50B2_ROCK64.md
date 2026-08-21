@@ -12,14 +12,16 @@ does not use the STM32 UART and it does not use `ydlidar_ros2_driver`,
 | Black | LiDAR RX | 8 | GPIO2_A0 / UART2_TX_M1 |
 | Red | Hardware sync | 12 | GPIO2_A3 |
 
-The UART is `115200 8N1`, with no flow control. The default Linux device is
+The UART is `115200 8N1`, with no flow control unless the scanner's model
+configuration specifies another rate. The default Linux device is
 `/dev/ttyS2`, but the actual device must be confirmed on the running ROCK64
 because kernel aliases can differ. UART2 must be enabled and the pins must be
 muxed to UART2 by the board device tree. Do not assume that physical wiring
 alone enables the UART.
 
-Pin 12 is required. The driver uses its rising edge as the scan boundary and
-does not publish packets received before the first sync edge. The default GPIO
+Pin 12 is the preferred hardware scan boundary when it is wired. The driver
+can also use packet angle rollover for ordinary serial scans; set
+`use_sync_gpio:=true` when pin 12 is connected. The default GPIO
 mapping is `/dev/gpiochip2`, line offset `3` (`GPIO2_A3`), with a legacy sysfs
 fallback for older ROCK64 kernels. The user running ROS must have access to the
 serial device and GPIO character device (normally `dialout` and `gpio` groups,
@@ -36,7 +38,7 @@ stream parser for the LDROBOT STL packet format:
 - 12 distance/intensity samples;
 - LDROBOT CRC-8 over bytes 0 through 45.
 
-`stl50b2_lidar` publishes synchronized `sensor_msgs/LaserScan` messages on
+`stl50b2_lidar` publishes `sensor_msgs/LaserScan` messages on
 `/scan` with frame `base_laser`.
 
 ## Build and run
@@ -60,6 +62,9 @@ If the UART is exposed under another device name, pass it explicitly:
 
 ```bash
 ros2 launch robot_bringup stl50b2.launch.py serial_port:=/dev/ttyS3
+
+# If the scanner documentation/label specifies a different UART rate:
+ros2 launch robot_bringup stl50b2.launch.py baudrate:=230400
 ```
 
 The existing `rock64_bringup.launch.py` intentionally does not start this

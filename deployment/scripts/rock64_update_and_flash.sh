@@ -12,6 +12,8 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="${BACKUP_ROOT}/${STAMP}"
 SERVICE="rock64-robot.service"
 SERVICE_WAS_ACTIVE=false
+SYSTEMD_CONFIG="${REPO_ROOT}/deployment/systemd/systemd_config.conf"
+SYSTEMD_CONFIG_EXAMPLE="${REPO_ROOT}/deployment/systemd/systemd_config.conf.example"
 
 die() {
   echo "[rock64_update] ERROR: $*" >&2
@@ -24,6 +26,36 @@ as_root() {
   else
     sudo "$@"
   fi
+}
+
+set_config_value() {
+  local key="$1"
+  local value="$2"
+
+  if grep -qE "^[[:space:]]*${key}=" "${SYSTEMD_CONFIG}"; then
+    sed -i -E "s|^[[:space:]]*${key}=.*$|${key}=${value}|" "${SYSTEMD_CONFIG}"
+  else
+    printf '\n%s=%s\n' "${key}" "${value}" >> "${SYSTEMD_CONFIG}"
+  fi
+}
+
+merge_all_hardware_config() {
+  if [[ ! -f "${SYSTEMD_CONFIG}" ]]; then
+    [[ -f "${SYSTEMD_CONFIG_EXAMPLE}" ]] || \
+      die "deployment config and example are both missing"
+    cp "${SYSTEMD_CONFIG_EXAMPLE}" "${SYSTEMD_CONFIG}"
+  fi
+
+  # Preserve network, LiDAR, namespace, and other operator-specific values;
+  # only enforce the peripherals required by this all-hardware release.
+  set_config_value USE_HARDWARE_BRIDGE true
+  set_config_value USE_TELEOP true
+  set_config_value PS5_JOY_DEVICE /dev/input/ps5_controller
+  set_config_value USE_CAMERA_BRIDGE true
+  set_config_value USE_USB_CAMERA true
+  set_config_value USB_CAMERA_DEVICE auto
+  set_config_value USE_COMPRESSED_CAMERA_TRANSPORT true
+  echo "[rock64_update] Enabled STM32, PS5, ESP32 camera, and USB camera in ${SYSTEMD_CONFIG}."
 }
 
 restore_service() {
@@ -46,6 +78,8 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 python3 -c 'import serial' >/dev/null 2>&1 || die "python3-serial is not installed"
 command -v st-flash >/dev/null 2>&1 || command -v openocd >/dev/null 2>&1 || die "neither st-flash nor openocd is installed"
 command -v openocd >/dev/null 2>&1 || die "openocd is required to start the image with NRST disconnected"
+
+merge_all_hardware_config
 
 echo "[rock64_update] Production host link: UART1 / USART1 / PA9-PA10"
 

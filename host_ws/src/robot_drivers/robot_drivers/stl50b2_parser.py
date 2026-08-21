@@ -146,28 +146,56 @@ class STL50B2StreamParser:
 
 
 class SynchronizedScanAssembler:
-    """Use GPIO edges as mandatory scan boundaries."""
+    """Assemble scans from GPIO edges or packet angle rollover."""
 
-    def __init__(self, max_points: int = 10000) -> None:
-        """Create an assembler that waits for the first sync edge."""
+    def __init__(
+        self, max_points: int = 10000, require_sync: bool = True
+    ) -> None:
+        """Create an assembler with optional hardware synchronization."""
         self._max_points = max_points
+        self._require_sync = require_sync
         self._synchronized = False
         self._stamp_ns: Optional[int] = None
         self._points: List[STL50B2Point] = []
+        self._last_angle_deg: Optional[float] = None
 
     @property
     def synchronized(self) -> bool:
         """Whether a valid synchronization edge has been received."""
         return self._synchronized
 
-    def add_packet(self, packet: STL50B2Packet) -> None:
-        """Add a packet, discarding data received before synchronization."""
-        if not self._synchronized:
-            return
+    def add_packet(
+        self, packet: STL50B2Packet, stamp_ns: Optional[int] = None
+    ) -> Optional[SynchronizedScan]:
+        """Add a packet and close a scan when its angle rolls over."""
+        if self._require_sync and not self._synchronized:
+            return None
+
+        completed = None
+        first_angle = packet.points[0].angle_deg
+        if (
+            not self._require_sync
+            and self._points
+            and self._last_angle_deg is not None
+            and first_angle < 20.0
+            and self._last_angle_deg > 340.0
+            and self._stamp_ns is not None
+        ):
+            completed = SynchronizedScan(
+                stamp_ns=self._stamp_ns,
+                points=tuple(self._points),
+            )
+            self._points = []
+            self._stamp_ns = stamp_ns
+
+        if self._stamp_ns is None:
+            self._stamp_ns = stamp_ns
         self._points.extend(packet.points)
+        self._last_angle_deg = packet.points[-1].angle_deg
         if len(self._points) > self._max_points:
             # A missing edge must never create an unbounded memory growth.
             self._points.clear()
+        return completed
 
     def sync_edge(self, stamp_ns: int) -> Optional[SynchronizedScan]:
         """Close the previous scan and begin a new synchronized scan."""
@@ -180,4 +208,5 @@ class SynchronizedScanAssembler:
         self._synchronized = True
         self._stamp_ns = stamp_ns
         self._points = []
+        self._last_angle_deg = None
         return completed

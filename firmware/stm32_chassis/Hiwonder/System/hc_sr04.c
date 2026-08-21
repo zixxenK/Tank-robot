@@ -2,7 +2,7 @@
  * @file hc_sr04.c
  * @brief Non-blocking HC-SR04 timing driver.
  *
- * PC8 emits a 10 us trigger pulse. PC9 captures both echo edges through EXTI
+ * PC8 emits a 10 us trigger pulse. PA12 captures both echo edges through EXTI
  * and DWT->CYCCNT provides microsecond timing without blocking the motor task.
  */
 
@@ -24,6 +24,15 @@ static volatile uint16_t latest_distance_mm;
 static volatile bool waiting_for_rise;
 static volatile bool measurement_active;
 static volatile bool measurement_ready;
+static volatile uint8_t status_code;
+
+enum {
+    HC_SR04_STATUS_IDLE = 0,
+    HC_SR04_STATUS_WAITING_RISE = 1,
+    HC_SR04_STATUS_WAITING_FALL = 2,
+    HC_SR04_STATUS_TIMEOUT = 3,
+    HC_SR04_STATUS_VALID = 4,
+};
 
 static uint32_t cycles_per_us(void)
 {
@@ -52,6 +61,7 @@ void hc_sr04_init(void)
     measurement_ready = false;
     latest_echo_us = 0U;
     latest_distance_mm = 0U;
+    status_code = HC_SR04_STATUS_IDLE;
     last_trigger_ms = HAL_GetTick() - HC_SR04_MIN_INTERVAL_MS;
 }
 
@@ -63,6 +73,7 @@ void hc_sr04_service(void)
         (uint32_t)(now - timeout_deadline_ms) < 0x80000000U) {
         measurement_active = false;
         waiting_for_rise = false;
+        status_code = HC_SR04_STATUS_TIMEOUT;
     }
     if (measurement_active ||
         (uint32_t)(now - last_trigger_ms) < HC_SR04_MIN_INTERVAL_MS) {
@@ -72,6 +83,7 @@ void hc_sr04_service(void)
     measurement_active = true;
     waiting_for_rise = true;
     measurement_ready = false;
+    status_code = HC_SR04_STATUS_WAITING_RISE;
     last_trigger_ms = now;
     timeout_deadline_ms = now + HC_SR04_TIMEOUT_MS;
 
@@ -95,6 +107,7 @@ void hc_sr04_echo_edge(void)
         if (waiting_for_rise) {
             echo_start_cycles = DWT->CYCCNT;
             waiting_for_rise = false;
+            status_code = HC_SR04_STATUS_WAITING_FALL;
         }
         return;
     }
@@ -108,6 +121,7 @@ void hc_sr04_echo_edge(void)
             latest_echo_us = (uint16_t)echo_us;
             latest_distance_mm = (uint16_t)((echo_us * 343U) / 2000U);
             measurement_ready = true;
+            status_code = HC_SR04_STATUS_VALID;
         }
         waiting_for_rise = false;
     }
@@ -123,6 +137,11 @@ bool hc_sr04_get_measurement(HcSr04Measurement *measurement)
     measurement->valid = true;
     measurement_ready = false;
     return true;
+}
+
+uint8_t hc_sr04_get_status(void)
+{
+    return status_code;
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)

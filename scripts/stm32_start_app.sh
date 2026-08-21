@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Start the image at 0x08000000 through SWD when NRST/BOOT0 prevents a normal
-# board reset from selecting flash. This does not write flash or send motion.
+# Start the image at 0x08000000 through SWD when BOOT0 selects the STM32 system
+# bootloader and the board's NRST wire is not available. Reset first so the
+# application gets clean RCC/peripheral state, then vector the halted core to
+# the user image explicitly. This does not write flash or send motion.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,19 +14,11 @@ command -v openocd >/dev/null 2>&1 || {
 }
 
 openocd -f "${SCRIPT_DIR}/openocd_stm32f407.cfg" \
-  -c "transport select ${OPENOCD_TRANSPORT}; init; halt; \
-      mww 0xE000ED0C 0x05fa0002; \
-      mww 0xE000EF34 0; mww 0xE000EF38 0; \
-      mww 0xE000EF3C 0; mww 0xE000EF40 0; \
-      mww 0xE000ED28 0xffffffff; mww 0xE000ED2C 0xffffffff; \
+  -c "transport select ${OPENOCD_TRANSPORT}; init; reset halt; \
       mww 0xE000ED08 0x08000000; \
       mww 0xE000ED04 0; \
-      mww 0xE000E180 0xffffffff; \
-      mww 0xE000E184 0xffffffff; \
-      mww 0xE000E280 0xffffffff; \
-      mww 0xE000E284 0xffffffff; \
       reg msp [mrw 0x08000000]; \
       reg pc [mrw 0x08000004]; \
       reg xPSR 0x01000000; reg lr 0xffffffff; \
-      reg primask 0; reg faultmask 0; \
-      reg basepri 0; reg control 0; resume; shutdown"
+      reg primask 0; reg faultmask 0; reg basepri 0; reg control 0; \
+      resume; shutdown"

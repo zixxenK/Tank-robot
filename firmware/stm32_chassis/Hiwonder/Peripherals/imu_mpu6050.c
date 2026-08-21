@@ -226,7 +226,7 @@ int mpu6050_get_all(MPU6050ObjectTypeDef *self, float *accel, float *temp, float
     int16_t acc_z_raw = ((uint16_t)buf[4] << 8) | (uint16_t)buf[5];
     int16_t temp_raw = ((uint16_t)buf[6] << 8) | (uint16_t)buf[7];
     int16_t gyro_x_raw = ((uint16_t)buf[8] << 8) | (uint16_t)buf[9];
-    int16_t gyro_y_raw = ((uint16_t)buf[10] << 8) | (uint16_t)buf[12];
+    int16_t gyro_y_raw = ((uint16_t)buf[10] << 8) | (uint16_t)buf[11];
     int16_t gyro_z_raw = ((uint16_t)buf[12] << 8) | (uint16_t)buf[13];
 
     *accel++ = (float)((int)acc_x_raw) / self->accel_sf;

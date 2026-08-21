@@ -179,28 +179,30 @@ The production wiring for this robot is:
 | VCC | J4 `+5V` |
 | GND | J4 `GND` / `-` |
 | TRIG | J4 signal `S` → `PC8` |
-| ECHO | J5 signal `S` → `PC9` |
+| ECHO | J2 signal `S` → `PA12` |
 
 Split the four sensor wires across J4 and J5 exactly as shown. Do not use the
 I2C, SBUS, Rock64, or ESP32 camera connectors, and use the printed `S`, `+5V`,
 and `GND` labels rather than wire-colour assumptions.
 
-Power everything off before wiring. The current production firmware image
-must be replaced before connecting the sensor: PC8/PC9 are now reserved by the
-source tree for the HC-SR04 driver, but an older flashed image may still drive
-both pins as servo outputs. ECHO must also be checked for safe STM32 input
-voltage; use a divider or level shifter if the controller input is not 5 V
+Power everything off before wiring. Verify the active firmware image before
+connecting the sensor: an older flashed image may still drive PC8/PC9 as servo
+outputs. ECHO must also be checked for safe STM32 input voltage; use a divider
+or level shifter unless the complete board input path is confirmed 5 V
 tolerant.
 
-The rebuilt firmware emits a 10 us PC8 trigger, measures PC9 echo width using
+The rebuilt firmware emits a 10 us PC8 trigger, measures PA12 echo width using
 the cycle counter and EXTI, and sends function `0x14` telemetry. The Rock64
 bridge publishes valid readings on `/ultrasonic/range` as
 `sensor_msgs/Range`, frame `ultrasonic_link`. Invalid or timed-out readings
-are published as NaN and must not be treated as an obstacle.
+are published as NaN and must not be treated as an obstacle. The bridge also
+reports `valid`, `echo_us`, and the current cycle state in
+`/stm32/diagnostics`.
 
 Safe test order:
 
-1. Keep the HC-SR04 disconnected and build/flash the STM32 image.
+1. Keep the HC-SR04 disconnected and verify/build/flash the STM32 image as
+   required.
 2. Power down, wire VCC/GND/TRIG/ECHO using the table above, then power up.
 3. Start the Rock64 bridge and inspect `/ultrasonic/range`.
 4. Place a flat target at a known distance and compare the reported range.

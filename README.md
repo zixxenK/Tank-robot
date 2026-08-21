@@ -95,16 +95,29 @@ python -m pytest host_ws/src/agent_core/test host_ws/src/robot_drivers/test -q
 
 ## Bringup
 
-Hardware / manual motor test:
+After the STM32 firmware and ROS workspace have been deployed, start the
+complete Rock64 hardware graph with one command:
 
 ```bash
-source /opt/ros/humble/setup.bash
-source host_ws/install/setup.bash
-scripts/robot_base_start.sh
+bash scripts/onecmd.sh
 ```
 
-PS5 is optional. The default launch starts the Rock64/ROS 2/STM32 base without
-teleoperation. Send exactly one of these commands when you are ready to test:
+Run every non-motion acceptance stage in order with:
+
+```bash
+bash scripts/hardware_acceptance.sh
+```
+
+For the complete independent M1/M2 proof, securely raise both tracks first,
+then use `bash scripts/hardware_acceptance.sh --tracks-raised`. The runner
+checks fresh STM32, encoder, IMU, HC-SR04, PS5, ESP32-camera, USB-camera, and
+servo data before any optional motor stage, prints a numbered PASS/FAIL table,
+always stops both motors, and writes a JSON report. See
+[the exact Rock64 procedure](docs/ROCK64_HARDWARE_ACCEPTANCE.md).
+
+The older individual commissioning commands remain available for focused
+maintenance. Send exactly one of these only when a single direction test is
+needed:
 
 ```bash
 ros2 topic pub --once /stm32/test_direction std_msgs/msg/String "{data: forward}"
@@ -138,10 +151,11 @@ ros2 launch robot_bringup rock64_bringup.launch.py \
   use_hardware_bridge:=false use_teleop:=false
 ```
 
-The hardware preflight fails before node startup when the configured serial
-device or required PS5 joystick does not exist. The default devices are
-`/dev/rock64_stm32` and `/dev/input/js0`; set `SERIAL_PORT` or
-`PS5_JOY_DEVICE` when the Rock64 enumerates different paths.
+The hardware preflight fails before node startup when the configured STM32
+serial device does not exist. The PS5 bridge supports hot-plug and waits when
+the controller is off. The stable defaults are `/dev/rock64_stm32` and
+`/dev/input/ps5_controller`; set `SERIAL_PORT` or `PS5_JOY_DEVICE` only when
+the Rock64 uses different persistent paths.
 
 With tracks lifted and motor power deliberately enabled, prove each motor
 through the single ROS 2 bridge:
@@ -183,7 +197,9 @@ sudo bash deployment/scripts/rock64_setup.sh --ros-distro auto
 ```
 
 The setup script targets Ubuntu 22.04/Humble, builds `host_ws`, installs the
-udev rule and systemd service, and launches only the hardened STM32 bridge.
+udev rules and systemd service, and enables the complete hardware acquisition
+graph. Individual components remain configurable through
+`deployment/systemd/systemd_config.conf`.
 
 To send the current checkout to the board and perform the complete update from
 the Rock64 (including the STM32 ST-Link flash), run this from Windows with an
@@ -193,13 +209,20 @@ SSH key configured for `rock64@rock64`:
 .\scripts\deploy_rock64.ps1
 ```
 
+For source/configuration and ROS host updates without programming either
+controller, use:
+
+```powershell
+.\scripts\sync_rock64_safe.ps1 -RestartService
+```
+
 The script preserves a source backup on the Rock64, builds the ROS packages and
 STM32 Release image there, flashes and verifies the STM32 through the Rock64
 ST-Link, starts the image with SWD, runs the safe stop/zero-speed UART proof,
 and restarts the robot service only after every step passes. The Rock64 sudo
-password is requested interactively and is never stored. This workflow always
-flashes; source-only synchronization is intentionally not supported by this
-command.
+password is requested interactively and is never stored. The flashing workflow
+above always flashes; use `sync_rock64_safe.ps1` for source-only
+synchronization.
 
 ## Hardware Gate
 

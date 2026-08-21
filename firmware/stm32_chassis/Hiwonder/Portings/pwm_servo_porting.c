@@ -23,7 +23,7 @@ static void pwm_servo3_write_pin(uint32_t new_state)
 
 static void pwm_servo4_write_pin(uint32_t new_state)
 {
-    /* PC9 is reserved for HC-SR04 ECHO in the production image. */
+    /* PA12 is reserved for HC-SR04 ECHO in the production image. */
     (void)new_state;
 }
 

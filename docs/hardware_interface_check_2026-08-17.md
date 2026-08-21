@@ -69,22 +69,22 @@ as follows:
 | Board header | STM32 pin | Use in this robot |
 |---|---|---|
 | J1 | PA11 / `PWM_SERVO_1` | Keep SG90 here |
-| J2 | PA12 / `PWM_SERVO_2` | Spare PWM header |
+| J2 | PA12 / `PWM_SERVO_2` | HC-SR04 `ECHO` signal |
 | J4 | PC8 / `PWM_SERVO_3` | HC-SR04 `TRIG` signal |
-| J5 | PC9 / `PWM_SERVO_4` | HC-SR04 `ECHO` signal |
 
 Use the signal (`S`) contact of J4 for `TRIG` and the signal (`S`) contact of
-J5 for `ECHO`. Use the `+5V` and `GND` contacts on either PWM header for the
+J2 for `ECHO`. Use the `+5V` and `GND` contacts on either PWM header for the
 HC-SR04 power wires; all four PWM headers share ground. The HC-SR04 four-wire
 lead therefore needs its wires split across two three-pin headers; it does
 not plug into the I2C or SBUS socket.
 
-The STM32F407VET6 datasheet marks PA11, PA12, PC8, and PC9 as FT (5-V-tolerant)
-I/O. No external resistor divider, Arduino, encoder board, or level-shifter
-board is required for this wiring. The controller must be flashed with the
-HC-SR04 firmware first: PC8/TRIG is an output and PC9/ECHO is an input/timer
-capture pin. Do not connect ECHO while the current firmware still configures
-PC9 as `GPIO_Output`.
+The STM32F407VET6 datasheet marks PA11, PA12, PC8, and PC9 as FT
+(5-V-tolerant) I/O, but the complete board-level input path and active
+firmware still need to be verified. Use a resistor divider or level shifter
+unless that exact path is confirmed safe. The controller must be flashed with
+the HC-SR04 firmware first: PC8/TRIG is an output and PA12/ECHO is an
+input/timer capture pin. Do not connect ECHO while the current firmware still
+configures PA12 as `GPIO_Output`.
 
 This mapping is cross-checked against Hiwonder's official controller hardware
 course, section “4-Lane Servo Port”, and the project's
@@ -109,9 +109,9 @@ specific Wi-Fi dongle model, or an SG90 PWM channel.
    then rerun `lsusb`, `ip link`, and the repository's
    `deployment/scripts/configure_wifi_adapter.sh` if the adapter is the
    expected MT7601 model.
-2. For HC-SR04, use J4/J5 as documented above and add firmware
-   capture/reporting plus a ROS `sensor_msgs/Range` adapter; do not expect USB
-   enumeration.
+2. For HC-SR04, use J4/J2 as documented above and inspect the firmware
+   capture diagnostics plus the ROS `sensor_msgs/Range` adapter; do not expect
+   USB enumeration.
 3. For SG90, identify the actual signal/power/ground connector and perform a
    deliberately bounded PWM test only after confirming the linkage and safe
    mechanical travel.

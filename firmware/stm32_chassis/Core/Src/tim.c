@@ -522,7 +522,9 @@ void MX_TIM13_Init(void)
   htim13.Instance = TIM13;
   htim13.Init.Prescaler = 83;
   htim13.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim13.Init.Period = 4999;
+  /* 84 MHz APB1 timer clock / (83 + 1) = 1 MHz.  A 19999 ARR gives the
+   * 20 ms (50 Hz) SG90 frame period; CC1 marks the falling edge in us. */
+  htim13.Init.Period = 19999;
   htim13.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim13) != HAL_OK)
@@ -541,7 +543,9 @@ void MX_TIM13_Init(void)
   {
     Error_Handler();
   }
-  __HAL_TIM_ENABLE_OCxPRELOAD(&htim13, TIM_CHANNEL_1);
+  /* The SG90 driver updates CCR1 at each update interrupt.  Keep compare
+   * writes immediate so the new pulse width applies to that same frame. */
+  __HAL_TIM_DISABLE_OCxPRELOAD(&htim13, TIM_CHANNEL_1);
   /* USER CODE BEGIN TIM13_Init 2 */
 
   /* USER CODE END TIM13_Init 2 */
@@ -636,6 +640,10 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
   /* USER CODE END TIM13_MspInit 0 */
     /* TIM13 clock enable */
     __HAL_RCC_TIM13_CLK_ENABLE();
+
+    /* TIM13 interrupt Init */
+    HAL_NVIC_SetPriority(TIM8_UP_TIM13_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);
   /* USER CODE BEGIN TIM13_MspInit 1 */
 
   /* USER CODE END TIM13_MspInit 1 */

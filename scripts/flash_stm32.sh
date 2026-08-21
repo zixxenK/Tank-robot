@@ -29,11 +29,17 @@ done
 if [[ "${DO_BUILD}" == true ]]; then
   echo "[flash] Building firmware..."
   cd "${FIRMWARE_DIR}"
-  rm -rf build/Release
-  cmake -S . -B build/Release \
+  cmake --fresh -S . -B build/Release \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -G 'Unix Makefiles'
   cmake --build build/Release -j"${STM32_BUILD_JOBS:-4}"
+fi
+
+# If a caller built the canonical Rock64 profile, use that artifact rather
+# than silently flashing an older Release checkout.
+if [[ ! -f "${BIN_FILE}" && -f "${FIRMWARE_DIR}/build/rock64/RosRobotControllerM4.bin" ]]; then
+  BUILD_DIR="${FIRMWARE_DIR}/build/rock64"
+  BIN_FILE="${BUILD_DIR}/RosRobotControllerM4.bin"
 fi
 
 if [[ ! -f "${BIN_FILE}" ]]; then

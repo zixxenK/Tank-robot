@@ -13,9 +13,14 @@ from robot_drivers.stm32_hardened_bridge import (
     SYNC_2,
     FUNC_MOTOR,
     FUNC_BUZZER,
+    FUNC_SERVO,
     FUNC_HEARTBEAT,
     FUNC_ULTRASONIC,
     MOTOR_SUBCMD_SET_SPEED,
+    SERVO_CHANNEL_J1,
+    SERVO_SUBCMD_SET_POSITION,
+    servo_angle_to_pulse_us,
+    servo_pulse_to_angle_degrees,
 )
 
 
@@ -65,6 +70,25 @@ class TestCRC8(unittest.TestCase):
         self.assertEqual(frame[2], FUNC_BUZZER)
         self.assertEqual(frame[3], 3)
         self.assertEqual(frame[4:], payload + bytes([crc8_ccitt(body)]))
+
+    def test_servo_command_frame_and_round_trip(self):
+        """J1 servo commands use the bounded packed protocol extension."""
+        pulse_us = servo_angle_to_pulse_us(90.0)
+        payload = bytes([SERVO_SUBCMD_SET_POSITION, SERVO_CHANNEL_J1])
+        payload += struct.pack("<HH", pulse_us, 500)
+        body = bytes([FUNC_SERVO, len(payload)]) + payload
+        frame = bytes([SYNC_1, SYNC_2]) + body + bytes([crc8_ccitt(body)])
+
+        self.assertEqual(pulse_us, 1500)
+        self.assertEqual(servo_pulse_to_angle_degrees(pulse_us), 90)
+        self.assertEqual(frame[2], FUNC_SERVO)
+        self.assertEqual(frame[3], 6)
+
+    def test_servo_angle_rejects_unsafe_values(self):
+        """Non-finite and out-of-protocol commands are rejected."""
+        for value in (-1.0, 181.0, float("nan"), float("inf")):
+            with self.assertRaises(ValueError):
+                servo_angle_to_pulse_us(value)
 
 
 class TestCircularBuffer(unittest.TestCase):

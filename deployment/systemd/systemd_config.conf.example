@@ -5,6 +5,7 @@
 # ── Network ────────────────────────────────────────────────────────────────
 # IP address of the Rock64 SBC on your local network
 ROCK64_IP=192.168.1.139
+ROCK64_USE_DISCOVERY_SERVER=0
 
 # ── Hardware ───────────────────────────────────────────────────────────────
 # Serial port for STM32 motor controller.
@@ -23,14 +24,16 @@ USE_COMPRESSED_CAMERA_TRANSPORT=true
 CAMERA_JPEG_QUALITY=70
 
 # Launch the direct STL-50B2 driver from normal robot bringup.
-USE_LIDAR=true
+USE_LIDAR=false
 LIDAR_SERIAL_PORT=/dev/ttyS2
 LIDAR_SYNC_GPIOCHIP=/dev/gpiochip2
+LIDAR_BAUDRATE=115200
+LIDAR_USE_SYNC=true
 
 # Launch the USB webcam bridge. The ESP32 camera remains /camera/image_raw;
 # the USB camera is published independently as /camera/usb/image_raw.
 USE_USB_CAMERA=true
-USB_CAMERA_DEVICE=/dev/video0
+USB_CAMERA_DEVICE=auto
 
 # The web dashboard is external to this repository. ROS topics can be exposed
 # through rosbridge on this separate port to avoid the dashboard HTTPS port.
@@ -42,6 +45,7 @@ USE_HARDWARE_BRIDGE=true
 
 # Launch the PS5 DualSense joystick bridge on the normal operator startup.
 USE_TELEOP=true
+PS5_JOY_DEVICE=/dev/input/ps5_controller
 
 # Launch the PS5-triggered buzzer/song node and /buzzer/frequency transport.
 USE_AUDIO=true
@@ -59,6 +63,9 @@ ROS_DOMAIN_ID=42
 
 # Middleware implementation
 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+# Optional Fast DDS discovery server.  Leave unset for normal multicast LAN
+# discovery; enable ROCK64_USE_DISCOVERY_SERVER only when this is intentional.
+# ROS_DISCOVERY_SERVER=192.168.1.139:11811
 
 # Robot namespace (useful for multi-robot setups)
 ROBOT_NAMESPACE=rock64_1

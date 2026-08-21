@@ -50,23 +50,40 @@ static void delay_ms(uint32_t ms) {
 // ============================================================================
 
 int IMU_Init(void) {
-    // Initialize MPU6050 object
-    mpu6050_object_init(&imu_sensor, MPU6050_DEV_ADDR_1);
-    
-    // Set hardware abstraction functions
-    imu_sensor.i2c_write_byte_to_mem = i2c_write_byte_to_mem;
-    imu_sensor.i2c_read_from_mem = i2c_read_from_mem;
-    imu_sensor.sleep_ms = delay_ms;
+    /* MPU6050 breakout boards select either 0x68 or 0x69 with AD0.  Probe
+     * both legal addresses; hard-coding 0x68 made an otherwise healthy IMU
+     * silently disappear from ROS when its strap was high. */
+    const uint8_t candidate_addresses[] = {
+        MPU6050_DEV_ADDR_1,
+        MPU6050_DEV_ADDR_2,
+    };
+    bool device_found = false;
+    for (size_t i = 0; i < sizeof(candidate_addresses); ++i) {
+        mpu6050_object_init(&imu_sensor, candidate_addresses[i]);
 
-    // Temporary safety bypass: IMU bring-up currently hardfaults on this
-    // hardware/firmware path. Keep IMU disabled so drivetrain protocol can boot.
-    imu_initialized = false;
-    last_imu_update_time = HAL_GetTick();
-    return -1;
+        // Set hardware abstraction functions before probing/configuration.
+        imu_sensor.i2c_write_byte_to_mem = i2c_write_byte_to_mem;
+        imu_sensor.i2c_read_from_mem = i2c_read_from_mem;
+        imu_sensor.sleep_ms = delay_ms;
+
+        if (HAL_I2C_IsDeviceReady(&hi2c2, imu_sensor.dev_addr << 1, 2, 20) ==
+            HAL_OK) {
+            device_found = true;
+            break;
+        }
+    }
+
+    /* Probe both addresses first so an absent or unpowered module is a normal
+     * telemetry fault instead of a startup failure or an unsafe I2C access. */
+    if (!device_found) {
+        imu_initialized = false;
+        last_imu_update_time = HAL_GetTick();
+        return -2;
+    }
     
-    // Reset and calibrate IMU
+    // Reset the device. Calibration is intentionally deferred until the
+    // sensor path has produced valid samples.
     imu_sensor.base.reset(&imu_sensor.base);
-    imu_sensor.base.calibrat(&imu_sensor.base);
 
     // Configure for optimal performance
     mpu6050_set_accel_fsr(&imu_sensor, MPU6050_ACCEL_FSR_4G);     // ±4g for good dynamic range
@@ -107,18 +124,28 @@ int IMU_Update(float *accel, float *gyro) {
         return -3; // Sensor read failed
     }
     
-    // Get calibrated data
-    imu_sensor.base.get_accel(&imu_sensor.base, raw_accel);
-    imu_sensor.base.get_gyro(&imu_sensor.base, raw_gyro);
+    /* mpu6050_object_init exposes update(), but the legacy base object does
+     * not install get_accel()/get_gyro() callbacks.  Read the values that
+     * export_mpu6050_update() populated directly. */
+    raw_accel[0] = imu_sensor.accel[0];
+    raw_accel[1] = imu_sensor.accel[1];
+    raw_accel[2] = imu_sensor.accel[2];
+    raw_gyro[0] = imu_sensor.gyro[0];
+    raw_gyro[1] = imu_sensor.gyro[1];
+    raw_gyro[2] = imu_sensor.gyro[2];
     
     // Apply to output arrays
-    accel[0] = raw_accel[0];
-    accel[1] = raw_accel[1];
-    accel[2] = raw_accel[2];
-    
-    gyro[0] = raw_gyro[0];
-    gyro[1] = raw_gyro[1];
-    gyro[2] = raw_gyro[2];
+    /* The MPU6050 driver returns g and degrees/second; ROS Imu requires SI
+     * units (m/s^2 and radians/second). */
+    const float gravity = 9.80665f;
+    const float degrees_to_radians = 0.017453292519943f;
+    accel[0] = raw_accel[0] * gravity;
+    accel[1] = raw_accel[1] * gravity;
+    accel[2] = raw_accel[2] * gravity;
+
+    gyro[0] = raw_gyro[0] * degrees_to_radians;
+    gyro[1] = raw_gyro[1] * degrees_to_radians;
+    gyro[2] = raw_gyro[2] * degrees_to_radians;
     
     return 0; // Success
 }

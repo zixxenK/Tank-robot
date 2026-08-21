@@ -7,7 +7,7 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 FIRMWARE_DIR := $(REPO_ROOT)/firmware/stm32_chassis
 HOST_WS := $(REPO_ROOT)/host_ws
 
-.PHONY: help test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd robot-start motor-forward motor-back motor-stop motor-sequence rock64-update
+.PHONY: help test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd onecmd-sim hardware-acceptance hardware-acceptance-raised robot-start motor-forward motor-back motor-stop motor-sequence rock64-update
 
 help:
 	@echo "Targets:"
@@ -28,7 +28,10 @@ help:
 	@echo "  motor-stop     Send stop command to both tracks"
 	@echo "  motor-sequence Run forward/stop/back/stop sequence"
 	@echo "  robot-start    Start Rock64 ROS2/STM32 base without PS5"
-	@echo "  onecmd         One-command Gazebo telemetry launch from the host workspace"
+	@echo "  onecmd         Start all Rock64 hardware in one persistent ROS 2 launch"
+	@echo "  onecmd-sim     Launch Gazebo telemetry instead of physical hardware"
+	@echo "  hardware-acceptance Run ordered non-motion checks on the running stack"
+	@echo "  hardware-acceptance-raised Include guarded motor checks (tracks raised)"
 	@echo "  host-print     Print selected host workspace"
 
 host-print:
@@ -104,7 +107,13 @@ host-unify: host-sim
 host-unify-hw: host-hardware
 
 onecmd:
-	@cd "$(HOST_WS)" && \
-		. /opt/ros/$${ROS_DISTRO:-humble}/setup.bash && \
-		if [ -f install/setup.bash ]; then . install/setup.bash; fi && \
-		ros2 launch robot_bringup gazebo_telemetry.launch.py
+	@bash "$(REPO_ROOT)/scripts/onecmd.sh"
+
+onecmd-sim:
+	@bash "$(REPO_ROOT)/scripts/onecmd.sh" --sim
+
+hardware-acceptance:
+	@bash "$(REPO_ROOT)/scripts/hardware_acceptance.sh"
+
+hardware-acceptance-raised:
+	@bash "$(REPO_ROOT)/scripts/hardware_acceptance.sh" --tracks-raised

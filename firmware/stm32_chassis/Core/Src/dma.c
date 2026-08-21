@@ -45,8 +45,19 @@ void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* The packed protocol polls circular RX using NDTR and uses blocking TX;
-   * no UART DMA completion IRQ is required for this runtime.  Leaving these
-   * streams unvectored also avoids stale factory DMA flags after SWD resume. */
+   * no UART DMA completion IRQ is required for this runtime.  I2C2 is
+   * different: HAL_I2C_Mem_Read/Write uses the linked DMA streams and waits
+   * for their completion callbacks.  Without these IRQs the MPU6050 path
+   * always times out and publishes zero telemetry even when the sensor is
+   * wired correctly. */
+  /* DMA1_Stream2_IRQn: I2C2 RX */
+  HAL_NVIC_SetPriority(DMA1_Stream2_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream2_IRQn);
+
+  /* DMA1_Stream7_IRQn: I2C2 TX */
+  HAL_NVIC_SetPriority(DMA1_Stream7_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream7_IRQn);
+
   /* DMA1_Stream4_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);

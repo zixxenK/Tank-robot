@@ -104,6 +104,7 @@ apt-get install -y --no-install-recommends \
   "ros-${RESOLVED_DISTRO}-rosbridge-server" \
   "ros-${RESOLVED_DISTRO}-visualization-msgs" \
   "ros-${RESOLVED_DISTRO}-rmw-fastrtps-cpp" \
+  fastdds-tools \
   python3-colcon-common-extensions \
   python3-rosdep \
   python3-pip \
@@ -121,6 +122,22 @@ apt-get install -y --no-install-recommends \
   cmake \
   stlink-tools \
   openocd
+
+# The system service must be able to open serial, camera, controller, and GPIO
+# devices without running the ROS graph as root. Minimal Armbian images do not
+# always define every optional group, so add only groups that actually exist.
+if id rock64 >/dev/null 2>&1; then
+  ROBOT_DEVICE_GROUPS=()
+  for device_group in dialout video input gpio; do
+    if getent group "${device_group}" >/dev/null 2>&1; then
+      ROBOT_DEVICE_GROUPS+=("${device_group}")
+    fi
+  done
+  if [[ ${#ROBOT_DEVICE_GROUPS[@]} -gt 0 ]]; then
+    DEVICE_GROUP_LIST="$(IFS=,; echo "${ROBOT_DEVICE_GROUPS[*]}")"
+    usermod -aG "${DEVICE_GROUP_LIST}" rock64
+  fi
+fi
 
 # ── Create udev rules for STM32 and PS5 controller ────────────────────────
 echo "[setup] Installing udev rules..."
@@ -160,14 +177,19 @@ SERIAL_PORT=${SERIAL_PORT}
 CAMERA_IP_STATION=${CAMERA_IP}
 USE_CAMERA_BRIDGE=true
 USE_USB_CAMERA=true
+USB_CAMERA_DEVICE=auto
 USE_COMPRESSED_CAMERA_TRANSPORT=true
 CAMERA_JPEG_QUALITY=70
 USE_AUDIO=true
+USE_TELEOP=true
+PS5_JOY_DEVICE=/dev/input/ps5_controller
 
 # Direct LiDAR acquisition
-USE_LIDAR=true
+USE_LIDAR=false
 LIDAR_SERIAL_PORT=/dev/ttyS2
 LIDAR_SYNC_GPIOCHIP=/dev/gpiochip2
+LIDAR_BAUDRATE=115200
+LIDAR_USE_SYNC=true
 
 # Canonical packed-binary STM32 bridge
 USE_HARDWARE_BRIDGE=true
@@ -176,6 +198,7 @@ USE_HARDWARE_BRIDGE=true
 ROS_DISTRO=${RESOLVED_DISTRO}
 ROS_DOMAIN_ID=42
 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+ROS_DISCOVERY_SERVER=${ROCK64_IP}:11811
 ROBOT_NAMESPACE=rock64_1
 HOST_WS_PATH=${HOST_WS}
 EOF

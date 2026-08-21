@@ -13,6 +13,7 @@ import rclpy
 import serial
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import LaserScan
 
 from .stl50b2_parser import (
@@ -201,6 +202,10 @@ class STL50B2Lidar(Node):
         super().__init__("stl50b2_lidar")
         self._serial_port = self._parameter("serial_port", "/dev/ttyS2")
         self._baudrate = int(self._parameter("baudrate", 115200))
+        sync_value = self._parameter("use_sync_gpio", False)
+        self._use_sync_gpio = str(sync_value).lower() in (
+            "1", "true", "yes", "on"
+        )
         self._frame_id = self._parameter("frame_id", "base_laser")
         self._scan_topic = self._parameter("scan_topic", "/scan")
         self._angle_increment_deg = float(
@@ -228,9 +233,20 @@ class STL50B2Lidar(Node):
         self._publisher = self.create_publisher(
             LaserScan, self._scan_topic, qos
         )
+        self._diagnostics_pub = self.create_publisher(
+            DiagnosticArray, "/lidar/diagnostics", 10
+        )
 
         self._parser = STL50B2StreamParser()
-        self._assembler = SynchronizedScanAssembler()
+        self._assembler = SynchronizedScanAssembler(
+            require_sync=False
+        )
+        self._serial_bytes = 0
+        self._valid_packets = 0
+        self._sync_edges = 0
+        self._scan_count = 0
+        self._serial_open = False
+        self._last_data_ns = 0
         self._events = queue.Queue()
         self._stop = threading.Event()
         self._serial_thread = threading.Thread(
@@ -246,13 +262,15 @@ class STL50B2Lidar(Node):
             sync_fallback,
         )
         self._last_sync_ns: Optional[int] = None
-        self._sync.start()
+        if self._use_sync_gpio:
+            self._sync.start()
         self._serial_thread.start()
         self._timer = self.create_timer(0.005, self._process_events)
+        self._status_timer = self.create_timer(5.0, self._report_status)
         self.get_logger().info(
-            "STL-50B2 on %s at %d baud; UART2 pins 8/10, sync pin 12",
-            self._serial_port,
-            self._baudrate,
+            f"STL-50B2 on {self._serial_port} at {self._baudrate} baud; "
+            "UART2 pins 8/10; "
+            f"GPIO sync={'on' if self._use_sync_gpio else 'off'}"
         )
 
     def _parameter(self, name: str, default):
@@ -273,19 +291,25 @@ class STL50B2Lidar(Node):
                     stopbits=serial.STOPBITS_ONE,
                 )
                 self.get_logger().info("STL-50B2 serial opened")
+                self._serial_open = True
                 while not self._stop.is_set():
                     data = port.read(4096)
                     if not data:
                         continue
-                    received_ns = time.time_ns()
-                    for packet in self._parser.feed(data):
+                    self._serial_bytes += len(data)
+                    self._last_data_ns = received_ns = time.time_ns()
+                    packets = self._parser.feed(data)
+                    self._valid_packets += len(packets)
+                    for packet in packets:
                         self._events.put((received_ns, 1, "packet", packet))
             except (OSError, serial.SerialException) as error:
+                self._serial_open = False
                 self.get_logger().warn(
                     f"STL-50B2 serial unavailable: {error}"
                 )
                 self._stop.wait(2.0)
             finally:
+                self._serial_open = False
                 if port is not None:
                     port.close()
 
@@ -301,15 +325,60 @@ class STL50B2Lidar(Node):
             pending, key=lambda event: (event[0], event[1])
         ):
             if kind == "sync":
+                self._sync_edges += 1
                 scan = self._assembler.sync_edge(_stamp)
                 self._last_sync_ns = _stamp
                 if scan is not None:
                     self._publish_scan(scan)
             else:
-                self._assembler.add_packet(payload)
+                scan = self._assembler.add_packet(payload, _stamp)
+                if scan is not None:
+                    self._publish_scan(scan)
+
+    def _report_status(self) -> None:
+        """Report serial, parser, and synchronization activity."""
+        status = DiagnosticStatus()
+        status.name = "stl50b2_lidar: Serial and parser"
+        if not self._serial_open:
+            status.level = DiagnosticStatus.ERROR
+            status.message = "UART is not open"
+        elif self._serial_bytes == 0:
+            status.level = DiagnosticStatus.WARN
+            status.message = "UART open but no LiDAR bytes received"
+        elif self._valid_packets == 0:
+            status.level = DiagnosticStatus.WARN
+            status.message = "Bytes received but no valid packets parsed"
+        else:
+            status.level = DiagnosticStatus.OK
+            status.message = "LiDAR packets received"
+        status.values.extend(
+            [
+                KeyValue(key="serial_open", value=str(self._serial_open)),
+                KeyValue(key="bytes", value=str(self._serial_bytes)),
+                KeyValue(
+                    key="valid_packets", value=str(self._valid_packets)
+                ),
+                KeyValue(
+                    key="bad_packets", value=str(self._parser.bad_packets)
+                ),
+                KeyValue(key="sync_edges", value=str(self._sync_edges)),
+                KeyValue(key="scans", value=str(self._scan_count)),
+            ]
+        )
+        diagnostics = DiagnosticArray()
+        diagnostics.header.stamp = self.get_clock().now().to_msg()
+        diagnostics.status.append(status)
+        self._diagnostics_pub.publish(diagnostics)
+        self.get_logger().info(
+            f"LiDAR status: bytes={self._serial_bytes}, "
+            f"valid_packets={self._valid_packets}, "
+            f"bad_packets={self._parser.bad_packets}, "
+            f"sync_edges={self._sync_edges}"
+        )
 
     def _publish_scan(self, scan: SynchronizedScan) -> None:
         """Convert one synchronized revolution into a ROS LaserScan."""
+        self._scan_count += 1
         message = LaserScan()
         message.header.frame_id = self._frame_id
         message.header.stamp = self._time_message(scan.stamp_ns)
@@ -358,7 +427,8 @@ class STL50B2Lidar(Node):
     def destroy_node(self):
         """Stop hardware workers before destroying the ROS node."""
         self._stop.set()
-        self._sync.stop()
+        if self._use_sync_gpio:
+            self._sync.stop()
         if self._serial_thread.is_alive():
             self._serial_thread.join(timeout=1.0)
         super().destroy_node()

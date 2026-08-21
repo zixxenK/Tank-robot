@@ -10,6 +10,32 @@ set -eo pipefail  # Removed -u to allow undefined variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
+# Keep manual diagnostics and operator-launched nodes on the same ROS graph as
+# the systemd service.  The file is present on the Rock64; it is optional in a
+# PC/WSL checkout. Explicit ROS values can still be supplied after sourcing
+# this helper when an isolated test graph is required.
+DEPLOY_CONFIG="${REPO_ROOT}/deployment/systemd/systemd_config.conf"
+if [[ -f "${DEPLOY_CONFIG}" ]]; then
+  # shellcheck source=/dev/null
+  set +u
+  set -a
+  source "${DEPLOY_CONFIG}"
+  set +a
+fi
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
+export RMW_IMPLEMENTATION="${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
+export ROS_LOCALHOST_ONLY="${ROS_LOCALHOST_ONLY:-0}"
+# Multicast discovery is the reliable default for a single Rock64/LAN.  The
+# old helper silently forced every shell into a discovery-server route, which
+# made stale server/daemon state hide an otherwise healthy ROS graph.  Opt in
+# explicitly when a server is actually deployed.
+if [[ "${ROCK64_USE_DISCOVERY_SERVER:-0}" == "1" && \
+      "${ROS_LOCALHOST_ONLY}" != "1" && \
+      -z "${ROS_DISCOVERY_SERVER:-}" && -n "${ROCK64_IP:-}" ]]; then
+  export ROS_DISCOVERY_SERVER="${ROCK64_IP}:11811"
+fi
+export FASTDDS_BUILTIN_TRANSPORTS="${FASTDDS_BUILTIN_TRANSPORTS:-UDPv4}"
+
 resolve_host_ws() {
   if [[ -n "${HOST_WS_PATH:-}" ]]; then
     echo "${HOST_WS_PATH}"
@@ -61,6 +87,13 @@ resolve_ros_distro() {
 
 DISTRO="$(resolve_ros_distro)"
 ROS_BASE="/opt/ros/${DISTRO}"
+
+# A generated config may use ROS_DISTRO=auto as a policy value. Do not expose
+# that sentinel while sourcing the real distro setup; ROS itself warns about
+# mixed paths and some ros2 CLI versions then create an invalid context.
+if [[ "${ROS_DISTRO:-}" == "auto" ]]; then
+  unset ROS_DISTRO
+fi
 
 if [[ ! -f "${ROS_BASE}/setup.bash" ]]; then
   echo "[source_host_ws] ERROR: ROS2 ${DISTRO} not found at ${ROS_BASE}"

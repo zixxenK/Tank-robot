@@ -1,0 +1,19 @@
+[Unit]
+Description=Rock64 Ranger — Fast DDS discovery server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rock64
+Group=rock64
+ExecStart=/usr/bin/fastdds discovery -i 0 -l 192.168.1.139 -p 11811
+Restart=always
+RestartSec=3s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

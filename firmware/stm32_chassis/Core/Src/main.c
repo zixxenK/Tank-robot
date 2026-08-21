@@ -32,6 +32,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "uart_binary_protocol_integration_packed.h"
+#include "sg90_servo.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,7 +56,11 @@
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart6;
 
-static uint32_t protocol_task_stack[256];
+/* Telemetry builds a short frame on the protocol task stack.  The previous
+ * 1 KiB stack was exhausted as soon as the burst path and UART HAL call ran,
+ * leaving the motor link alive long enough to accept commands but silently
+ * stopping sensor telemetry. */
+static uint32_t protocol_task_stack[1024];
 static StaticTask_t protocol_task_control_block;
 static const osThreadAttr_t protocol_task_attributes = {
   .name = "protocol_task",
@@ -232,8 +237,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  /* TIM14 is the registered HAL timebase callback. It is dispatched by
-   * TIM8_TRG_COM_TIM14_IRQHandler(), not from this legacy callback. */
+  /* The project uses the HAL default (USE_HAL_TIM_REGISTER_CALLBACKS=0), so
+   * HAL_TIM_RegisterCallback() in the custom TIM14 timebase is not the path
+   * used by HAL_TIM_IRQHandler().  Without handling TIM14 here, uwTick stays
+   * at zero even though the timer and IRQ are active.  That freezes every
+   * HAL_GetTick()-based service, including the HC-SR04 trigger interval and
+   * protocol telemetry.  When callback registration is enabled, HAL dispatches
+   * TimeBase_TIM_PeriodElapsedCallback() directly instead and this callback is
+   * not entered, so this remains safe in either configuration. */
+  if (htim->Instance == TIM14) {
+    HAL_IncTick();
+    return;
+  }
+  if (htim == &htim13) {
+    SG90Servo_PeriodElapsedCallback();
+    return;
+  }
   /* PA8 is a plain GPIO in this production image. TIM12 supplies the
    * half-period callbacks used to generate the buzzer square wave. */
   if (htim == &htim12) {
@@ -242,6 +261,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 1 */
 
   /* USER CODE END Callback 1 */
+}
+
+/**
+  * @brief  Output-compare callback used for the buzzer falling edge.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim == &htim13) {
+    SG90Servo_PulseElapsedCallback();
+    return;
+  }
+  /* TIM12 is configured as a half-period timer for the PA8 buzzer.  The
+   * update event starts each cycle high; CC1 ends the high half-cycle. */
+  if (htim == &htim12) {
+    HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
+  }
 }
 
 /**

@@ -15,7 +15,7 @@ die() {
 # shellcheck disable=SC1091
 source /etc/os-release
 [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "22.04" ]] || \
-  die "This setup targets Ubuntu 22.04 in WSL2; found ${PRETTY_NAME:-unknown}"
+  die "This setup targets Ubuntu 22.04 in WSL2; found ${PRETTY_NAME:-unknown}. From PowerShell run: .\\deployment\\pc\\setup_dashboard.ps1"
 
 [[ -f "/opt/ros/${ROS_DISTRO}/setup.bash" ]] || \
   die "ROS 2 ${ROS_DISTRO} is not installed in this WSL distribution"
@@ -33,11 +33,16 @@ sudo apt-get install -y --no-install-recommends \
   "ros-${ROS_DISTRO}-cv-bridge" \
   "ros-${ROS_DISTRO}-rmw-fastrtps-cpp" \
   "ros-${ROS_DISTRO}-tf2-tools" \
+  fastdds-tools \
   python3-colcon-common-extensions \
   python3-rosdep
 
+# ROS setup scripts use optional variables without guarding them.  Source
+# them with nounset disabled, then restore the script's strict mode.
+set +u
 # shellcheck disable=SC1091
 source "/opt/ros/${ROS_DISTRO}/setup.bash"
+set -u
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
 export RMW_IMPLEMENTATION="${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
 export ROS_LOCALHOST_ONLY="0"

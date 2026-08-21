@@ -199,7 +199,7 @@ void SysTick_Handler(void)
   */
 void EXTI9_5_IRQHandler(void)
 {
-  HAL_GPIO_EXTI_IRQHandler(HC_SR04_ECHO_Pin);
+  /* No active EXTI lines in the 9..5 range in this image. */
 }
 
 /******************************************************************************/
@@ -369,6 +369,10 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
 
   /* USER CODE END EXTI15_10_IRQn 0 */
+  /* PA12 (HC-SR04 ECHO) and PB12 (optional MPU6050 data-ready) share this
+   * IRQ vector.  Dispatch both pending lines so either device is serviced. */
+  HAL_GPIO_EXTI_IRQHandler(HC_SR04_ECHO_Pin);
+  HAL_GPIO_EXTI_IRQHandler(IMU_ITR_Pin);
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */
@@ -396,6 +400,7 @@ void TIM8_UP_TIM13_IRQHandler(void)
   /* USER CODE BEGIN TIM8_UP_TIM13_IRQn 0 */
 
   /* USER CODE END TIM8_UP_TIM13_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim13);
   /* USER CODE BEGIN TIM8_UP_TIM13_IRQn 1 */
 
   /* USER CODE END TIM8_UP_TIM13_IRQn 1 */

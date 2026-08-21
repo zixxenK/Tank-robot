@@ -13,6 +13,8 @@
   <exec_depend>robot_drivers</exec_depend>
   <exec_depend>agent_core</exec_depend>
   <exec_depend>robot_audio</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
   <exec_depend>perception</exec_depend>
   <exec_depend>navigation</exec_depend>
   <exec_depend>terrain_adaptation</exec_depend>

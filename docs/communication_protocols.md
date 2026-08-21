@@ -37,9 +37,12 @@ the reflected CRC-8/MAXIM table (`table[1] == 0x5E`).
 | ---: | --- | --- |
 | `0x03` | Motor | Motor subcommand |
 | `0x04` | Buzzer | `01 FREQUENCY_UINT16_LE` (`0` = off) |
+| `0x05` | SG90 servo command/ack | `01 00 PULSE_US_UINT16_LE DURATION_MS_UINT16_LE` |
 | `0x10` | Encoder | `<ii` left/right counts |
 | `0x11` | Battery | `<ff` voltage/current |
 | `0x12` | IMU | `<ffffff` acceleration/gyro |
+| `0x13` | Legacy self-test | Reserved; use the Rock64 hardware acceptance runner |
+| `0x14` | HC-SR04 | `<HHBB` distance mm, echo us, valid, reserved |
 | `0xF0` | Heartbeat | Empty |
 | `0xF1` | Acknowledgement | Implementation-defined |
 | `0xFF` | Error | Error code |
@@ -86,6 +89,24 @@ only node that writes them to the STM32 serial port. The STM32 image must be
 rebuilt and flashed with the buzzer protocol extension for this topic to make
 physical sound.
 
+## SG90 Servo Commands
+
+The production image controls one PWM servo only: channel `0`, board header
+J1, STM32 PA11. PC8/PA12 are reserved for HC-SR04 TRIG/ECHO and are never
+driven by the servo implementation.
+
+```text
+01 00 PULSE_US_UINT16_LE DURATION_MS_UINT16_LE
+```
+
+The firmware accepts 1,000 through 2,000 microseconds and 20 through 5,000
+milliseconds. PA11 stays low until the first valid command. An accepted command
+is echoed as a `0x05` frame; rejected commands produce no state update. The
+Rock64 interface is `/stm32/servo/command_degrees` (`std_msgs/Float32`), with
+acknowledged state on `/stm32/servo/state_degrees` and
+`/stm32/servo/state_us` (`std_msgs/UInt16`). Normal host limits are 30 through
+150 degrees.
+
 ## Timeouts and Rearming
 
 - A valid motor-speed frame refreshes the command timestamp.
@@ -102,11 +123,14 @@ physical sound.
 | `/cmd_vel` | `geometry_msgs/Twist` | Teleop | Safety gateway |
 | `/agent/cmd_vel_proposed` | `geometry_msgs/Twist` | Agent | Safety gateway |
 | `/agent/heartbeat` | `std_msgs/Bool` | Agent | Safety gateway |
-| `/safety/e_stop` | `std_msgs/Bool` | Operator | Safety gateway |
+| `/safety/e_stop` | `std_msgs/Bool` | Operator/test runner | Safety gateway and hardened bridge |
 | `/ranger/cmd_vel_safe` | `geometry_msgs/Twist` | Safety gateway | Hardened bridge |
 | `/stm32/battery` | `sensor_msgs/BatteryState` | Hardened bridge | Safety gateway |
 | `/stm32/encoder_ticks` | `std_msgs/Int32MultiArray` | Hardened bridge | Diagnostics |
 | `/stm32/imu` | `sensor_msgs/Imu` | Hardened bridge | Consumers |
+| `/ultrasonic/range` | `sensor_msgs/Range` | Hardened bridge | Consumers/test runner |
+| `/stm32/servo/command_degrees` | `std_msgs/Float32` | Operator/test runner | Hardened bridge |
+| `/stm32/servo/state_degrees` | `std_msgs/UInt16` | Hardened bridge | Operator/test runner |
 | `/joy` | `sensor_msgs/Joy` | PS5 bridge | Buzzer/song controls |
 | `/buzzer/frequency` | `std_msgs/Int32` | Song creator | Hardened STM32 bridge |
 | `/buzzer/status` | `std_msgs/String` | Song creator | Operator/diagnostics |
@@ -115,6 +139,8 @@ For raised-track commissioning, the bridge additionally provides
 `/stm32/motor_1/enable` and `/stm32/motor_2/enable` as
 `std_srvs/SetBool`. These are the only supported independent M1/M2 proof
 controls; they do not add another serial transport.
+They honor `/safety/e_stop` and automatically stop after the configured
+`motor_test_max_duration` even if the requesting process disappears.
 
 Velocity uses reliable, volatile, keep-last-1 QoS. Commands are deliberately
 not transient-local because a late subscriber must never replay stale nonzero

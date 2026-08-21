@@ -32,6 +32,7 @@ extern "C" {
 typedef enum {
     FUNC_SYS              = 0x00,
     FUNC_BUZZER           = 0x04,
+    FUNC_SERVO            = 0x05,
     FUNC_MOTOR            = 0x03,
     FUNC_ENCODER          = 0x10,
     FUNC_BATTERY          = 0x11,
@@ -47,6 +48,11 @@ typedef enum {
 typedef enum {
     BUZZER_SUBCMD_SET_TONE = 0x01
 } BuzzerSubCommand;
+
+// SG90 PWM servo sub-commands
+typedef enum {
+    SERVO_SUBCMD_SET_PULSE = 0x01
+} ServoSubCommand;
 
 // Motor Sub-commands
 typedef enum {
@@ -81,6 +87,19 @@ typedef struct __attribute__((packed)) {
     uint8_t motor_count;             // Number of motor commands
     MotorCommandEntry motors[MOTOR_COMMAND_CAPACITY];
 } MotorCommandPayload;
+
+/**
+ * @brief SG90 command/acknowledgement payload.
+ *
+ * Wire format: [subcmd][channel][pulse_us LE16][duration_ms LE16]
+ * Only channel 0 (J1 / PA11) is supported by the production image.
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t subcmd;
+    uint8_t channel;
+    uint16_t pulse_us;
+    uint16_t duration_ms;
+} ServoCommandPayload;
 
 /**
  * @brief Encoder telemetry payload (matches Python: struct.pack('<ii', left, right))

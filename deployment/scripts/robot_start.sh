@@ -55,15 +55,39 @@ echo "[robot_start] Host WS  : $(resolve_host_ws)"
 SERIAL_PORT="${SERIAL_PORT:-/dev/rock64_stm32}"
 USE_HARDWARE_BRIDGE="${USE_HARDWARE_BRIDGE:-true}"
 USE_TELEOP="${USE_TELEOP:-true}"
+PS5_JOY_DEVICE="${PS5_JOY_DEVICE:-/dev/input/ps5_controller}"
 MONITOR_BATTERY="${MONITOR_BATTERY:-false}"
 USE_AUDIO="${USE_AUDIO:-true}"
-USE_LIDAR="${USE_LIDAR:-false}"
+USE_LIDAR="${USE_LIDAR:-true}"
 LIDAR_SERIAL_PORT="${LIDAR_SERIAL_PORT:-/dev/ttyS2}"
 LIDAR_SYNC_GPIOCHIP="${LIDAR_SYNC_GPIOCHIP:-/dev/gpiochip2}"
-USE_USB_CAMERA="${USE_USB_CAMERA:-false}"
-USB_CAMERA_DEVICE="${USB_CAMERA_DEVICE:-/dev/video0}"
-USE_COMPRESSED_CAMERA_TRANSPORT="${USE_COMPRESSED_CAMERA_TRANSPORT:-false}"
+LIDAR_BAUDRATE="${LIDAR_BAUDRATE:-115200}"
+LIDAR_USE_SYNC="${LIDAR_USE_SYNC:-true}"
+USE_USB_CAMERA="${USE_USB_CAMERA:-true}"
+USB_CAMERA_DEVICE="${USB_CAMERA_DEVICE:-auto}"
+USE_COMPRESSED_CAMERA_TRANSPORT="${USE_COMPRESSED_CAMERA_TRANSPORT:-true}"
 CAMERA_JPEG_QUALITY="${CAMERA_JPEG_QUALITY:-70}"
+
+resolve_usb_camera_device() {
+  local requested="$1"
+  local camera_candidate
+  if [[ "${requested}" != "auto" ]]; then
+    echo "${requested}"
+    return
+  fi
+  for camera_candidate in /dev/v4l/by-id/*-video-index0; do
+    if [[ -e "${camera_candidate}" ]]; then
+      echo "${camera_candidate}"
+      return
+    fi
+  done
+  echo "/dev/video0"
+}
+
+if [[ "${USE_USB_CAMERA}" == "true" ]]; then
+  USB_CAMERA_DEVICE="$(resolve_usb_camera_device "${USB_CAMERA_DEVICE}")"
+  echo "[robot_start] USB camera: ${USB_CAMERA_DEVICE}"
+fi
 if [[ "${USE_HARDWARE_BRIDGE}" == "true" && ! -e "${SERIAL_PORT}" ]]; then
   echo "[robot_start] ERROR: Serial port ${SERIAL_PORT} not found." >&2
   exit 1
@@ -80,7 +104,7 @@ fi
 
 # Validate camera reachability (best-effort)
 CAMERA_IP="${CAMERA_IP_STATION:-192.168.1.125}"
-USE_CAMERA_BRIDGE="${USE_CAMERA_BRIDGE:-false}"
+USE_CAMERA_BRIDGE="${USE_CAMERA_BRIDGE:-true}"
 if [[ "${USE_CAMERA_BRIDGE}" == "true" ]] && ! ping -c1 -W2 "${CAMERA_IP}" &>/dev/null; then
   echo "[robot_start] WARNING: Camera at ${CAMERA_IP} not reachable."
   echo "[robot_start] Camera bridge will start but may retry."
@@ -99,6 +123,7 @@ exec ros2 launch robot_bringup rock64_bringup.launch.py \
   serial_port:="${SERIAL_PORT}" \
   use_hardware_bridge:="${USE_HARDWARE_BRIDGE}" \
   use_teleop:="${USE_TELEOP}" \
+  joy_device:="${PS5_JOY_DEVICE}" \
   use_audio:="${USE_AUDIO}" \
   monitor_battery:="${MONITOR_BATTERY}" \
   camera_ip:="${CAMERA_IP}" \
@@ -106,6 +131,8 @@ exec ros2 launch robot_bringup rock64_bringup.launch.py \
   use_lidar:="${USE_LIDAR}" \
   lidar_serial_port:="${LIDAR_SERIAL_PORT}" \
   lidar_sync_gpiochip:="${LIDAR_SYNC_GPIOCHIP}" \
+  lidar_baudrate:="${LIDAR_BAUDRATE}" \
+  lidar_use_sync:="${LIDAR_USE_SYNC}" \
   use_usb_camera:="${USE_USB_CAMERA}" \
   usb_camera_device:="${USB_CAMERA_DEVICE}" \
   use_compressed_camera_transport:="${USE_COMPRESSED_CAMERA_TRANSPORT}" \

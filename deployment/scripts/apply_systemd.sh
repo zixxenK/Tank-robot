@@ -13,6 +13,8 @@ UPDATE_SERVICE_SRC="${DEPLOY_DIR}/systemd/rock64-robot-update.service"
 UPDATE_SERVICE_DST="/etc/systemd/system/rock64-robot-update.service"
 UPDATE_TIMER_SRC="${DEPLOY_DIR}/systemd/rock64-robot-update.timer"
 UPDATE_TIMER_DST="/etc/systemd/system/rock64-robot-update.timer"
+DISCOVERY_SERVICE_SRC="${DEPLOY_DIR}/systemd/rock64-fastdds-discovery.service"
+DISCOVERY_SERVICE_DST="/etc/systemd/system/rock64-fastdds-discovery.service"
 CONFIG_SRC="${DEPLOY_DIR}/systemd/systemd_config.conf"
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -26,6 +28,10 @@ cp "${SERVICE_SRC}" "${SERVICE_DST}"
 echo "[apply_systemd] Copying update units..."
 cp "${UPDATE_SERVICE_SRC}" "${UPDATE_SERVICE_DST}"
 cp "${UPDATE_TIMER_SRC}" "${UPDATE_TIMER_DST}"
+if [[ -f "${DISCOVERY_SERVICE_SRC}" ]] && command -v fastdds >/dev/null 2>&1; then
+  echo "[apply_systemd] Installing Fast DDS discovery service..."
+  cp "${DISCOVERY_SERVICE_SRC}" "${DISCOVERY_SERVICE_DST}"
+fi
 
 # ── Install udev rules ───────────────────────────────────────────────────
 if [[ -d "${DEPLOY_DIR}/udev" ]]; then
@@ -53,6 +59,9 @@ fi
 systemctl daemon-reload
 systemctl enable rock64-robot.service
 systemctl enable --now rock64-robot-update.timer
+if [[ -f "${DISCOVERY_SERVICE_DST}" ]]; then
+  systemctl enable --now rock64-fastdds-discovery.service
+fi
 systemctl start  rock64-robot.service
 
 echo "[apply_systemd] Service installed and started."

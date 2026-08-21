@@ -16,7 +16,8 @@ def generate_launch_description():
         output="screen",
         parameters=[{
             "serial_port": LaunchConfiguration("serial_port"),
-            "baudrate": 115200,
+            "baudrate": LaunchConfiguration("baudrate"),
+            "use_sync_gpio": LaunchConfiguration("use_sync_gpio"),
             "frame_id": "base_laser",
             "scan_topic": "/scan",
             "sync_gpiochip": LaunchConfiguration("sync_gpiochip"),
@@ -41,6 +42,16 @@ def generate_launch_description():
             "serial_port",
             default_value="/dev/ttyS2",
             description="ROCK64 UART2 device (GPIO2_A0/A1, header pins 8/10)",
+        ),
+        DeclareLaunchArgument(
+            "baudrate",
+            default_value="115200",
+            description="STL-50B2 UART baud rate",
+        ),
+        DeclareLaunchArgument(
+            "use_sync_gpio",
+            default_value="true",
+            description="Use header pin 12 as a hardware scan boundary",
         ),
         DeclareLaunchArgument(
             "sync_gpiochip",

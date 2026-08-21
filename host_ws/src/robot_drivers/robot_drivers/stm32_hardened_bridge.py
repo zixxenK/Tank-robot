@@ -33,7 +33,15 @@ from rclpy.qos import (
     QoSReliabilityPolicy,
 )
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool, Int32, Int32MultiArray, Empty, String
+from std_msgs.msg import (
+    Bool,
+    Empty,
+    Float32,
+    Int32,
+    Int32MultiArray,
+    String,
+    UInt16,
+)
 from std_srvs.srv import SetBool
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import BatteryState, Imu, JointState, Range
@@ -52,6 +60,7 @@ BUFFER_SIZE = 4096
 FUNC_SYS = 0x00
 FUNC_BUZZER = 0x04
 FUNC_MOTOR = 0x03
+FUNC_SERVO = 0x05
 FUNC_ENCODER = 0x10
 FUNC_BATTERY = 0x11
 FUNC_IMU = 0x12
@@ -64,6 +73,7 @@ VALID_FUNCTION_CODES = {
     FUNC_SYS,
     FUNC_BUZZER,
     FUNC_MOTOR,
+    FUNC_SERVO,
     FUNC_ENCODER,
     FUNC_BATTERY,
     FUNC_IMU,
@@ -79,6 +89,29 @@ MOTOR_SUBCMD_SET_SPEED = 0x01
 MOTOR_SUBCMD_EMERGENCY_STOP = 0x02
 BUZZER_SUBCMD_SET_TONE = 0x01
 BUZZER_MAX_FREQUENCY_HZ = 20000
+SERVO_SUBCMD_SET_POSITION = 0x01
+SERVO_CHANNEL_J1 = 0
+SERVO_PROTOCOL_MIN_PULSE_US = 1000
+SERVO_PROTOCOL_MAX_PULSE_US = 2000
+
+
+def servo_angle_to_pulse_us(angle_degrees: float) -> int:
+    """Map a finite 0..180 degree command to the conservative SG90 range."""
+    angle = float(angle_degrees)
+    if not math.isfinite(angle) or angle < 0.0 or angle > 180.0:
+        raise ValueError("servo angle must be finite and within 0..180 degrees")
+    span = SERVO_PROTOCOL_MAX_PULSE_US - SERVO_PROTOCOL_MIN_PULSE_US
+    return int(round(SERVO_PROTOCOL_MIN_PULSE_US + span * angle / 180.0))
+
+
+def servo_pulse_to_angle_degrees(pulse_us: int) -> int:
+    """Map an acknowledged SG90 pulse width back to whole degrees."""
+    pulse = int(pulse_us)
+    if pulse < SERVO_PROTOCOL_MIN_PULSE_US or pulse > SERVO_PROTOCOL_MAX_PULSE_US:
+        raise ValueError("servo pulse must be within 1000..2000 microseconds")
+    span = SERVO_PROTOCOL_MAX_PULSE_US - SERVO_PROTOCOL_MIN_PULSE_US
+    return int(round(180.0 * (pulse - SERVO_PROTOCOL_MIN_PULSE_US) / span))
+
 
 # Reflected CRC-8/MAXIM table retained for wire compatibility.
 CRC8_TABLE = [
@@ -124,6 +157,7 @@ class TelemetryData:
     ultrasonic_distance_m: float = float("nan")
     ultrasonic_echo_us: int = 0
     ultrasonic_valid: bool = False
+    ultrasonic_state: int = 0
 
 
 class CircularBuffer:
@@ -382,13 +416,22 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("enable_telemetry", True)
         self.declare_parameter("wheel_separation", 0.194)  # meters (track width)
         self.declare_parameter("wheel_radius", 0.065)  # meters
-        self.declare_parameter("encoder_ticks_per_rev", 3960)  # 11 PPR * 4 edges * 90:1 gearbox
+        self.declare_parameter(
+            "encoder_ticks_per_rev", 3960  # 11 PPR * 4 edges * 90:1 gearbox
+        )
         self.declare_parameter("battery_min_voltage", 9.0)
         self.declare_parameter("battery_max_voltage", 12.0)
         self.declare_parameter("startup_grace_period", 2.0)
         self.declare_parameter("enable_motor_test_services", True)
         self.declare_parameter("motor_test_speed", 0.10)
+        self.declare_parameter("motor_test_max_duration", 2.0)
         self.declare_parameter("buzzer_frequency_topic", "/buzzer/frequency")
+        self.declare_parameter(
+            "servo_command_topic", "/stm32/servo/command_degrees"
+        )
+        self.declare_parameter("servo_min_angle_degrees", 30.0)
+        self.declare_parameter("servo_max_angle_degrees", 150.0)
+        self.declare_parameter("servo_move_duration_ms", 500)
 
         # Get parameter values
         self._serial_port = self.get_parameter("serial_port").value
@@ -434,8 +477,44 @@ class STM32HardenedBridge(Node):
             0.01,
             min(1.0, float(self.get_parameter("motor_test_speed").value)),
         )
+        self._motor_test_max_duration = max(
+            0.1,
+            min(
+                10.0,
+                float(self.get_parameter("motor_test_max_duration").value),
+            ),
+        )
         self._buzzer_frequency_topic = str(
             self.get_parameter("buzzer_frequency_topic").value
+        )
+        self._servo_command_topic = str(
+            self.get_parameter("servo_command_topic").value
+        )
+        self._servo_min_angle = max(
+            0.0,
+            min(
+                180.0,
+                float(self.get_parameter("servo_min_angle_degrees").value),
+            ),
+        )
+        self._servo_max_angle = max(
+            0.0,
+            min(
+                180.0,
+                float(self.get_parameter("servo_max_angle_degrees").value),
+            ),
+        )
+        if self._servo_min_angle >= self._servo_max_angle:
+            raise ValueError(
+                "servo_min_angle_degrees must be less than "
+                "servo_max_angle_degrees"
+            )
+        self._servo_move_duration_ms = max(
+            20,
+            min(
+                5000,
+                int(self.get_parameter("servo_move_duration_ms").value),
+            ),
         )
 
         # State variables — protected by _state_lock for thread safety
@@ -449,11 +528,17 @@ class STM32HardenedBridge(Node):
         self._last_sent_pair: Optional[Tuple[int, int]] = (None, None)
         self._stop_command_sent = False
         self._last_encoder_time = 0.0
+        self._last_valid_frame_time = 0.0
         self._connection_loss_time = 0.0
         self._reconnect_attempt_time = 0.0
         self._motion_armed = False
         self._estop_active = False  # Tracks whether we are currently in e-stop
+        self._operator_estop = False
         self._motor_test_targets: Optional[Tuple[float, float]] = None
+        self._motor_test_deadline = 0.0
+        self._servo_last_ack_time = 0.0
+        self._servo_last_angle_degrees: Optional[int] = None
+        self._servo_last_pulse_us: Optional[int] = None
         self._node_start_time = time.monotonic()
 
         # Odometry state
@@ -536,8 +621,26 @@ class STM32HardenedBridge(Node):
         self._self_test_result_pub = self.create_publisher(
             Bool, "/stm32/self_test_result", 10
         )
+        self._servo_state_degrees_pub = self.create_publisher(
+            UInt16, "/stm32/servo/state_degrees", 10
+        )
+        self._servo_state_us_pub = self.create_publisher(
+            UInt16, "/stm32/servo/state_us", 10
+        )
         self._self_test_trigger_sub = self.create_subscription(
             Empty, "/stm32/self_test", self._self_test_trigger_callback, 10
+        )
+        self._servo_command_sub = self.create_subscription(
+            Float32,
+            self._servo_command_topic,
+            self._servo_command_callback,
+            10,
+        )
+        self._operator_estop_sub = self.create_subscription(
+            Bool,
+            "/safety/e_stop",
+            self._operator_estop_callback,
+            command_qos,
         )
         self._test_direction_sub = self.create_subscription(
             String,
@@ -566,6 +669,47 @@ class STM32HardenedBridge(Node):
             self._buzzer_frequency_callback,
             10,
         )
+
+    def _operator_estop_callback(self, message: Bool) -> None:
+        """Stop maintenance motion immediately when the ROS e-stop latches."""
+        active = bool(message.data)
+        with self._state_lock:
+            self._operator_estop = active
+            if active:
+                self._motor_test_targets = None
+                self._motor_test_deadline = 0.0
+                self._target_lin = 0.0
+                self._target_ang = 0.0
+                self._motion_armed = False
+        if active:
+            self._send_emergency_stop(emergency=True)
+
+    def _servo_command_callback(self, message: Float32) -> None:
+        """Send one bounded J1/PA11 SG90 position command to the STM32."""
+        try:
+            angle = float(message.data)
+        except (TypeError, ValueError):
+            self.get_logger().error("Rejected non-numeric servo command")
+            return
+
+        if (
+            not math.isfinite(angle)
+            or angle < self._servo_min_angle
+            or angle > self._servo_max_angle
+        ):
+            self.get_logger().error(
+                f"Rejected servo angle {angle}; expected "
+                f"{self._servo_min_angle:.1f}.."
+                f"{self._servo_max_angle:.1f} degrees"
+            )
+            return
+
+        pulse_us = servo_angle_to_pulse_us(angle)
+        payload = bytes([SERVO_SUBCMD_SET_POSITION, SERVO_CHANNEL_J1])
+        payload += struct.pack(
+            "<HH", pulse_us, self._servo_move_duration_ms
+        )
+        self._send_frame(FUNC_SERVO, payload)
 
     def _buzzer_frequency_callback(self, message: Int32) -> None:
         """Forward a validated tone/off command to the STM32 buzzer."""
@@ -616,6 +760,10 @@ class STM32HardenedBridge(Node):
                     self._baud_rate,
                     timeout=0.01,  # Non-blocking
                     write_timeout=0.1,
+                    # Refuse a second bridge/process opening the motor UART.
+                    # Without this, two ROS bringups can both read/write the
+                    # same port and make a healthy STM32 look unresponsive.
+                    exclusive=True,
                 )
 
                 # Start background threads
@@ -649,9 +797,11 @@ class STM32HardenedBridge(Node):
                 self._last_cmd_vel_time = 0.0
                 self._last_sent_pair = (None, None)
                 self._stop_command_sent = False
+                self._last_valid_frame_time = 0.0
                 self._motion_armed = False
                 self._estop_active = False
                 self._motor_test_targets = None
+                self._motor_test_deadline = 0.0
 
             self.get_logger().info(
                 f"Connected to Hiwonder UART1/USART1 motor link "
@@ -714,6 +864,8 @@ class STM32HardenedBridge(Node):
                     frame = self._frame_parser.process_byte(byte)
                     if frame:
                         function_code, payload = frame
+                        with self._state_lock:
+                            self._last_valid_frame_time = time.monotonic()
                         try:
                             self._frame_queue.put(
                                 (function_code, payload), timeout=0.01
@@ -743,14 +895,19 @@ class STM32HardenedBridge(Node):
             return
 
         with self._state_lock:
-            self._target_lin = linear
-            self._target_ang = angular
+            operator_estop = self._operator_estop
+            self._target_lin = 0.0 if operator_estop else linear
+            self._target_ang = 0.0 if operator_estop else angular
             self._last_cmd_vel_time = time.monotonic()
             # The firmware deliberately has no heartbeat protocol. A fresh
             # safe velocity command arms motion only while the serial link is
             # open; command freshness and the STM32 command timeout are the
             # liveness mechanisms.
-            self._motion_armed = self._ser is not None and self._ser.is_open
+            self._motion_armed = (
+                not operator_estop
+                and self._ser is not None
+                and self._ser.is_open
+            )
 
     def _set_motor_test_target(self, motor_index: int, enabled: bool, response):
         """Set one motor for the explicit, independent M1/M2 proof test."""
@@ -760,6 +917,10 @@ class STM32HardenedBridge(Node):
                 response.success = False
                 response.message = "STM32 serial link is not connected"
                 return response
+            if enabled and self._operator_estop:
+                response.success = False
+                response.message = "motor test blocked by /safety/e_stop"
+                return response
             current = self._motor_test_targets or (0.0, 0.0)
             targets = list(current)
             targets[motor_index] = self._motor_test_speed if enabled else 0.0
@@ -768,6 +929,11 @@ class STM32HardenedBridge(Node):
                 next_targets
                 if any(abs(value) > 0.0 for value in next_targets)
                 else None
+            )
+            self._motor_test_deadline = (
+                time.monotonic() + self._motor_test_max_duration
+                if self._motor_test_targets is not None
+                else 0.0
             )
 
         response.success = True
@@ -801,6 +967,11 @@ class STM32HardenedBridge(Node):
                     "Rejected test direction: STM32 serial link is not connected"
                 )
                 return
+            if direction != "stop" and self._operator_estop:
+                self.get_logger().error(
+                    "Rejected test direction: /safety/e_stop is active"
+                )
+                return
             if direction == "forward":
                 speed = self._motor_test_speed
                 self._motor_test_targets = (speed, speed)
@@ -809,6 +980,11 @@ class STM32HardenedBridge(Node):
                 self._motor_test_targets = (speed, speed)
             else:
                 self._motor_test_targets = None
+            self._motor_test_deadline = (
+                time.monotonic() + self._motor_test_max_duration
+                if self._motor_test_targets is not None
+                else 0.0
+            )
 
         self.get_logger().warn(f"Manual motor test command: {direction}")
 
@@ -841,12 +1017,27 @@ class STM32HardenedBridge(Node):
             cmd_lin = self._cmd_lin
             cmd_ang = self._cmd_ang
             last_send = self._last_send_time
-            last_sent = self._last_sent_pair
             estop_active = self._estop_active
+            operator_estop = self._operator_estop
             stop_command_sent = self._stop_command_sent
             motor_test_targets = self._motor_test_targets
+            motor_test_deadline = self._motor_test_deadline
+
+        if operator_estop:
+            if not stop_command_sent:
+                self._send_emergency_stop(silent=True, emergency=True)
+            return
 
         if motor_test_targets is not None:
+            if now >= motor_test_deadline:
+                with self._state_lock:
+                    self._motor_test_targets = None
+                    self._motor_test_deadline = 0.0
+                self.get_logger().warn(
+                    "Maintenance motor test timed out; stopping both motors"
+                )
+                self._send_emergency_stop(emergency=True)
+                return
             # Maintenance proof mode owns M1/M2 until both are explicitly
             # stopped. This prevents a centered PS5 command from racing the
             # individual motor test.
@@ -1048,6 +1239,9 @@ class STM32HardenedBridge(Node):
             elif function_code == FUNC_ULTRASONIC:
                 self._parse_ultrasonic_telemetry(payload)
 
+            elif function_code == FUNC_SERVO:
+                self._parse_servo_status(payload)
+
             elif function_code == FUNC_SELF_TEST:
                 self._parse_self_test_result(payload)
 
@@ -1129,17 +1323,21 @@ class STM32HardenedBridge(Node):
 
     def _parse_ultrasonic_telemetry(self, payload: bytes):
         """Parse and publish the HC-SR04 range telemetry frame."""
-        if len(payload) < 6:
+        if len(payload) < 5:
             self.get_logger().warn(
                 f"Invalid ultrasonic payload length: {len(payload)}"
             )
             return
 
         distance_mm, echo_us, valid = struct.unpack("<HHB", payload[:5])
+        # New firmware uses the reserved byte as a low-level state code;
+        # accept legacy five-byte payloads while exposing state when present.
+        state = payload[5] if len(payload) >= 6 else 0
         with self._telemetry_lock:
             self._telemetry.ultrasonic_distance_m = distance_mm / 1000.0
             self._telemetry.ultrasonic_echo_us = echo_us
             self._telemetry.ultrasonic_valid = bool(valid)
+            self._telemetry.ultrasonic_state = int(state)
             self._telemetry.timestamp = time.monotonic()
 
         message = Range()
@@ -1154,6 +1352,40 @@ class STM32HardenedBridge(Node):
         )
         self._ultrasonic_pub.publish(message)
 
+    def _parse_servo_status(self, payload: bytes) -> None:
+        """Publish a state only after firmware accepts the J1 servo command."""
+        if (
+            len(payload) != 6
+            or payload[0] != SERVO_SUBCMD_SET_POSITION
+            or payload[1] != SERVO_CHANNEL_J1
+        ):
+            self.get_logger().warn(
+                f"Invalid servo acknowledgement: {payload.hex()}"
+            )
+            return
+
+        pulse_us, _duration_ms = struct.unpack("<HH", payload[2:6])
+        try:
+            angle_degrees = servo_pulse_to_angle_degrees(pulse_us)
+        except ValueError as exc:
+            self.get_logger().warn(
+                f"Invalid servo pulse acknowledgement: {exc}"
+            )
+            return
+
+        with self._state_lock:
+            self._servo_last_ack_time = time.monotonic()
+            self._servo_last_angle_degrees = angle_degrees
+            self._servo_last_pulse_us = pulse_us
+
+        state_degrees = UInt16()
+        state_degrees.data = angle_degrees
+        self._servo_state_degrees_pub.publish(state_degrees)
+
+        state_us = UInt16()
+        state_us.data = pulse_us
+        self._servo_state_us_pub.publish(state_us)
+
     def _parse_self_test_result(self, payload: bytes):
         """Parse self-test result payload."""
         if len(payload) < 4:  # status (1) + test_id (1) + error_code (2)
@@ -1166,10 +1398,6 @@ class STM32HardenedBridge(Node):
             overall_status = struct.unpack("<B", payload[0:1])[0]
             test_id = struct.unpack("<B", payload[1:2])[0]
             error_code = struct.unpack("<H", payload[2:4])[0]
-
-            # Map status codes to strings
-            status_map = {0: "PASS", 1: "FAIL", 2: "RUNNING"}
-            status_str = status_map.get(overall_status, "UNKNOWN")
 
             # Map test IDs to strings
             test_map = {
@@ -1221,6 +1449,7 @@ class STM32HardenedBridge(Node):
                 ultrasonic_distance_m=self._telemetry.ultrasonic_distance_m,
                 ultrasonic_echo_us=self._telemetry.ultrasonic_echo_us,
                 ultrasonic_valid=self._telemetry.ultrasonic_valid,
+                ultrasonic_state=self._telemetry.ultrasonic_state,
             )
 
         stamp = self.get_clock().now().to_msg()
@@ -1396,9 +1625,22 @@ class STM32HardenedBridge(Node):
         status = DiagnosticStatus()
         status.name = "stm32_hardened_bridge: Serial Link"
 
-        if self._ser and self._ser.is_open:
+        now = time.monotonic()
+        serial_open = self._ser is not None and self._ser.is_open
+        with self._state_lock:
+            last_valid_frame_time = self._last_valid_frame_time
+        frames_fresh = (
+            last_valid_frame_time > 0.0
+            and now - last_valid_frame_time <= max(1.0, self._encoder_timeout)
+        )
+        link_alive = serial_open and frames_fresh
+
+        if link_alive:
             status.level = DiagnosticStatus.OK
-            status.message = "Connected"
+            status.message = "Connected; receiving valid STM32 frames"
+        elif serial_open:
+            status.level = DiagnosticStatus.ERROR
+            status.message = "Serial open but no recent valid STM32 frame"
         else:
             status.level = DiagnosticStatus.ERROR
             status.message = "Disconnected"
@@ -1411,8 +1653,11 @@ class STM32HardenedBridge(Node):
             status.values.append(
                 KeyValue(
                     key="serial_link_open",
-                    value=str(self._ser is not None and self._ser.is_open),
+                    value=str(serial_open),
                 )
+            )
+            status.values.append(
+                KeyValue(key="frames_fresh", value=str(frames_fresh))
             )
             status.values.append(
                 KeyValue(key="motion_armed", value=str(self._motion_armed))
@@ -1420,13 +1665,88 @@ class STM32HardenedBridge(Node):
             status.values.append(
                 KeyValue(key="estop_active", value=str(self._estop_active))
             )
+            status.values.append(
+                KeyValue(
+                    key="operator_estop",
+                    value=str(self._operator_estop),
+                )
+            )
 
         diag_array.status.append(status)
+
+        # Keep the low-level HC-SR04 state visible even when no echo pulse is
+        # arriving.  A NaN Range message alone cannot distinguish a wiring
+        # fault from a stale topic or a disconnected serial bridge.
+        with self._telemetry_lock:
+            ultrasonic_status = DiagnosticStatus()
+            ultrasonic_status.name = "stm32_hardened_bridge: HC-SR04"
+            ultrasonic_status.level = (
+                DiagnosticStatus.OK
+                if self._telemetry.ultrasonic_valid
+                else DiagnosticStatus.WARN
+            )
+            ultrasonic_status.message = (
+                "Valid echo"
+                if self._telemetry.ultrasonic_valid
+                else "No valid echo pulse"
+            )
+            ultrasonic_status.values.extend(
+                [
+                    KeyValue(
+                        key="valid",
+                        value=str(self._telemetry.ultrasonic_valid),
+                    ),
+                    KeyValue(
+                        key="distance_m",
+                        value=str(self._telemetry.ultrasonic_distance_m),
+                    ),
+                    KeyValue(
+                        key="echo_us",
+                        value=str(self._telemetry.ultrasonic_echo_us),
+                    ),
+                    KeyValue(
+                        key="state",
+                        value=str(self._telemetry.ultrasonic_state),
+                    ),
+                    KeyValue(
+                        key="state_name",
+                        value={
+                            0: "idle",
+                            1: "waiting_rise",
+                            2: "waiting_fall",
+                            3: "timeout",
+                            4: "valid",
+                        }.get(self._telemetry.ultrasonic_state, "unknown"),
+                    ),
+                ]
+            )
+        diag_array.status.append(ultrasonic_status)
+
+        with self._state_lock:
+            servo_ack_time = self._servo_last_ack_time
+            servo_angle = self._servo_last_angle_degrees
+            servo_pulse = self._servo_last_pulse_us
+        servo_status = DiagnosticStatus()
+        servo_status.name = "stm32_hardened_bridge: SG90 J1 servo"
+        if servo_ack_time > 0.0:
+            servo_status.level = DiagnosticStatus.OK
+            servo_status.message = "STM32 accepted last position command"
+        else:
+            servo_status.level = DiagnosticStatus.WARN
+            servo_status.message = "No position command acknowledged yet"
+        servo_status.values.extend(
+            [
+                KeyValue(key="channel", value="J1 / PA11"),
+                KeyValue(key="angle_degrees", value=str(servo_angle)),
+                KeyValue(key="pulse_us", value=str(servo_pulse)),
+            ]
+        )
+        diag_array.status.append(servo_status)
         self._diagnostics_pub.publish(diag_array)
 
         # Publish bridge alive status
         alive_msg = Bool()
-        alive_msg.data = self._ser is not None and self._ser.is_open
+        alive_msg.data = link_alive
         self._alive_pub.publish(alive_msg)
 
     def destroy_node(self):

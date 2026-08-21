@@ -53,7 +53,11 @@ def main(args: Optional[list[str]] = None) -> None:
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        # launch may already have shut down the shared rcl context while
+        # propagating SIGINT; do not turn a clean dashboard stop into an
+        # error exit by shutting it down a second time.
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

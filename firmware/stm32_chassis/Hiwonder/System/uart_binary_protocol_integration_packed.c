@@ -23,6 +23,7 @@
 #include "battery_integration.h"
 #include "status_integration.h"
 #include "hc_sr04.h"
+#include "sg90_servo.h"
 #include "buzzer.h"
 #include "main.h"
 #include "usart.h"
@@ -82,6 +83,13 @@ void binary_protocol_integration_init_packed(void) {
 
     MotorControl_EmergencyStop();
     hc_sr04_init();
+    SG90Servo_Init();
+
+    /* Sensor bring-up is non-fatal: the protocol remains available when an
+     * IMU is absent, but a ready MPU6050 contributes real telemetry. */
+    if (IMU_Init() != 0) {
+        Status_SetLEDWarning();
+    }
 
     /* Use the production WCH Rock64 host link on USART1 PA9/PA10. Telemetry TX
      * deliberately uses
@@ -202,15 +210,26 @@ void binary_protocol_telemetry_task(void) {
                                      accel_x, accel_y, accel_z,
                                      gyro_x, gyro_y, gyro_z);
 
-    hc_sr04_service();
     HcSr04Measurement ultrasonic;
-    if (hc_sr04_get_measurement(&ultrasonic)) {
+    /* Consume a completed echo before starting the next trigger.  If this
+     * task was delayed for more than the normal 20 ms cadence, servicing
+     * first could otherwise replace an unread measurement. */
+    bool ultrasonic_ready = hc_sr04_get_measurement(&ultrasonic);
+    hc_sr04_service();
+    if (ultrasonic_ready) {
         protocol_ctx.telemetry.ultrasonic.distance_mm = ultrasonic.distance_mm;
         protocol_ctx.telemetry.ultrasonic.echo_us = ultrasonic.echo_us;
         protocol_ctx.telemetry.ultrasonic.valid = ultrasonic.valid ? 1U : 0U;
-        protocol_ctx.telemetry.ultrasonic.reserved = 0U;
+        protocol_ctx.telemetry.ultrasonic.reserved = hc_sr04_get_status();
     } else {
+        /* Do not carry a previous measurement into a timeout/no-echo frame.
+         * The validity flag is authoritative, but zeroing the payload keeps
+         * diagnostics and downstream consumers from mistaking stale values
+         * for the current cycle. */
+        protocol_ctx.telemetry.ultrasonic.distance_mm = 0U;
+        protocol_ctx.telemetry.ultrasonic.echo_us = 0U;
         protocol_ctx.telemetry.ultrasonic.valid = 0U;
+        protocol_ctx.telemetry.ultrasonic.reserved = hc_sr04_get_status();
     }
     
     // Send telemetry burst

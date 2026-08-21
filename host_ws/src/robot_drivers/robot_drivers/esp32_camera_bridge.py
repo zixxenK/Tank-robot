@@ -20,6 +20,7 @@ from rclpy.qos import (
     QoSProfile,
     QoSReliabilityPolicy,
 )
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import Image
 
 
@@ -48,11 +49,21 @@ class ESP32CameraBridge(Node):
             "/camera/image_raw",
             image_qos,
         )
+        self._diagnostics_pub = self.create_publisher(
+            DiagnosticArray, "/camera/diagnostics", 10
+        )
         self._running = True
         self._bridge = CvBridge()
+        self._frame_count = 0
+        self._decode_errors = 0
+        self._stream_errors = 0
+        self._stream_connected = False
 
         self._thread = threading.Thread(target=self._stream_loop, daemon=True)
         self._thread.start()
+        self._diagnostics_timer = self.create_timer(
+            2.0, self._publish_diagnostics
+        )
         self.get_logger().info(f"Camera bridge connecting to {self._url}")
 
     def _stream_loop(self):
@@ -60,6 +71,7 @@ class ESP32CameraBridge(Node):
         while self._running:
             try:
                 with urllib.request.urlopen(self._url, timeout=10) as resp:
+                    self._stream_connected = True
                     buf = b""
                     while self._running:
                         chunk = resp.read(4096)
@@ -84,8 +96,11 @@ class ESP32CameraBridge(Node):
                             jpeg = payload[:next_bound].rstrip(b"\r\n")
                             buf = payload[next_bound:]
                             self._publish_frame(jpeg)
+                self._stream_connected = False
 
             except Exception as exc:  # noqa: BLE001
+                self._stream_connected = False
+                self._stream_errors += 1
                 if self._running:
                     self.get_logger().warn(
                         f"Camera stream error: {exc} — retrying in 2s"
@@ -97,6 +112,7 @@ class ESP32CameraBridge(Node):
             np.frombuffer(jpeg_bytes, dtype=np.uint8), cv2.IMREAD_COLOR
         )
         if frame is None:
+            self._decode_errors += 1
             self.get_logger().warn("Dropped invalid JPEG frame from ESP32")
             return
 
@@ -104,9 +120,42 @@ class ESP32CameraBridge(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "camera_link"
         self._pub.publish(msg)
+        self._frame_count += 1
+
+    def _publish_diagnostics(self):
+        """Publish stream and frame counters for dashboard health checks."""
+        status = DiagnosticStatus()
+        status.name = "esp32_camera_bridge: ESP32 camera"
+        if self._stream_connected and self._frame_count:
+            status.level = DiagnosticStatus.OK
+            status.message = "Streaming frames"
+        elif self._stream_connected:
+            status.level = DiagnosticStatus.WARN
+            status.message = "Connected but no decoded frame yet"
+        else:
+            status.level = DiagnosticStatus.ERROR
+            status.message = "ESP32 stream disconnected"
+        status.values.extend(
+            [
+                KeyValue(key="url", value=self._url),
+                KeyValue(
+                    key="stream_connected",
+                    value=str(self._stream_connected),
+                ),
+                KeyValue(key="frames", value=str(self._frame_count)),
+                KeyValue(key="decode_errors", value=str(self._decode_errors)),
+                KeyValue(key="stream_errors", value=str(self._stream_errors)),
+            ]
+        )
+        diagnostics = DiagnosticArray()
+        diagnostics.header.stamp = self.get_clock().now().to_msg()
+        diagnostics.status.append(status)
+        self._diagnostics_pub.publish(diagnostics)
 
     def destroy_node(self):
         self._running = False
+        if hasattr(self, "_diagnostics_timer"):
+            self._diagnostics_timer.cancel()
         super().destroy_node()
 
 

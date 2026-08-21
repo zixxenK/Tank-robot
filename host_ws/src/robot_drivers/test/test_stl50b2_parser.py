@@ -64,3 +64,18 @@ def test_sync_edges_are_required_for_scan_output():
     assert scan is not None
     assert scan.stamp_ns == 100
     assert len(scan.points) == POINTS_PER_PACKET
+
+
+def test_packet_angle_rollover_closes_scan_without_gpio():
+    """Packet rollover produces scans when GPIO sync is not used."""
+    parser = STL50B2StreamParser()
+    packets = parser.feed(
+        _packet(350.0, 359.0)
+        + _packet(0.0, 10.0)
+    )
+    assembler = SynchronizedScanAssembler(require_sync=False)
+    assert assembler.add_packet(packets[0], 100) is None
+    scan = assembler.add_packet(packets[1], 200)
+    assert scan is not None
+    assert scan.stamp_ns == 100
+    assert len(scan.points) == POINTS_PER_PACKET

@@ -8,6 +8,15 @@ runs the PC-side TF completion, Foxglove Bridge, and SLAM Toolbox.
 
 The supported PC environment is WSL2 Ubuntu 22.04 with ROS 2 Humble:
 
+From PowerShell, use the repository wrapper so the correct WSL distribution is
+selected even when Ubuntu 20.04 is the default distribution:
+
+```powershell
+.\deployment\pc\setup_dashboard.ps1
+```
+
+The equivalent command from an Ubuntu-22.04 WSL shell is:
+
 ```bash
 cd /mnt/c/Projects/Tank-Robot/Tank-robot
 bash deployment/pc/setup_wsl_dashboard.sh
@@ -38,15 +47,16 @@ export ROS_LOCALHOST_ONLY=0
 ```
 
 If DDS discovery is unreliable under the installed WSL networking mode, use a
-Fast DDS Discovery Server on the PC and set `ROS_DISCOVERY_SERVER` to the PC's
-LAN address and port on both systems. Keep that port restricted to the robot
-LAN; it is not an authentication mechanism.
+Fast DDS Discovery Server on the Rock64 and set `ROS_DISCOVERY_SERVER` to
+`192.168.1.139:11811` on both systems. The Rock64 deployment installs this as
+`rock64-fastdds-discovery.service`; keep UDP port 11811 restricted to the robot
+LAN because discovery is not an authentication mechanism.
 
 Start the optional server in a second WSL terminal:
 
 ```bash
-bash deployment/pc/run_fastdds_discovery_server.sh
-export ROS_DISCOVERY_SERVER=192.168.1.<PC-IP>:11811
+sudo systemctl enable --now rock64-fastdds-discovery.service
+export ROS_DISCOVERY_SERVER=192.168.1.139:11811
 ```
 
 ## Start the graph
@@ -57,6 +67,12 @@ camera acquisition enabled. Then in WSL:
 ```bash
 cd /mnt/c/Projects/Tank-Robot/Tank-robot
 bash deployment/pc/run_dashboard.sh
+```
+
+From PowerShell, the equivalent wrapper is:
+
+```powershell
+.\deployment\pc\run_dashboard.ps1
 ```
 
 The command starts:
@@ -70,6 +86,17 @@ Open Foxglove Desktop on Windows and connect to:
 ```text
 ws://127.0.0.1:8765
 ```
+
+If WSL DDS cannot exchange UDP with the Rock64, use the SSH-forwarded
+dashboard instead. It runs Foxglove Bridge and SLAM on the Rock64 and exposes
+the read-only websocket through the existing SSH key:
+
+```powershell
+.\deployment\pc\run_dashboard_remote.ps1
+```
+
+Connect Foxglove Desktop to `ws://127.0.0.1:18765` for that mode. Keep the
+PowerShell window open while using the dashboard.
 
 The legacy command remains an alias:
 
@@ -111,6 +138,8 @@ preset. It covers:
 - `/camera/usb/image_raw/compressed`;
 - `/ultrasonic/range`;
 - `/stm32/odom`, `/stm32/imu`, `/stm32/diagnostics`;
+- `/lidar/diagnostics`;
+- `/camera/diagnostics` and `/camera/usb/diagnostics`;
 - `/safety/diagnostics`, `/teleop/ps5_status`, and `/tf`.
 
 The bridge is also configured without Foxglove's `clientPublish` capability,

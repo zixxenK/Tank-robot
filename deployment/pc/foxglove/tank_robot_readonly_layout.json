@@ -32,6 +32,9 @@
       "title": "Health",
       "topics": [
         "/stm32/diagnostics",
+        "/lidar/diagnostics",
+        "/camera/diagnostics",
+        "/camera/usb/diagnostics",
         "/safety/diagnostics",
         "/teleop/ps5_status"
       ]

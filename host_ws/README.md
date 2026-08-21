@@ -56,7 +56,7 @@ Verify bringup:
    The PS5 readiness check accepts either spelling:
 
    ```bash
-   python3 src/robot_teleop/robot_teleop/ps5_device_check.py --device /dev/input/js0
+   python3 src/robot_teleop/robot_teleop/ps5_device_check.py --device /dev/input/ps5_controller
    ```
 
    The current deployed STM32 motor-only image intentionally reports no
@@ -66,7 +66,7 @@ Verify bringup:
 
    ```bash
    ros2 launch robot_bringup rock64_bringup.launch.py \
-     use_teleop:=true joy_device:=/dev/input/js0 \
+     use_teleop:=true joy_device:=/dev/input/ps5_controller \
      serial_port:=/dev/rock64_stm32 monitor_battery:=false
    ```
 

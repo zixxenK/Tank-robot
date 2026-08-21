@@ -17,11 +17,8 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY
-  launch
-  config
-  DESTINATION share/${PROJECT_NAME}
-)
+# This package currently has no launch/ or config/ directories.  Keep the
+# executable install self-contained so colcon can build the whole workspace.
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)

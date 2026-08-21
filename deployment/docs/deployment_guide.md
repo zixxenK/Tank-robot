@@ -40,7 +40,9 @@ Important fields:
 ```text
 SERIAL_PORT=/dev/rock64_stm32
 USE_HARDWARE_BRIDGE=true
-USE_CAMERA_BRIDGE=false
+USE_CAMERA_BRIDGE=true
+USE_USB_CAMERA=true
+USE_TELEOP=true
 ROS_DISTRO=auto
 ROS_DOMAIN_ID=42
 ```
@@ -75,6 +77,16 @@ journalctl -u rock64-robot.service -f
 ```
 
 ## Updating and flashing from the Rock64
+
+For the non-flashing source/configuration and ROS-only update, use the safe
+Windows path:
+
+```powershell
+.\scripts\sync_rock64_safe.ps1 -RestartService
+```
+
+It rebuilds the Rock64 host workspace and optionally restarts the acquisition
+services. It never programs the STM32 or ESP32.
 
 From the development PC, the canonical workflow is:
 
