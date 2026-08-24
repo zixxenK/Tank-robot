@@ -119,18 +119,21 @@ From the development PC, the canonical workflow is:
 .\scripts\deploy_rock64.ps1
 ```
 
-This uploads the current source tree to `rock64@rock64`, retains a backup of
-the existing Rock64 source tree, builds the selected ROS packages and the
-STM32 Release image on the Rock64, stops the running service, flashes through
-the Rock64-connected ST-Link, performs readback verification, starts the
-image through SWD, runs `python3 scripts/motor_link_safe_test.py`, and
-restarts the service only after the safe UART proof passes and verifies that
-the service is active again. It always flashes
-and requires both USB devices to be connected to the Rock64:
+This requires a clean local Git checkout, uploads that source tree to
+`rock64@rock64`, pins the Rock64 checkout to the same pushed commit, retains a
+backup of the existing Rock64 source tree, builds the selected ROS packages
+and the STM32 Release image on the Rock64, stops the running service, flashes
+the STM32 through the Rock64-connected ST-Link, performs readback verification,
+starts the image through SWD, runs `python3 scripts/motor_link_safe_test.py`,
+builds and flashes the Rock64-connected ESP32-S3 camera, and restarts the
+service only after the proofs pass and verifies that the service is active
+again. It always flashes and requires these USB devices to be connected to
+the Rock64:
 
 - WCH motor UART `1a86:55d4`, exposed as `/dev/rock64_stm32` and connected to
   the physical UART1 connector / USART1 PA9-PA10
 - ST-Link `0483:3748`, used only for SWD flashing
+- ESP32-S3 camera `303a:1001`, normally exposed as `/dev/ttyACM1`
 
 The board-side command is also available directly after source deployment:
 

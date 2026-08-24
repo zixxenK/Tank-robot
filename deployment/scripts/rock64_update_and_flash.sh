@@ -14,6 +14,8 @@ SERVICE="rock64-robot.service"
 SERVICE_WAS_ACTIVE=false
 SYSTEMD_CONFIG="${REPO_ROOT}/deployment/systemd/systemd_config.conf"
 SYSTEMD_CONFIG_EXAMPLE="${REPO_ROOT}/deployment/systemd/systemd_config.conf.example"
+FLASH_ESP32="${FLASH_ESP32:-true}"
+ESP32_PORT="${ESP32_PORT:-}"
 
 die() {
   echo "[rock64_update] ERROR: $*" >&2
@@ -80,6 +82,25 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 python3 -c 'import serial' >/dev/null 2>&1 || die "python3-serial is not installed"
 command -v st-flash >/dev/null 2>&1 || command -v openocd >/dev/null 2>&1 || die "neither st-flash nor openocd is installed"
 command -v openocd >/dev/null 2>&1 || die "openocd is required to start the image with NRST disconnected"
+
+if [[ "${FLASH_ESP32}" == true ]]; then
+  [[ -x "${REPO_ROOT}/scripts/flash_esp32.sh" || -f "${REPO_ROOT}/scripts/flash_esp32.sh" ]] || \
+    die "ESP32 flash script is missing"
+  if [[ -z "${ESP32_PORT}" ]]; then
+    if [[ -e /dev/ttyACM1 ]]; then
+      ESP32_PORT=/dev/ttyACM1
+    elif [[ -e /dev/ttyUSB1 ]]; then
+      ESP32_PORT=/dev/ttyUSB1
+    else
+      die "ESP32 USB port is missing; connect the ESP32-S3 or set ESP32_PORT"
+    fi
+  fi
+  [[ -e "${ESP32_PORT}" ]] || die "ESP32 port does not exist: ${ESP32_PORT}"
+  lsusb | grep -q '303a:1001' || die "ESP32-S3 303a:1001 is not connected"
+  echo "[rock64_update] ESP32 camera port: ${ESP32_PORT}"
+else
+  echo "[rock64_update] ESP32 flash disabled (FLASH_ESP32=${FLASH_ESP32})."
+fi
 
 # Authenticate before changing service state.  This keeps the EXIT trap able
 # to restore an active service if the operator interrupts the build or flash.
@@ -157,6 +178,12 @@ sleep 1
 cd "${REPO_ROOT}"
 python3 scripts/motor_link_safe_test.py --port /dev/rock64_stm32
 echo "[rock64_update] Safe UART proof passed."
+
+if [[ "${FLASH_ESP32}" == true ]]; then
+  echo "[rock64_update] Building and flashing ESP32 camera from Rock64..."
+  bash "${REPO_ROOT}/scripts/flash_esp32.sh" --build --port "${ESP32_PORT}"
+  echo "[rock64_update] ESP32 camera flash completed."
+fi
 
 IMAGE="${REPO_ROOT}/firmware/stm32_chassis/build/Release/RosRobotControllerM4.bin"
 echo "[rock64_update] Firmware SHA-256: $(sha256sum "${IMAGE}" | awk '{print $1}')"

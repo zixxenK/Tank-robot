@@ -116,12 +116,15 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(LED_SYS_GPIO_Port, &GPIO_InitStruct);
 
-  /* The IMU integration polls I2C2, so keep its optional data-ready pin as
-   * an input. The Glowy ultrasonic module is also on the shared I2C2 bus. */
+  /* Match the V1.2 factory controller: PB12 is the MPU data-ready rising-edge
+   * interrupt. I2C2 itself remains the owner of PB10/PB11. */
   GPIO_InitStruct.Pin = IMU_ITR_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(IMU_ITR_GPIO_Port, &GPIO_InitStruct);
+
+  HAL_NVIC_SetPriority(IMU_ITR_EXTI_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(IMU_ITR_EXTI_IRQn);
 
   /*Configure GPIO pins : PD10 PD15 PD0 PD1
                            PD4 PD7 */

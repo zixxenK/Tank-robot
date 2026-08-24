@@ -18,6 +18,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$gitCommit = (& git -C $repoRoot rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $gitCommit -notmatch '^[0-9a-f]{40}$') {
+  throw "Unable to resolve the local Git commit."
+}
+$gitStatus = (& git -C $repoRoot status --porcelain)
+if ($LASTEXITCODE -ne 0) {
+  throw "Unable to inspect the local Git checkout."
+}
+if ($gitStatus) {
+  throw "Local checkout is dirty. Commit and push the changes before deployment so the Rock64 can be pinned to the same Git commit.`n$gitStatus"
+}
 $archive = Join-Path ([System.IO.Path]::GetTempPath()) ("tank-robot-{0}.tar.gz" -f ([guid]::NewGuid()))
 $remoteArchive = "$RemoteRoot/.codex-deploy.tar.gz"
 $target = "$UserName@$HostName"
@@ -87,8 +98,18 @@ chmod 0755 '$RemoteRoot/run_e2e.sh'
   Write-Host "Installing source on Rock64 ..."
   Invoke-NativeChecked "ssh.exe" @($target, $extract)
 
-  $remoteCommand = "STM32_BUILD_JOBS=4 bash '$RemoteRoot/deployment/scripts/rock64_update_and_flash.sh'"
-  Write-Host "Starting mandatory Rock64 build/flash/proof workflow for UART1/USART1. Sudo may prompt for the Rock64 password."
+  $gitSync = @"
+set -e
+git -C '$RemoteRoot' fetch --quiet origin '$gitCommit'
+git -C '$RemoteRoot' reset --hard '$gitCommit'
+test "`$(git -C '$RemoteRoot' rev-parse HEAD)" = '$gitCommit'
+echo "[deploy] Rock64 Git checkout pinned to $gitCommit"
+"@
+  Write-Host "Pinning Rock64 Git checkout to $gitCommit ..."
+  Invoke-NativeChecked "ssh.exe" @($target, $gitSync)
+
+  $remoteCommand = "STM32_BUILD_JOBS=4 FLASH_ESP32=true bash '$RemoteRoot/deployment/scripts/rock64_update_and_flash.sh'"
+  Write-Host "Starting mandatory Rock64 host build, STM32 flash, ESP32 flash, and proof workflow. Sudo may prompt for the Rock64 password."
   Invoke-NativeChecked "ssh.exe" @("-tt", $target, $remoteCommand)
 } finally {
   if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }

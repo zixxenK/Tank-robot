@@ -97,11 +97,12 @@ def test_glowy_ultrasonic_uses_the_i2c_expansion_sensor_contract():
     assert "HAL_I2C_Mem_Read(&hi2c2" in sensor
 
 
-def test_glowy_ultrasonic_does_not_claim_legacy_pulse_pins():
+def test_imu_data_ready_matches_the_factory_exti_contract():
     gpio = _read("firmware/stm32_chassis/Core/Src/gpio.c")
     interrupt = _read("firmware/stm32_chassis/Core/Src/stm32f4xx_it.c")
     assert "GPIO_MODE_IT_RISING_FALLING" not in gpio
-    assert "HAL_GPIO_EXTI_IRQHandler" not in interrupt
+    assert "GPIO_MODE_IT_RISING" in gpio
+    assert "HAL_GPIO_EXTI_IRQHandler(IMU_ITR_Pin)" in interrupt
 
 
 def test_imu_rate_limited_cycles_reuse_the_last_valid_sample():
@@ -202,8 +203,8 @@ def test_basic_hardware_profile_keeps_i2c2_for_the_onboard_imu_only():
         "firmware/stm32_chassis/Hiwonder/System/"
         "uart_binary_protocol_integration_packed.c"
     )
-    assert "hi2c2.Init.ClockSpeed = 100000" in i2c
-    assert "I2C2.I2C_Mode=I2C_Standard" in ioc
+    assert "hi2c2.Init.ClockSpeed = 400000" in i2c
+    assert "I2C2.I2C_Mode=I2C_Fast" in ioc
     assert "#define ENABLE_GLOWY_BASIC_PROFILE 0" in integration
 
 
@@ -221,7 +222,7 @@ def test_legacy_secondary_servo_pads_are_inert_for_i2c_sensor_use():
     assert "PWM_SERVO_2_Pin" not in main_h
     assert "PWM_SERVO_3_Pin" not in main_h
     assert "PA12.GPIO_Label=UNUSED_PA12" in ioc
-    assert "PB12.Signal=GPIO_Input" in ioc
+    assert "PB12.Signal=GPXTI12" in ioc
     assert "PC8.Signal=GPIO_Analog" in ioc
     assert "PA12.Signal=GPIO_Analog" in ioc
     assert '"65","PC8","Analog","GPIO_Analog","UNUSED_PC8"' in pins_csv
