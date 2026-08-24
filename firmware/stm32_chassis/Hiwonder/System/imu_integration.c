@@ -158,15 +158,11 @@ int IMU_Init(void) {
     }
     HAL_Delay(10);
 
-    /* Hiwonder performs the QMI8658 on-demand calibration before enabling
-     * continuous acceleration/gyro output. */
-    if (qmi8658_write_checked(QMI8658_CTRL9, 0xA2) != 0) {
-        imu_failure(IMU_STATUS_ERROR, -5, init_time);
-        return -5;
-    }
-    HAL_Delay(2200);
-    if (qmi8658_write_checked(QMI8658_CTRL9, 0x00) != 0 ||
-        qmi8658_write_checked(QMI8658_CTRL1, 0x78) != 0 ||
+    /* The vendor sample performs a 2.2-second on-demand calibration here.
+     * That blocks the motor/UART protocol task during boot, so production
+     * startup leaves calibration at the sensor's normal zero-offset state and
+     * begins streaming immediately. */
+    if (qmi8658_write_checked(QMI8658_CTRL1, 0x78) != 0 ||
         qmi8658_write_checked(QMI8658_CTRL8, 0xC0) != 0) {
         imu_failure(IMU_STATUS_ERROR, -5, init_time);
         return -5;
