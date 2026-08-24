@@ -6,16 +6,13 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TRACKS_RAISED=false
-REQUIRE_LIDAR=false
 
 for arg in "$@"; do
   case "${arg}" in
     --tracks-raised) TRACKS_RAISED=true ;;
-    --with-lidar|--require-lidar) REQUIRE_LIDAR=true ;;
-    --no-lidar) REQUIRE_LIDAR=false ;;
     -h|--help)
-      echo "usage: bash scripts/start_and_test.sh [--tracks-raised] [--with-lidar]"
-      echo "Starts rock64-robot.service and runs all checks in order."
+      echo "usage: bash scripts/start_and_test.sh [--tracks-raised]"
+      echo "Starts rock64-robot.service and runs the basic checks in order."
       echo "Motors are skipped unless --tracks-raised is explicitly supplied."
       exit 0
       ;;
@@ -59,10 +56,5 @@ echo "[start_and_test] ROS 2 stack is active; running ordered checks"
 ACCEPTANCE_ARGS=()
 if [[ "${TRACKS_RAISED}" == true ]]; then
   ACCEPTANCE_ARGS+=(--tracks-raised)
-fi
-if [[ "${REQUIRE_LIDAR}" == true ]]; then
-  ACCEPTANCE_ARGS+=(--with-lidar)
-else
-  ACCEPTANCE_ARGS+=(--no-lidar)
 fi
 exec bash "${REPO_ROOT}/scripts/hardware_acceptance.sh" "${ACCEPTANCE_ARGS[@]}"

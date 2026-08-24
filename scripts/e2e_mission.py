@@ -579,12 +579,12 @@ def hardware_acceptance_stage(log_dir: Path) -> StageResult:
         )
     result = run_command_stage(
         name="Live Rock64 hardware acceptance",
-        command=["bash", str(ROOT / "scripts" / "hardware_acceptance.sh"), "--no-lidar"],
+        command=["bash", str(ROOT / "scripts" / "hardware_acceptance.sh")],
         components=[
             "STM32 Link",
             "Encoder Stream",
             "IMU",
-            "PS5 Input",
+            "PS5 Teleop (informational)",
             "Camera Bridges",
             "E-Stop",
         ],
@@ -606,7 +606,7 @@ def hardware_acceptance_stage(log_dir: Path) -> StageResult:
         skipped = sum(status == SKIP for status, _, _ in details)
         result.detail = (
             f"Live acceptance passed: {passed} checks"
-            + (f", {skipped} optional checks skipped" if skipped else "")
+            + (f", {skipped} informational stages skipped" if skipped else "")
             + "."
         )
     return result

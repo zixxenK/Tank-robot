@@ -5,8 +5,8 @@ Run these commands on the Ubuntu Rock64 from the repository root.
 ## One-time firmware and ROS deployment
 
 The current release owns the drive, camera, and onboard MPU6050 acceptance
-path. Servo, Glowy ultrasonic, LiDAR, and battery checks are optional
-accessory/future-upgrade checks and are not required for this milestone.
+path. Servo, Glowy ultrasonic, LiDAR, and battery are accessory/future-upgrade
+hardware and are outside this basic acceptance workflow.
 
 ```bash
 bash deployment/scripts/rock64_update_and_flash.sh
@@ -14,8 +14,7 @@ bash deployment/scripts/rock64_update_and_flash.sh
 
 The deployment enables the STM32 bridge, PS5 bridge, ESP32 camera bridge, USB
 camera bridge, and compressed camera transport in the Rock64 service config.
-The Glowy module and SG90 remain disabled unless their future checks are
-explicitly requested.
+The accessory drivers remain disabled in the basic profile.
 
 ## Start everything
 
@@ -25,12 +24,12 @@ bash scripts/onecmd.sh
 
 That is the persistent all-hardware start command. When the systemd service is
 installed, the script restarts that single service instead of opening a second
-copy of the STM32 serial port. Run it again whenever the hardware stack needs a
-clean restart.
+copy of the STM32 serial port. Run it again whenever the hardware stack needs
+a clean restart.
 
 ## Test everything in order
 
-First run all tests that do not move the tracks:
+First run the basic checks without moving the tracks:
 
 ```bash
 bash scripts/hardware_acceptance.sh
@@ -43,13 +42,7 @@ the power cutoff within reach, then run one command:
 bash scripts/hardware_acceptance.sh --tracks-raised
 ```
 
-Add `--with-lidar` only when the STL-50B2 is connected and must also pass:
-
-```bash
-bash scripts/hardware_acceptance.sh --tracks-raised --with-lidar
-```
-
-The runner performs and prints these stages one at a time:
+The runner performs and prints these basic stages one at a time:
 
 1. STM32 UART: requires multiple fresh, CRC-valid firmware frames.
 2. Encoders: requires fresh left and right count messages.
@@ -58,24 +51,16 @@ The runner performs and prints these stages one at a time:
 4. Onboard IMU: requires finite, physically plausible acceleration and gyro
    samples plus a ready diagnostic from the MPU6050 integrated into the
    Hiwonder controller on I2C2 PB10/PB11.
-5. Hiwonder Glowy ultrasonic: skipped by default and outside this milestone;
-   test it separately only when the optional module is connected.
-6. Battery voltage: reported as `SKIP` by default because this firmware image
-   has one uncalibrated ADC channel. Set `MONITOR_BATTERY=true` (or
-   `require_battery:=true`) after the divider and pack are calibrated to make
-   finite 9.0–13.0 V telemetry a required stage.
-7. PS5: requires `connected=1`, then prompts for one real stick/button input
-   while the ROS emergency stop holds the motors.
-8. ESP32 camera: requires advancing, valid `/camera/image_raw` frames.
-9. USB camera: requires advancing, valid `/camera/usb/image_raw` frames.
-10. STL-50B2: skipped unless `--with-lidar` is supplied.
-11. SG90: skipped by default; commands center/low/high/center and requires a fresh STM32
-   acknowledgement after every position. Watch the servo make the sweep; an
-   SG90 has no position-feedback wire, so ROS can prove the command and PWM
-   path but cannot electrically measure the horn angle.
-12. M1/left track: at the fixed 0.10 commissioning speed, requires left
+5. PS5: reported as informational `SKIP`; the service still launches the
+   teleoperation node, but no controller activity is required for acceptance.
+6. ESP32 camera: requires advancing, valid `/camera/image_raw` frames.
+7. USB camera: requires advancing, valid `/camera/usb/image_raw` frames.
+8. M1/left track: at the fixed 0.10 commissioning speed, requires left
    encoder movement and little right-encoder movement.
-13. M2/right track: performs the corresponding independent proof.
+9. M2/right track: performs the corresponding independent proof.
+
+The basic runner does not launch or report the SG90, Glowy ultrasonic,
+STL-50B2 LiDAR, or battery checks.
 
 Every exit path requests both motor stops and latches `/safety/e_stop=true`.
 After inspecting the result, press the PS5 **Options** button to clear that

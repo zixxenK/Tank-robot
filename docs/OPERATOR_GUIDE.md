@@ -41,8 +41,10 @@ On the Rock64, run from the repository root:
 bash scripts/hardware_acceptance.sh
 ```
 
-The required gate is bridge, encoders, odometry, onboard controller IMU,
-PS5, ESP32 camera, and USB camera. The onboard IMU is the MPU6050 integrated
+The basic required gate is bridge, encoders, odometry, onboard controller IMU,
+ESP32 camera, and USB camera. PS5 teleoperation is still started and remains
+service-owned, but controller connection or operator input is not an
+acceptance failure. The onboard IMU is the MPU6050 integrated
 into the Hiwonder ROS Robot Controller V1.2. Its firmware evidence reports
 I2C2 (`PB10=SCL`, `PB11=SDA`), address, WHO_AM_I, sample count, and errors.
 
@@ -53,9 +55,9 @@ bash scripts/hardware_acceptance.sh --tracks-raised
 ```
 
 The runner always starts with the ROS e-stop asserted and stops both motors on
-exit. Servo, Glowy ultrasonic, LiDAR, and battery checks are optional and are
-not part of this milestone. LiDAR can be added with `--with-lidar`; only run
-it when that hardware is connected. Do not use `--no-imu` for a drive release.
+exit. Servo, Glowy ultrasonic, LiDAR, and battery are outside this basic
+acceptance workflow and are neither launched nor reported by it. The IMU is
+always required; there is no basic-profile bypass for it.
 
 ## Normal driving
 

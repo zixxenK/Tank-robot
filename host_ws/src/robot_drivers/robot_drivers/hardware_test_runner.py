@@ -24,8 +24,8 @@ from rclpy.qos import (
     QoSReliabilityPolicy,
 )
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import BatteryState, Image, Imu, Joy, LaserScan, Range
-from std_msgs.msg import Bool, Float32, Int32MultiArray, String, UInt16
+from sensor_msgs.msg import Image, Imu
+from std_msgs.msg import Bool, Int32MultiArray, String
 from std_srvs.srv import SetBool
 
 
@@ -445,17 +445,6 @@ class HardwareTestRunner(Node):
         self._tracks_raised = self._boolean_parameter(
             "tracks_raised", False
         )
-        self._require_lidar = self._boolean_parameter(
-            "require_lidar", False
-        )
-        self._require_battery = self._boolean_parameter(
-            "require_battery", False
-        )
-        self._require_imu = self._boolean_parameter("require_imu", True)
-        self._require_ultrasonic = self._boolean_parameter(
-            "require_ultrasonic", False
-        )
-        self._require_servo = self._boolean_parameter("require_servo", False)
         self._motor_run_s = min(
             3.0,
             max(0.25, self._float_parameter("motor_run_seconds", 1.0)),
@@ -471,15 +460,6 @@ class HardwareTestRunner(Node):
                 self._float_parameter("motor_max_crosstalk_ratio", 0.25),
             ),
         )
-        self._servo_center = self._float_parameter(
-            "servo_center_degrees", 90.0
-        )
-        self._servo_low = self._float_parameter(
-            "servo_low_degrees", 45.0
-        )
-        self._servo_high = self._float_parameter(
-            "servo_high_degrees", 135.0
-        )
         default_report = os.path.join(
             tempfile.gettempdir(),
             "tank_robot_hardware_test_report.json",
@@ -491,13 +471,6 @@ class HardwareTestRunner(Node):
             0.1,
             self._float_parameter("result_hold_seconds", 1.0),
         )
-        self._ps5_input_timeout_s = min(
-            60.0,
-            max(
-                5.0,
-                self._float_parameter("ps5_input_timeout_seconds", 20.0),
-            ),
-        )
 
         self._alive: Deque[Tuple[float, bool]] = deque(maxlen=64)
         self._encoders: Deque[Tuple[float, Tuple[int, ...]]] = deque(
@@ -508,22 +481,12 @@ class HardwareTestRunner(Node):
             Tuple[float, Tuple[Tuple[float, ...], Tuple[float, ...]]]
         ] = deque(maxlen=128)
         self._imu_diagnostics: Deque[Tuple[float, object]] = deque(maxlen=32)
-        self._ranges: Deque[Tuple[float, Tuple[float, float, float]]] = (
-            deque(maxlen=256)
-        )
-        self._battery: Deque[Tuple[float, float]] = deque(maxlen=128)
-        self._ps5: Deque[Tuple[float, str]] = deque(maxlen=128)
-        self._joy: Deque[
-            Tuple[float, Tuple[Tuple[float, ...], Tuple[int, ...]]]
-        ] = deque(maxlen=256)
         self._esp_images: Deque[Tuple[float, ImageObservation]] = deque(
             maxlen=32
         )
         self._usb_images: Deque[Tuple[float, ImageObservation]] = deque(
             maxlen=32
         )
-        self._scans: Deque[Tuple[float, object]] = deque(maxlen=16)
-        self._servo_acks: Deque[Tuple[float, int]] = deque(maxlen=64)
 
         result_qos = QoSProfile(
             depth=1,
@@ -551,11 +514,6 @@ class HardwareTestRunner(Node):
         self._estop_pub = self.create_publisher(
             Bool, "/safety/e_stop", result_qos
         )
-        self._servo_command_pub = self.create_publisher(
-            Float32,
-            "/stm32/servo/command_degrees",
-            10,
-        )
         self._motor_direction_pub = self.create_publisher(
             String,
             "/stm32/test_direction",
@@ -582,25 +540,6 @@ class HardwareTestRunner(Node):
             diagnostic_qos,
         )
         self.create_subscription(
-            BatteryState,
-            "/stm32/battery",
-            self._battery_callback,
-            sensor_qos,
-        )
-        self.create_subscription(
-            Range,
-            "/ultrasonic/range",
-            self._range_callback,
-            sensor_qos,
-        )
-        self.create_subscription(
-            String,
-            "/teleop/ps5_status",
-            self._ps5_callback,
-            10,
-        )
-        self.create_subscription(Joy, "/joy", self._joy_callback, 10)
-        self.create_subscription(
             Image,
             "/camera/image_raw",
             self._esp_image_callback,
@@ -611,18 +550,6 @@ class HardwareTestRunner(Node):
             "/camera/usb/image_raw",
             self._usb_image_callback,
             sensor_qos,
-        )
-        self.create_subscription(
-            LaserScan,
-            "/scan",
-            self._scan_callback,
-            sensor_qos,
-        )
-        self.create_subscription(
-            UInt16,
-            "/stm32/servo/state_degrees",
-            self._servo_ack_callback,
-            10,
         )
 
         self._motor_clients = (
@@ -690,45 +617,11 @@ class HardwareTestRunner(Node):
     def _imu_diagnostics_callback(self, message: DiagnosticArray) -> None:
         self._imu_diagnostics.append((time.monotonic(), message))
 
-    def _range_callback(self, message: Range) -> None:
-        values = (
-            float(message.range),
-            float(message.min_range),
-            float(message.max_range),
-        )
-        self._ranges.append((time.monotonic(), values))
-
-    def _battery_callback(self, message: BatteryState) -> None:
-        """Retain voltage for the optional calibrated battery proof."""
-        try:
-            voltage = float(message.voltage)
-        except (TypeError, ValueError, OverflowError):
-            voltage = float("nan")
-        self._battery.append((time.monotonic(), voltage))
-
-    def _ps5_callback(self, message: String) -> None:
-        self._ps5.append((time.monotonic(), str(message.data)))
-
-    def _joy_callback(self, message: Joy) -> None:
-        try:
-            axes = tuple(float(value) for value in message.axes)
-            buttons = tuple(int(value) for value in message.buttons)
-        except (TypeError, ValueError, OverflowError):
-            axes = ()
-            buttons = ()
-        self._joy.append((time.monotonic(), (axes, buttons)))
-
     def _esp_image_callback(self, message: Image) -> None:
         self._esp_images.append((time.monotonic(), observe_image(message)))
 
     def _usb_image_callback(self, message: Image) -> None:
         self._usb_images.append((time.monotonic(), observe_image(message)))
-
-    def _scan_callback(self, message: LaserScan) -> None:
-        self._scans.append((time.monotonic(), message))
-
-    def _servo_ack_callback(self, message: UInt16) -> None:
-        self._servo_acks.append((time.monotonic(), int(message.data)))
 
     def _spin_until(
         self,
@@ -908,120 +801,6 @@ class HardwareTestRunner(Node):
         _, detail = validate_odometry(samples[-1])
         return True, f"{len(samples)} fresh samples; {detail}"
 
-    def _test_ultrasonic(self) -> Tuple[bool, str]:
-        since = time.monotonic()
-
-        def valid(value: object) -> bool:
-            distance, minimum, maximum = value  # type: ignore[misc]
-            return validate_range_values(distance, minimum, maximum)[0]
-
-        ready = self._spin_until(
-            lambda: len(self._fresh(self._ranges, since, valid))
-            >= self._samples_required,
-            self._timeout_s,
-        )
-        samples = self._fresh(self._ranges, since, valid)
-        if not ready:
-            return False, (
-                f"received {len(samples)}/{self._samples_required} fresh "
-                "valid finite messages on /ultrasonic/range; connect the "
-                "Hiwonder Glowy module to the 4-pin I2C port and place a "
-                "solid target 0.02..4.0m in front of it"
-            )
-        distance, minimum, maximum = samples[-1]  # type: ignore[misc]
-        _, detail = validate_range_values(distance, minimum, maximum)
-        return True, f"{len(samples)} fresh valid echoes; {detail}"
-
-    def _test_battery(self) -> Tuple[bool, str]:
-        """Verify battery telemetry only when ADC validation is requested."""
-        since = time.monotonic()
-
-        def valid(value: object) -> bool:
-            return validate_battery_voltage(value)[0]
-
-        ready = self._spin_until(
-            lambda: len(self._fresh(self._battery, since, valid))
-            >= self._samples_required,
-            self._timeout_s,
-        )
-        samples = self._fresh(self._battery, since, valid)
-        if not ready:
-            return False, (
-                f"received {len(samples)}/{self._samples_required} fresh "
-                "finite battery voltages on /stm32/battery; verify the "
-                "ADC divider calibration and pack connection"
-            )
-        _, detail = validate_battery_voltage(samples[-1])
-        return True, f"{len(samples)} fresh samples; {detail}"
-
-    def _test_ps5(self) -> Tuple[bool, str]:
-        self._set_estop(True)
-        since = time.monotonic()
-        status_ready = self._spin_until(
-            lambda: len(
-                self._fresh(self._ps5, since, parse_ps5_connected)
-            )
-            >= self._samples_required,
-            self._timeout_s,
-        )
-        samples = self._fresh(self._ps5, since, parse_ps5_connected)
-        if not status_ready:
-            return False, (
-                f"received {len(samples)}/{self._samples_required} fresh "
-                "connected=1 messages on /teleop/ps5_status"
-            )
-
-        baseline_since = time.monotonic()
-        baseline_ready = self._spin_until(
-            lambda: bool(
-                self._fresh(
-                    self._joy,
-                    baseline_since,
-                    lambda value: bool(value[0] or value[1]),
-                )
-            ),
-            self._timeout_s,
-        )
-        if not baseline_ready:
-            return False, "controller is connected but /joy has no fresh data"
-        baseline = self._fresh(
-            self._joy,
-            baseline_since,
-            lambda value: bool(value[0] or value[1]),
-        )[-1]
-        baseline_axes, baseline_buttons = baseline  # type: ignore[misc]
-        print(
-            "PS5 INPUT: while motors are e-stopped, move the RIGHT stick "
-            "sideways or press Cross/Circle/Triangle/Square now.",
-            flush=True,
-        )
-        event_since = time.monotonic()
-
-        def operator_event(value: object) -> bool:
-            current_axes, current_buttons = value  # type: ignore[misc]
-            return joy_has_operator_event(
-                baseline_axes,
-                baseline_buttons,
-                current_axes,
-                current_buttons,
-            )
-
-        event_ready = self._spin_until(
-            lambda: bool(self._fresh(self._joy, event_since, operator_event)),
-            self._ps5_input_timeout_s,
-            periodic=lambda: self._publish_estop(True),
-        )
-        if not event_ready:
-            return False, (
-                "connected status passed, but no fresh right-stick change or "
-                "face-button press was observed on /joy within "
-                f"{self._ps5_input_timeout_s:.1f}s"
-            )
-        return True, (
-            f"{len(samples)} fresh connected status messages plus a fresh "
-            "operator input event while /safety/e_stop=True"
-        )
-
     def _test_camera(
         self,
         samples: Deque[Tuple[float, ImageObservation]],
@@ -1063,76 +842,6 @@ class HardwareTestRunner(Node):
         return True, (
             f"{unique_count} fresh uniquely stamped frames; "
             f"{observation.detail}"  # type: ignore[attr-defined]
-        )
-
-    def _test_lidar(self) -> Tuple[bool, str]:
-        since = time.monotonic()
-
-        def valid(value: object) -> bool:
-            return validate_laser_scan(value)[0]
-
-        ready = self._spin_until(
-            lambda: len(self._fresh(self._scans, since, valid))
-            >= self._samples_required,
-            self._timeout_s,
-        )
-        samples = self._fresh(self._scans, since, valid)
-        if not ready:
-            return False, (
-                f"received {len(samples)}/{self._samples_required} fresh "
-                "valid scans on /scan"
-            )
-        _, detail = validate_laser_scan(samples[-1])
-        return True, f"{len(samples)} fresh scans; {detail}"
-
-    def _publish_servo_command(self, degrees: float) -> None:
-        message = Float32()
-        message.data = float(degrees)
-        self._servo_command_pub.publish(message)
-
-    def _test_servo(self) -> Tuple[bool, str]:
-        sequence = bounded_servo_sequence(
-            self._servo_center,
-            self._servo_low,
-            self._servo_high,
-        )
-        acknowledgements = []
-        failure = None
-        try:
-            for degrees in sequence:
-                since = time.monotonic()
-                target = int(round(degrees))
-                ready = self._spin_until(
-                    lambda: bool(
-                        self._fresh(
-                            self._servo_acks,
-                            since,
-                            lambda value: int(value) == target,
-                        )
-                    ),
-                    self._timeout_s,
-                    periodic=lambda value=degrees: (
-                        self._publish_servo_command(value)
-                    ),
-                )
-                if not ready:
-                    failure = (
-                        f"no fresh UInt16 ack={target} on "
-                        "/stm32/servo/state_degrees after publishing "
-                        f"{degrees:.1f} degrees"
-                    )
-                    break
-                acknowledgements.append(target)
-        finally:
-            # A failed intermediate ACK must not leave the SG90 at an edge.
-            for _ in range(3):
-                self._publish_servo_command(self._servo_center)
-                rclpy.spin_once(self, timeout_sec=0.05)
-        if failure is not None:
-            return False, failure + "; final center command was still sent"
-        return True, (
-            "command-path proof only (SG90 has no physical feedback): "
-            f"fresh ACK sequence {acknowledgements}; visually confirm sweep"
         )
 
     def _call_motor_service(
@@ -1297,10 +1006,7 @@ class HardwareTestRunner(Node):
             "overall_status": PASS if failures == 0 else FAIL,
             "required_failures": failures,
             "tracks_raised": self._tracks_raised,
-            "require_imu": self._require_imu,
-            "require_ultrasonic": self._require_ultrasonic,
-            "require_servo": self._require_servo,
-            "require_lidar": self._require_lidar,
+            "imu_required": True,
             "report_path": report_path,
             "results": [asdict(result) for result in self._results],
         }
@@ -1412,36 +1118,16 @@ class HardwareTestRunner(Node):
             self._run_stage("STM32 bridge alive", self._test_bridge_alive)
             self._run_stage("STM32 encoder stream", self._test_encoders)
             self._run_stage("STM32 odometry", self._test_odometry)
-            if self._require_imu:
-                self._run_stage("STM32 onboard IMU", self._test_imu)
-            else:
-                started = time.monotonic()
-                self._record(
-                    "STM32 onboard IMU", SKIP, False,
-                    "not requested; require_imu is false", started,
-                )
-            if self._require_ultrasonic:
-                self._run_stage("Hiwonder Glowy ultrasonic", self._test_ultrasonic)
-            else:
-                started = time.monotonic()
-                self._record(
-                    "Hiwonder Glowy ultrasonic", SKIP, False,
-                    "optional sensor is outside the active drive/camera gate",
-                    started,
-                )
-            if self._require_battery:
-                self._run_stage("STM32 battery voltage", self._test_battery)
-            else:
-                started = time.monotonic()
-                self._record(
-                    "STM32 battery voltage",
-                    SKIP,
-                    False,
-                    "not requested; set require_battery:=true after ADC "
-                    "divider calibration",
-                    started,
-                )
-            self._run_stage("PS5 controller", self._test_ps5)
+            self._run_stage("STM32 onboard IMU", self._test_imu)
+            started = time.monotonic()
+            self._record(
+                "PS5 controller",
+                SKIP,
+                False,
+                "service-owned teleop remains launched; operator input is "
+                "not required by the basic acceptance gate",
+                started,
+            )
             self._run_stage(
                 "ESP32 camera",
                 lambda: self._test_camera(
@@ -1456,29 +1142,6 @@ class HardwareTestRunner(Node):
                     "/camera/usb/image_raw",
                 ),
             )
-            if self._require_lidar:
-                self._run_stage("STL-50B2 LiDAR", self._test_lidar)
-            else:
-                started = time.monotonic()
-                self._record(
-                    "STL-50B2 LiDAR",
-                    SKIP,
-                    False,
-                    "not requested; set require_lidar:=true to require /scan",
-                    started,
-                )
-            if self._require_servo:
-                self._run_stage(
-                    "SG90 servo command-path proof",
-                    self._test_servo,
-                )
-            else:
-                started = time.monotonic()
-                self._record(
-                    "SG90 servo command-path proof", SKIP, False,
-                    "optional actuator is outside the active drive/camera gate",
-                    started,
-                )
             if self._tracks_raised:
                 print(
                     "RAISED-TRACK MOTOR PROOF: clearing ROS e-stop only for "

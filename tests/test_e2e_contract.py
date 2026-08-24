@@ -30,10 +30,31 @@ def test_e2e_runner_captures_logs_and_uses_safe_hardware_defaults():
     runner = _read("scripts/e2e_mission.py")
     assert "stdout=subprocess.PIPE" in runner
     assert "stderr=subprocess.PIPE" in runner
-    assert '"hardware_acceptance.sh"), "--no-lidar"' in runner
+    assert '"hardware_acceptance.sh")]' in runner
     assert "--tracks-raised" not in runner
     assert "=== TANK-ROBOT SYSTEM REPORT ===" in runner
     assert "[ SUBSYSTEMS ]:" in runner
+
+
+def test_basic_acceptance_keeps_ps5_informational_and_excludes_accessories():
+    runner = _read(
+        "host_ws/src/robot_drivers/robot_drivers/hardware_test_runner.py"
+    )
+    acceptance = _read("scripts/hardware_acceptance.sh")
+    launch = _read(
+        "host_ws/src/robot_bringup/launch/hardware_acceptance.launch.py"
+    )
+
+    assert '"STM32 onboard IMU", self._test_imu' in runner
+    assert '"PS5 controller",\n                SKIP,\n                False' in runner
+    assert "_test_ps5" not in runner
+    assert "Hiwonder Glowy ultrasonic" not in runner
+    assert "STL-50B2 LiDAR" not in runner
+    assert "SG90 servo" not in runner
+    assert "--no-imu" not in acceptance
+    assert "--with-lidar" not in acceptance
+    assert '"use_lidar": "false"' in launch
+    assert '"use_ultrasonic": "false"' in launch
 
 
 def test_failure_summary_patterns_are_valid_and_plain():

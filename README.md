@@ -168,7 +168,7 @@ bash scripts/hardware_acceptance.sh
 For the complete independent M1/M2 proof, securely raise both tracks first,
 then use `bash scripts/hardware_acceptance.sh --tracks-raised`. The runner
 checks fresh STM32, encoder, odometry, onboard IMU, PS5, ESP32-camera, and
-USB-camera data before any optional motor stage, prints a numbered PASS/FAIL table,
+USB-camera data before any optional raised-track motor stage, prints a numbered PASS/FAIL table,
 always stops both motors, and writes a JSON report. See
 [the exact Rock64 procedure](docs/ROCK64_HARDWARE_ACCEPTANCE.md).
 
