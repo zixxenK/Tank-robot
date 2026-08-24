@@ -1534,7 +1534,7 @@ class STM32HardenedBridge(Node):
             self.get_logger().error(f"Error parsing IMU data: {e}")
 
     def _parse_imu_diagnostics(self, payload: bytes) -> None:
-        """Parse onboard MPU6050 readiness evidence from the STM32."""
+        """Parse onboard QMI8658 readiness evidence from the STM32."""
         if len(payload) != 16:
             self.get_logger().warn(
                 f"Invalid IMU diagnostics payload length: {len(payload)}"
@@ -1932,7 +1932,7 @@ class STM32HardenedBridge(Node):
             imu_error_count = self._telemetry.imu_error_count
             imu_last_error = self._telemetry.imu_last_error
         imu_status = DiagnosticStatus()
-        imu_status.name = "stm32_hardened_bridge: onboard MPU6050"
+        imu_status.name = "stm32_hardened_bridge: onboard QMI8658"
         if imu_ready and imu_sample_valid:
             imu_status.level = DiagnosticStatus.OK
             imu_status.message = "Onboard IMU ready; valid samples received"

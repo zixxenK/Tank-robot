@@ -75,7 +75,7 @@ def parse_onboard_imu_diagnostic(message: object) -> Tuple[bool, str]:
     """Extract the bridge's explicit onboard-IMU readiness evidence."""
     for status in getattr(message, "status", ()):
         name = str(getattr(status, "name", "")).lower()
-        if "onboard mpu6050" not in name:
+        if "onboard qmi8658" not in name and "onboard mpu6050" not in name:
             continue
         values = {
             str(item.key): str(item.value)
@@ -97,7 +97,7 @@ def parse_onboard_imu_diagnostic(message: object) -> Tuple[bool, str]:
             f"error_count={values.get('error_count', 'unknown')}"
         )
         return ready and sample_valid, detail
-    return False, "no onboard MPU6050 diagnostic status received"
+    return False, "no onboard QMI8658 diagnostic status received"
 
 
 def joy_has_operator_event(

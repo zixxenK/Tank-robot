@@ -34,11 +34,10 @@ typedef struct {
  * @brief Initialize IMU sensor with fixed delta time configuration
  * @return 0 on success, negative on error
  * 
- * Initializes MPU6050 with:
- * - 50Hz update rate (fixed dt = 0.02s)
- * - ±4g accelerometer range
- * - ±1000°/s gyroscope range
- * - 20Hz low-pass filter
+ * Initializes the Hiwonder V1.2 onboard QMI8658 with its official:
+ * - 250Hz sensor output (read by the bridge at 50Hz)
+ * - ±8g accelerometer range
+ * - ±1024°/s gyroscope range
  */
 int IMU_Init(void);
 
@@ -68,7 +67,7 @@ int IMU_GetOrientation(float *rpy, float *quat);
  */
 bool IMU_IsReady(void);
 
-/** @brief Copy explicit onboard MPU6050 readiness and bus diagnostics. */
+/** @brief Copy explicit onboard QMI8658 readiness and bus diagnostics. */
 void IMU_GetDiagnostics(IMUDiagnostics *diagnostics);
 
 /**

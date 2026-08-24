@@ -47,7 +47,7 @@ void MX_DMA_Init(void)
   /* The packed protocol polls circular RX using NDTR and uses blocking TX;
    * no UART DMA completion IRQ is required for this runtime.  I2C2 is
    * different: HAL_I2C_Mem_Read/Write uses the linked DMA streams and waits
-   * for their completion callbacks.  Without these IRQs the MPU6050 path
+ * for their completion callbacks.  Without these IRQs the QMI8658 path
    * always times out and publishes zero telemetry even when the sensor is
    * wired correctly. */
   /* DMA1_Stream2_IRQn: I2C2 RX */

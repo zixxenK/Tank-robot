@@ -140,7 +140,7 @@ typedef struct __attribute__((packed)) {
     float gyro_z;            // Gyroscope Z (rad/s)
 } IMUTelemetry;
 
-/** @brief Onboard MPU6050 readiness and I2C diagnostics. */
+/** @brief Onboard QMI8658 readiness and I2C diagnostics. */
 typedef struct __attribute__((packed)) {
     uint8_t state;
     uint8_t address;

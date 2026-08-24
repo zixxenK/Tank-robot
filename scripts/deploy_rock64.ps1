@@ -26,7 +26,15 @@ $gitStatus = (& git -C $repoRoot status --porcelain)
 if ($LASTEXITCODE -ne 0) {
   throw "Unable to inspect the local Git checkout."
 }
-if ($gitStatus) {
+$preservedLocalFiles = @(
+  '?? "docs/Encoder Usage Principle.pdf"',
+  '?? "docs/Positional PID Principle.pdf"',
+  '?? "docs/Track Chassis Kinematics.pdf"'
+)
+$unexpectedGitStatus = @($gitStatus | Where-Object {
+  $preservedLocalFiles -notcontains $_
+})
+if ($unexpectedGitStatus) {
   throw "Local checkout is dirty. Commit and push the changes before deployment so the Rock64 can be pinned to the same Git commit.`n$gitStatus"
 }
 $archive = Join-Path ([System.IO.Path]::GetTempPath()) ("tank-robot-{0}.tar.gz" -f ([guid]::NewGuid()))

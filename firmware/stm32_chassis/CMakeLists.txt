@@ -48,7 +48,6 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Hiwonder/Peripherals/encoder_motor.c
-    Hiwonder/Peripherals/imu_mpu6050.c
     Hiwonder/Peripherals/buzzer.c
     Hiwonder/Peripherals/led.c
     Hiwonder/Peripherals/serial_servo.c
@@ -65,9 +64,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Hiwonder/System/status_integration.c
     Hiwonder/System/glowy_ultrasonic.c
     Hiwonder/System/sg90_servo.c
-    Third_Party/Fusion/Fusion/FusionAhrs.c
-    Third_Party/Fusion/Fusion/FusionCompass.c
-    Third_Party/Fusion/Fusion/FusionOffset.c
     Third_Party/Lw/lwmem.c
     Third_Party/Lw/lwmem_sys_cmsis_os.c
 )

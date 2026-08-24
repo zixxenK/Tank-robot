@@ -93,7 +93,7 @@ void binary_protocol_integration_init_packed(void) {
     SG90Servo_Init();
 
     /* Sensor bring-up is non-fatal: the protocol remains available when an
-     * IMU is absent, but a ready MPU6050 contributes real telemetry. */
+     * IMU is absent, but a ready onboard QMI8658 contributes real telemetry. */
     if (IMU_Init() != 0) {
         Status_SetLEDWarning();
     }
