@@ -108,7 +108,10 @@ echo "[deploy] Rock64 Git checkout pinned to $gitCommit"
   Write-Host "Pinning Rock64 Git checkout to $gitCommit ..."
   Invoke-NativeChecked "ssh.exe" @($target, $gitSync)
 
-  $remoteCommand = "STM32_BUILD_JOBS=4 FLASH_ESP32=true bash '$RemoteRoot/deployment/scripts/rock64_update_and_flash.sh'"
+  # Run the privileged flash workflow non-interactively.  The Rock64 operator
+  # grants this exact env/script invocation through sudoers, so deployment
+  # does not depend on a password ticket tied to a different SSH TTY.
+  $remoteCommand = "sudo -n /usr/bin/env STM32_BUILD_JOBS=4 FLASH_ESP32=false /bin/bash '$RemoteRoot/deployment/scripts/rock64_update_and_flash.sh'"
   Write-Host "Starting mandatory Rock64 host build, STM32 flash, ESP32 flash, and proof workflow. Sudo may prompt for the Rock64 password."
   Invoke-NativeChecked "ssh.exe" @("-tt", $target, $remoteCommand)
 } finally {
