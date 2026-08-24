@@ -102,10 +102,11 @@ else
   echo "[rock64_update] ESP32 flash disabled (FLASH_ESP32=${FLASH_ESP32})."
 fi
 
-# Authenticate before changing service state.  This keeps the EXIT trap able
-# to restore an active service if the operator interrupts the build or flash.
+# Verify noninteractive privilege before changing service state.  `sudo -v`
+# can still request a credential on sudo configurations that grant NOPASSWD;
+# an actual no-op command is the reliable automation preflight.
 if [[ "$(id -u)" -ne 0 ]]; then
-  sudo -v
+  sudo -n true || die "passwordless sudo is required for the Rock64 update workflow"
 fi
 
 merge_all_hardware_config
