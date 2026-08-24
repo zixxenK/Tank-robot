@@ -30,6 +30,7 @@ PYTEST_PATHS = [
     "host_ws/src/robot_drivers/test",
     "host_ws/src/robot_teleop/test",
     "host_ws/src/robot_audio/test",
+    "host_ws/src/robot_control/test",
 ]
 PYTEST_IGNORES = [
     "host_ws/src/agent_core/test/test_flake8.py",
@@ -37,12 +38,6 @@ PYTEST_IGNORES = [
     "host_ws/src/robot_drivers/test/test_flake8.py",
     "host_ws/src/robot_drivers/test/test_pep257.py",
 ]
-ROS_PACKAGES = (
-    "agent_core robot_bringup robot_drivers robot_teleop robot_audio "
-    "navigation perception telemetry_logger terrain_adaptation"
-)
-
-
 @dataclass
 class StageResult:
     """A compact operator-facing result for one mission stage."""
@@ -111,7 +106,9 @@ def _plain_failure(text: str, returncode: int | None) -> str:
                 or stripped.startswith("ImportError:")
                 or stripped.startswith("TypeError:")
             ):
-                useful_lines.append(stripped.removeprefix("E   ").strip())
+                if stripped.startswith("E   "):
+                    stripped = stripped[4:]
+                useful_lines.append(stripped.strip())
         if useful_lines:
             return " ".join(useful_lines)[:420]
     patterns = [
@@ -348,6 +345,11 @@ def ros_setup_path() -> Path | None:
     return None
 
 
+def ros_workspace_helper() -> Path:
+    """Return the one maintained ROS environment/workspace helper."""
+    return ROOT / "deployment" / "scripts" / "source_host_ws.sh"
+
+
 def environment_stage(log_dir: Path) -> StageResult:
     started = time.monotonic()
     log_file = log_dir / "environment_setup.log"
@@ -402,6 +404,7 @@ def pytest_stage(log_dir: Path) -> StageResult:
         str(HOST_WS / "src" / "robot_drivers"),
         str(HOST_WS / "src" / "robot_teleop"),
         str(HOST_WS / "src" / "robot_audio"),
+        str(HOST_WS / "src" / "robot_control"),
         str(HOST_WS / "src" / "navigation"),
         str(HOST_WS / "src" / "perception"),
         str(HOST_WS / "src" / "telemetry_logger"),
@@ -452,19 +455,8 @@ def firmware_stage(log_dir: Path) -> StageResult:
     return run_sequence_stage(
         name="STM32 firmware build",
         commands=[
-            # Do not force a generator here. This reuses an existing build
-            # directory (Makefiles on the Rock64 release path, Ninja on some
-            # developer machines) and avoids generator-cache collisions.
-            [
-                "cmake",
-                "-S",
-                ".",
-                "-B",
-                "build/Release",
-                "-DCMAKE_BUILD_TYPE=Release",
-                "-DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake",
-            ],
-            ["cmake", "--build", "build/Release", "--parallel", "4"],
+            ["cmake", "--preset", "Release"],
+            ["cmake", "--build", "--preset", "Release", "--parallel", "4"],
         ],
         components=["STM32 Firmware", "Motor Controller", "Watchdog"],
         log_dir=log_dir,
@@ -482,8 +474,11 @@ def firmware_stage(log_dir: Path) -> StageResult:
 def ros_build_stage(log_dir: Path) -> StageResult:
     missing = tool_missing("bash", "colcon")
     setup = ros_setup_path()
+    helper = ros_workspace_helper()
     if setup is None:
         missing.append("ROS 2 setup.bash")
+    if not helper.is_file():
+        missing.append("source_host_ws.sh")
     if missing:
         return skip_stage(
             name="ROS workspace build",
@@ -495,13 +490,14 @@ def ros_build_stage(log_dir: Path) -> StageResult:
             ),
         )
     command = (
-        # ROS Humble's setup scripts reference optional variables while they
-        # are being initialized. Do not enable nounset until after sourcing.
+        # source_host_ws.sh owns base ROS setup, overlay cleanup, and the
+        # canonical workspace selection for every native ROS build.
         "set -eo pipefail; "
-        f"source {shlex.quote(str(setup))}; "
+        f"export HOST_WS_PATH={shlex.quote(str(HOST_WS))}; "
+        f"source {shlex.quote(str(helper))}; "
         "set -u; "
         f"cd {shlex.quote(str(HOST_WS))}; "
-        f"colcon build --symlink-install --packages-up-to {ROS_PACKAGES}"
+        "colcon build --symlink-install"
     )
     return run_command_stage(
         name="ROS workspace build",
@@ -588,10 +584,8 @@ def hardware_acceptance_stage(log_dir: Path) -> StageResult:
             "STM32 Link",
             "Encoder Stream",
             "IMU",
-            "HC-SR04",
             "PS5 Input",
             "Camera Bridges",
-            "Servo Command Path",
             "E-Stop",
         ],
         log_dir=log_dir,
@@ -728,7 +722,10 @@ def print_report(results: list[StageResult], log_dir: Path, report_path: Path) -
             print(f"- {result.name}: {result.next_step}")
     else:
         print("- Teleop: bash scripts/onecmd.sh")
-        print("- Autonomous: ros2 launch robot_bringup full_stack.launch.py")
+        print(
+            "- Future autonomy: commission an agent supervisor/heartbeat "
+            "before enabling full_stack.launch.py proposal nodes"
+        )
     print("================================")
 
 

@@ -1,9 +1,18 @@
 /**:
   ros__parameters:
-    max_linear_speed: 0.8
-    max_angular_speed: 2.0
+    # Track geometry and the resulting Twist ceilings are owned by the
+    # canonical robot_control/config/control_map.yaml. Bringup passes its
+    # installed path explicitly; an empty path is valid for standalone use
+    # because the node has the same checked-in fallback.
+    control_map_path: ""
+    # Compatibility-only overrides. Leave unset/non-positive in production.
+    max_linear_speed: -1.0
+    max_angular_speed: -1.0
     max_linear_acceleration: 3.0
-    max_angular_acceleration: 6.0
+    # Retained as a configurable safety policy; the active teleop profile
+    # disables acceleration shaping so L2 can produce a power pivot.
+    max_angular_acceleration: 40.0
+    enable_acceleration_limiting: false
     teleop_command_timeout: 0.25
     agent_command_timeout: 0.1
     agent_heartbeat_timeout: 0.1

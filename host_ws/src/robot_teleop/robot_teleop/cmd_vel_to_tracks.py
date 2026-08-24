@@ -6,10 +6,18 @@ normalized per-track commands in the range [-1.0, 1.0] for expansion hubs
 or consumers that prefer explicit track setpoints.
 """
 
+import math
+from pathlib import Path
+
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
 from std_msgs.msg import Float32
+from robot_control.control_map import (
+    default_control_map,
+    load_control_map,
+    twist_to_track_pair,
+)
 
 
 class CmdVelToTracks(Node):
@@ -18,15 +26,21 @@ class CmdVelToTracks(Node):
     def __init__(self) -> None:
         super().__init__("cmd_vel_to_tracks")
 
-        self.declare_parameter("track_width_m", 0.194)
-        self.declare_parameter("max_track_speed_mps", 0.8)
+        self.declare_parameter("control_map_path", "")
+        self.declare_parameter("track_width_m", -1.0)
+        self.declare_parameter("max_track_speed_mps", -1.0)
         self.declare_parameter("input_topic", "/cmd_vel")
         self.declare_parameter("left_topic", "/tracks/left_cmd")
         self.declare_parameter("right_topic", "/tracks/right_cmd")
 
-        self._track_width = float(self.get_parameter("track_width_m").value)
-        self._max_speed = float(
-            self.get_parameter("max_track_speed_mps").value
+        control_map = self._load_control_map(
+            str(self.get_parameter("control_map_path").value or "")
+        )
+        self._track_width = self._positive_float_parameter(
+            "track_width_m", control_map.track_width_m
+        )
+        self._max_speed = self._positive_float_parameter(
+            "max_track_speed_mps", control_map.max_track_speed_mps
         )
         input_topic = str(self.get_parameter("input_topic").value)
         left_topic = str(self.get_parameter("left_topic").value)
@@ -41,20 +55,53 @@ class CmdVelToTracks(Node):
             f"{input_topic} -> ({left_topic}, {right_topic})"
         )
 
+    def _load_control_map(self, configured_path: str):
+        candidates = []
+        if configured_path:
+            candidates.append(Path(configured_path))
+        candidates.append(
+            Path(__file__).resolve().parents[2]
+            / "robot_control"
+            / "config"
+            / "control_map.yaml"
+        )
+        try:
+            from ament_index_python.packages import get_package_share_directory
+
+            candidates.append(
+                Path(get_package_share_directory("robot_control"))
+                / "config"
+                / "control_map.yaml"
+            )
+        except (ImportError, LookupError, RuntimeError):
+            # Direct source-tree tests and non-ROS tooling do not have ament's
+            # package index; the sibling-package candidate above is enough.
+            pass
+        for candidate in candidates:
+            if not candidate.is_file():
+                continue
+            try:
+                return load_control_map(candidate)
+            except (OSError, ValueError, ImportError):
+                pass
+        return default_control_map()
+
+    def _positive_float_parameter(self, name: str, default: float) -> float:
+        try:
+            value = float(self.get_parameter(name).value)
+        except (TypeError, ValueError):
+            return default
+        return value if math.isfinite(value) and value > 0.0 else default
+
     def _on_cmd_vel(self, msg: Twist) -> None:
-        # Differential-drive model:
-        # v_l = v - omega*(L/2), v_r = v + omega*(L/2)
-        v = float(msg.linear.x)
-        omega = float(msg.angular.z)
-        half_w = self._track_width * 0.5
-
-        v_left = v - omega * half_w
-        v_right = v + omega * half_w
-
-        # Normalize to [-1, 1] for downstream PWM/current mapping.
-        scale = max(self._max_speed, 1e-6)
-        left_norm = max(min(v_left / scale, 1.0), -1.0)
-        right_norm = max(min(v_right / scale, 1.0), -1.0)
+        # Keep the exact same standard-Twist conversion used by the hardened
+        # serial bridge. This prevents a second, subtly different tank model.
+        left_norm, right_norm = twist_to_track_pair(
+            float(msg.linear.x),
+            float(msg.angular.z),
+            self._track_width,
+            self._max_speed,
+        )
 
         left_msg = Float32()
         right_msg = Float32()

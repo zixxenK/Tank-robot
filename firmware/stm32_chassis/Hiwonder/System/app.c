@@ -75,6 +75,9 @@ void button_event_callback(ButtonObjectTypeDef *button,  ButtonEventIDEnum event
 //IMU读取定时器回调函数
 void IMU_read_timer_callback(void *argument)
 {
+	(void)argument;
+	return;
+
 	//注意：单片机尽量不要打印浮点数
 	static float rpy[3] = {0,0,0};
 	static char msg[16];
@@ -93,6 +96,13 @@ void tankblack_control(char msg);
 /* 用户入口函数 */
 void app_task_entry(void *argument)
 {
+	(void)argument;
+	for (;;) {
+		/* The packed binary protocol task owns drive, IMU, UART, and telemetry. */
+		osDelay(1000U);
+	}
+
+#if 0
     /* 声明外部句柄 */
     //蜂鸣器句柄
     extern osTimerId_t buzzer_timerHandle;  
@@ -182,6 +192,7 @@ void app_task_entry(void *argument)
 		tankblack_control(msg);     //底盘控制函数
 
     }
+#endif
 }
 
 /* 

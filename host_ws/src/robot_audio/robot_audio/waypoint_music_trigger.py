@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""waypoint_music_trigger.py — Autonomous waypoint music trigger for Nav2 / Gazebo / localization.
+"""Autonomous waypoint music trigger for the canonical robot odometry path.
 
-Subscribes to localization (/odom or /amcl_pose) and automatically triggers
+Subscribes to localization (normally ``/stm32/odom``) and automatically triggers
 preset audio sequences (such as Sea Shanty 2 upon reaching Port Sarim) when the robot
 enters a target coordinate region.
 """
@@ -94,7 +94,7 @@ class WaypointMusicTrigger(Node):
         super().__init__('waypoint_music_trigger')
 
         # Parameter Declarations
-        self.declare_parameter('odom_topic', '/odom')
+        self.declare_parameter('odom_topic', '/stm32/odom')
         self.declare_parameter('sequence_topic', '/buzzer/play_sequence')
         self.declare_parameter('status_topic', '/buzzer/status')
         self.declare_parameter('target_x', 5.0)
@@ -104,7 +104,7 @@ class WaypointMusicTrigger(Node):
         self.declare_parameter('waypoint_name', 'Port Sarim')
 
         # Retrieve Parameter Values
-        odom_topic = self._get_param_val('odom_topic', '/odom')
+        odom_topic = self._get_param_val('odom_topic', '/stm32/odom')
         sequence_topic = self._get_param_val('sequence_topic', '/buzzer/play_sequence')
         status_topic = self._get_param_val('status_topic', '/buzzer/status')
 

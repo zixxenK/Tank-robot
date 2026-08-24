@@ -1,4 +1,9 @@
-# Hardware Validation Gate
+# Hardware Validation Gate (technical appendix)
+
+The current operator workflow is [OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
+This appendix contains the deeper evidence and fault-injection checks. The
+active milestone is drive, camera, and the onboard MPU6050; servo, battery,
+Glowy ultrasonic, and LiDAR checks remain optional future-upgrade gates.
 
 Do not place the robot on the floor until every raised-track check passes.
 The production wiring and transport assignments are defined by
@@ -30,7 +35,8 @@ Record before flashing:
 7. Record expected direction, PWM channel, encoder timer, encoder sign, and
    ticks per output-shaft revolution for motors 0 through 3.
 8. Confirm Motor 2 uses TIM2 without its `ARR` or prescaler changing.
-9. Confirm Motor 4 reports TIM3 encoder movement.
+9. Confirm the active left/right encoder pair reports movement. The spare
+   encoder channels are not part of the current two-track acceptance gate.
 10. Stop host commands and verify the 250 ms firmware command timeout zeros
     PWM directly.
 11. Disconnect the Rock64 link and verify the firmware timeout zeros PWM.
@@ -48,8 +54,10 @@ Record before flashing:
 2. Launch with no transport overrides.
 3. Confirm the active graph contains `safety_gateway`, `ps5_ros_bridge`, and
    `stm32_hardened_bridge` and no raw-command hardware subscriber.
-4. Publish fresh battery telemetry and a low-speed `/cmd_vel`; confirm output
-   on `/ranger/cmd_vel_safe` is clamped by the installed safety parameters.
+4. Publish a low-speed `/cmd_vel`; confirm output on
+   `/ranger/cmd_vel_safe` is finite and bounded by the installed safety
+   parameters. Battery gating is a separate optional check until ADC
+   calibration is complete.
 5. Trigger and clear operator e-stop; confirm motion resumes only after a new
    command.
 6. Trigger critical battery; confirm operator e-stop clear does not clear the
@@ -58,8 +66,9 @@ Record before flashing:
    `/safety/reset_battery_latch`; confirm reset succeeds.
 8. Restart the bridge while a nonzero source command exists. Confirm reconnect
    sends emergency stop and requires a fresh safe command before motion.
-9. Verify encoder, battery, IMU, odometry, and diagnostic topics for freshness
-   and plausible units.
+9. Verify encoder, IMU, odometry, camera, and diagnostic topics for freshness
+   and plausible units. Verify battery only when `MONITOR_BATTERY=true` is
+   intentionally enabled.
 
 ## Controlled Floor Test
 

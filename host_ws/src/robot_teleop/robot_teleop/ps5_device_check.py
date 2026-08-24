@@ -11,7 +11,13 @@ import select
 import struct
 import sys
 import time
+from pathlib import Path
 
+from robot_control.control_map import (
+    default_control_map,
+    load_control_map,
+    trigger_pressure,
+)
 from robot_teleop.ps5_ros_bridge import detect_device_profile, find_joystick_device
 
 
@@ -28,6 +34,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Linux joystick device or 'auto' for auto-detection (default: auto)",
     )
     parser.add_argument(
+        "--control-map-path",
+        default="",
+        help="Canonical control-map YAML (default: workspace/package map)",
+    )
+    parser.add_argument(
         "--monitor",
         "-m",
         action="store_true",
@@ -36,8 +47,30 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run_monitor(device: str) -> None:
+def _load_control_map(configured_path: str):
+    """Resolve the canonical map for the standalone monitor."""
+    candidates = []
+    if configured_path:
+        candidates.append(Path(configured_path))
+    candidates.append(
+        Path(__file__).resolve().parents[2]
+        / "robot_control"
+        / "config"
+        / "control_map.yaml"
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            try:
+                return load_control_map(candidate)
+            except (OSError, ValueError, ImportError):
+                pass
+    return default_control_map()
+
+
+def run_monitor(device: str, control_map_path: str = "") -> None:
+    control_map = _load_control_map(control_map_path)
     profile_name = detect_device_profile(device)
+    profile = control_map.profile(profile_name)
     print(f"Opening {device} in monitor mode (Detected layout: {profile_name})...")
     print("Move sticks / press buttons to view inputs. Press Ctrl+C to exit.\n")
 
@@ -59,18 +92,18 @@ def run_monitor(device: str) -> None:
                             buttons[number] = 1 if value else 0
 
                 # Print formatted status line
-                ls_y = -axes[1]  # Up is positive
-                if profile_name == "ps5_bluetooth":
-                    rs_x = -axes[2]
-                    l2_raw = axes[3]
-                    r2_raw = axes[4]
-                else:
-                    rs_x = -axes[3]
-                    l2_raw = axes[2]
-                    r2_raw = axes[5]
-
-                l2_press = max(0.0, min(1.0, (l2_raw + 1.0) / 2.0))
-                r2_press = max(0.0, min(1.0, (r2_raw + 1.0) / 2.0))
+                throttle_axis = profile["throttle_axis"]
+                steer_axis = profile["steer_axis"]
+                drift_axis = profile["drift_axis"]
+                multiplier_axis = profile["multiplier_axis"]
+                ls_y = -axes[throttle_axis]  # Up is positive
+                rs_x = axes[steer_axis]  # Positive is operator right
+                l2_press = trigger_pressure(
+                    axes[drift_axis], control_map.trigger_deadzone
+                )
+                r2_press = trigger_pressure(
+                    axes[multiplier_axis], control_map.trigger_deadzone
+                )
 
                 active_btns = [str(i) for i, b in enumerate(buttons) if b]
                 btns_str = ",".join(active_btns) if active_btns else "none"
@@ -78,8 +111,8 @@ def run_monitor(device: str) -> None:
                 line = (
                     f"\r[PS5 Monitor] Throttle (LS Y): {ls_y:+0.2f} | "
                     f"Steer (RS X): {rs_x:+0.2f} | "
-                    f"L2 Brake: {l2_press*100:3.0f}% | "
-                    f"R2 Brake: {r2_press*100:3.0f}% | "
+                    f"L2 Drift: {l2_press*100:3.0f}% | "
+                    f"R2 Throttle: {r2_press*100:3.0f}% | "
                     f"Btns: {btns_str:<10}"
                 )
                 sys.stdout.write(line)
@@ -109,7 +142,7 @@ def main() -> None:
     print(f"PS5 CHECK PASS: {resolved_device} is readable (Profile: {profile_name})")
 
     if args.monitor:
-        run_monitor(resolved_device)
+        run_monitor(resolved_device, args.control_map_path)
 
     raise SystemExit(0)
 

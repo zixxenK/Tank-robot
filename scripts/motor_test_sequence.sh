@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Guarded sequence: forward -> stop -> back -> stop.
+# MAINTENANCE ONLY: raised-track sequence forward -> stop -> back -> stop.
 set -euo pipefail
 
 if [[ "${1:-}" != "--confirm" ]]; then

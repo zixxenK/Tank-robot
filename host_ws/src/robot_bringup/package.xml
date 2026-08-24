@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>robot_teleop</exec_depend>
+  <exec_depend>robot_control</exec_depend>
   <exec_depend>robot_drivers</exec_depend>
   <exec_depend>agent_core</exec_depend>
   <exec_depend>robot_audio</exec_depend>

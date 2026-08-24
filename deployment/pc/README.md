@@ -91,8 +91,9 @@ export ROS_DISCOVERY_SERVER=192.168.1.139:11811
 
 ## Start the graph
 
-First start or verify the Rock64 hardware service with LiDAR, HC-SR04, and
-camera acquisition enabled. Then in WSL:
+First start or verify the Rock64 hardware service with the drive, onboard IMU,
+and camera acquisition enabled. LiDAR and Hiwonder Glowy are optional and do
+not need to be enabled for the current milestone. Then in WSL:
 
 ```bash
 cd /mnt/c/Projects/Tank-Robot/Tank-robot
@@ -128,7 +129,13 @@ the read-only websocket through the existing SSH key:
 Connect Foxglove Desktop to `ws://127.0.0.1:18765` for that mode. Keep the
 PowerShell window open while using the dashboard.
 
-The legacy command remains an alias:
+The explicit canonical PC-only command is:
+
+```bash
+ros2 launch robot_bringup pc_dashboard.launch.py
+```
+
+The historical filename remains a compatibility alias:
 
 ```bash
 ros2 launch robot_bringup rock64_dashboard.launch.py

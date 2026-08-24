@@ -2,9 +2,11 @@
 # pylint: disable=import-error,no-name-in-module,no-member
 """Gate all robot velocity commands through one fail-safe policy."""
 
+from __future__ import annotations
+
 import math
 import time
-from typing import Optional, Tuple, TypeAlias
+from typing import Optional, Tuple
 
 import rclpy
 from geometry_msgs.msg import Twist
@@ -18,8 +20,13 @@ from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import BatteryState
 from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
+from robot_control.control_map import (
+    ControlMap,
+    default_control_map,
+    load_control_map,
+)
 
-Command: TypeAlias = Tuple[float, float]
+Command = Tuple[float, float]
 
 # reason -> (layer-1 immediate cause, [layer-2 root-cause candidates])
 # Keep entries actionable: name the exact topic/command to check, not just
@@ -221,10 +228,14 @@ class SafetyGatewayNode(Node):
         self.get_logger().info("Safety gateway initialized")
 
     def _declare_parameters(self) -> None:
-        self.declare_parameter("max_linear_speed", 0.5)
-        self.declare_parameter("max_angular_speed", 1.0)
+        self.declare_parameter("control_map_path", "")
+        # Compatibility parameters for older launch files.  A non-positive
+        # value means that the canonical robot_control map owns the limit.
+        self.declare_parameter("max_linear_speed", -1.0)
+        self.declare_parameter("max_angular_speed", -1.0)
         self.declare_parameter("max_linear_acceleration", 2.0)
         self.declare_parameter("max_angular_acceleration", 4.0)
+        self.declare_parameter("enable_acceleration_limiting", True)
         self.declare_parameter("teleop_command_timeout", 0.25)
         self.declare_parameter("agent_command_timeout", 0.1)
         self.declare_parameter("agent_heartbeat_timeout", 0.1)
@@ -275,11 +286,39 @@ class SafetyGatewayNode(Node):
                 return default
             return str(val)
 
-        self._max_linear = safe_float("max_linear_speed", 0.5)
-        self._max_angular = safe_float("max_angular_speed", 1.0)
+        control_map_path = safe_str("control_map_path", "").strip()
+        self._control_map = self._load_control_map(control_map_path)
+        map_linear, map_angular = self._control_limits(self._control_map)
+        configured_linear = safe_float("max_linear_speed", -1.0)
+        configured_angular = safe_float("max_angular_speed", -1.0)
+        self._max_linear = (
+            configured_linear if configured_linear > 0.0 else map_linear
+        )
+        self._max_angular = (
+            configured_angular if configured_angular > 0.0 else map_angular
+        )
+        if configured_linear > 0.0 and not math.isclose(
+            configured_linear, map_linear, rel_tol=1e-6, abs_tol=1e-6
+        ):
+            self.get_logger().warn(
+                "max_linear_speed is a legacy override; use the canonical "
+                "robot_control control map for normal operation"
+            )
+        if configured_angular > 0.0 and not math.isclose(
+            configured_angular, map_angular, rel_tol=1e-6, abs_tol=1e-6
+        ):
+            self.get_logger().warn(
+                "max_angular_speed is a legacy override; use the canonical "
+                "robot_control control map for normal operation"
+            )
         self._max_linear_acceleration = safe_float("max_linear_acceleration", 2.0)
         self._max_angular_acceleration = safe_float(
             "max_angular_acceleration", 4.0
+        )
+        self._enable_acceleration_limiting = bool(
+            value("enable_acceleration_limiting")
+            if value("enable_acceleration_limiting") is not None
+            else True
         )
         self._teleop_timeout = safe_float("teleop_command_timeout", 0.25)
         self._agent_timeout = safe_float("agent_command_timeout", 0.1)
@@ -301,6 +340,25 @@ class SafetyGatewayNode(Node):
         self._agent_heartbeat_topic = safe_str("agent_heartbeat_topic", "/agent/heartbeat")
         self._battery_topic = safe_str("battery_topic", "/stm32/battery")
         self._battery_reset_service = safe_str("battery_reset_service", "/safety/reset_battery_latch")
+
+    @staticmethod
+    def _control_limits(control_map: ControlMap) -> Tuple[float, float]:
+        """Derive Twist ceilings from the shared tracked-drive geometry."""
+        return (
+            control_map.max_track_speed_mps,
+            2.0 * control_map.max_track_speed_mps / control_map.track_width_m,
+        )
+
+    def _load_control_map(self, configured_path: str) -> ControlMap:
+        """Load the canonical map, with a checked-in fallback for standalone use."""
+        if not configured_path:
+            return default_control_map()
+        try:
+            return load_control_map(configured_path)
+        except (OSError, ValueError, ImportError) as error:
+            raise ValueError(
+                f"Unable to load canonical control map {configured_path!r}: {error}"
+            ) from error
 
     def _validate_parameters(self) -> None:
         positive_values = {
@@ -518,6 +576,9 @@ class SafetyGatewayNode(Node):
             -self._max_angular,
             min(self._max_angular, command[1]),
         )
+        if not self._enable_acceleration_limiting:
+            return target_linear, target_angular
+
         delta_time = max(0.0, min(0.1, now - self._last_publish_time))
         return (
             self._approach(

@@ -2,6 +2,7 @@
 
 import json
 import math
+import os
 import re
 import time
 from pathlib import Path
@@ -49,17 +50,27 @@ class _LMStudioNode(Node):
 
     def __init__(self, name: str) -> None:
         super().__init__(name)
-        self.declare_parameter("base_url", "http://192.168.56.1:1234")
-        self.declare_parameter("model", "llama-3.2-1b-instruct")
+        default_base_url = os.environ.get(
+            "LM_STUDIO_BASE_URL", "http://192.168.56.1:1234"
+        )
+        default_model = os.environ.get("LM_STUDIO_MODEL", "")
+        self.declare_parameter("base_url", default_base_url)
+        self.declare_parameter("model", default_model)
         self.declare_parameter("request_timeout", 60.0)
         
         base_url = self.get_parameter("base_url").value
-        model = self.get_parameter("model").value
+        model = str(self.get_parameter("model").value or "").strip()
         timeout = self.get_parameter("request_timeout").value
+
+        if not model:
+            raise ValueError(
+                "LM Studio model is required; set the model parameter or "
+                "LM_STUDIO_MODEL to the exact loaded model identifier"
+            )
         
         self._client = LMStudioClient(
             str(base_url) if base_url is not None else "http://192.168.56.1:1234",
-            str(model) if model is not None else "llama-3.2-1b-instruct",
+            model,
             float(timeout) if timeout is not None else 60.0,
         )
 
@@ -116,18 +127,33 @@ class DiagnosticsAssistantNode(_LMStudioNode):
 
     def __init__(self) -> None:
         super().__init__("lmstudio_diagnostics_assistant")
+        self._latest_diagnostics_by_topic: Dict[str, list] = {}
         self._latest_diagnostics = "No diagnostics received"
         self._result_publisher = self.create_publisher(
             String,
             "/agent/diagnostics/result",
             10,
         )
-        self.create_subscription(
-            DiagnosticArray,
+        self._diagnostic_subscriptions = []
+        for topic in (
             "/diagnostics",
-            self._diagnostics_callback,
-            10,
-        )
+            "/safety/diagnostics",
+            "/stm32/diagnostics",
+            "/camera/diagnostics",
+            "/camera/usb/diagnostics",
+            "/hardware_test/diagnostics",
+            "/lidar/diagnostics",
+        ):
+            self._diagnostic_subscriptions.append(
+                self.create_subscription(
+                    DiagnosticArray,
+                    topic,
+                    lambda message, source=topic: self._diagnostics_callback(
+                        message, source
+                    ),
+                    10,
+                )
+            )
         self.create_subscription(
             String,
             "/agent/diagnostics/request",
@@ -135,7 +161,9 @@ class DiagnosticsAssistantNode(_LMStudioNode):
             10,
         )
 
-    def _diagnostics_callback(self, message: DiagnosticArray) -> None:
+    def _diagnostics_callback(
+        self, message: DiagnosticArray, source: str = "/diagnostics"
+    ) -> None:
         statuses = []
         for status in message.status:
             statuses.append(
@@ -146,7 +174,10 @@ class DiagnosticsAssistantNode(_LMStudioNode):
                     "values": {item.key: item.value for item in status.values},
                 }
             )
-        self._latest_diagnostics = json.dumps(statuses)[:12000]
+        self._latest_diagnostics_by_topic[source] = statuses
+        self._latest_diagnostics = json.dumps(
+            self._latest_diagnostics_by_topic
+        )[:12000]
 
     def _request_callback(self, message: String) -> None:
         try:

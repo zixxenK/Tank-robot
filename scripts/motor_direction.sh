@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Send one bounded direction command directly through the WCH STM32 link.
+# MAINTENANCE ONLY: send one bounded direction command directly through the
+# WCH STM32 link with the tracks raised. Normal driving uses ROS safety_gateway.
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then

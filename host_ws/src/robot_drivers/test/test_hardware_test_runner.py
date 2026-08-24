@@ -76,8 +76,8 @@ def test_imu_validation_rejects_zero_nan_and_implausible_vectors() -> None:
     assert not validate_imu_values((0.0, 0.0, 100.0), (0.0, 0.0, 0.0))[0]
 
 
-def test_ultrasonic_validation_requires_finite_in_range_echo() -> None:
-    """NaN/no-echo and out-of-range HC-SR04 samples fail validation."""
+def test_glowy_validation_requires_finite_in_range_distance() -> None:
+    """NaN and out-of-range Glowy samples fail validation."""
     assert validate_range_values(0.75, 0.02, 4.0)[0]
     assert not validate_range_values(float("nan"), 0.02, 4.0)[0]
     assert not validate_range_values(4.5, 0.02, 4.0)[0]

@@ -3,6 +3,7 @@
 import os
 import pytest
 from robot_teleop.ps5_ros_bridge import PS5RosBridge, detect_device_profile, find_joystick_device
+from robot_control.control_map import load_control_map
 
 
 @pytest.fixture
@@ -24,57 +25,123 @@ def bridge() -> PS5RosBridge:
         pass
 
 
-def test_pure_throttle_forward_and_reverse(bridge: PS5RosBridge) -> None:
-    """Left stick forward/reverse produces linear motion without turning."""
-    lin_fwd, ang_fwd = bridge.calculate_velocities(1.0, 0.0, 0.0, 0.0)
-    assert lin_fwd == pytest.approx(bridge._effective_max_lin)
-    assert ang_fwd == pytest.approx(0.0)
-
-    lin_rev, ang_rev = bridge.calculate_velocities(-1.0, 0.0, 0.0, 0.0)
-    assert lin_rev == pytest.approx(-bridge._effective_max_lin)
-    assert ang_rev == pytest.approx(0.0)
+def test_r2_released_brakes_linear_motion(bridge: PS5RosBridge) -> None:
+    """R2 is the linear throttle multiplier, so release means no translation."""
+    linear, angular = bridge.calculate_velocities(1.0, 0.0, 0.0, 0.0)
+    assert linear == pytest.approx(0.0)
+    assert angular == pytest.approx(0.0)
 
 
-def test_pure_steering_in_place(bridge: PS5RosBridge) -> None:
-    """Right stick horizontal produces pure rotation in place."""
-    lin_left, ang_left = bridge.calculate_velocities(0.0, 1.0, 0.0, 0.0)
-    assert lin_left == pytest.approx(0.0)
-    assert ang_left == pytest.approx(1.8)
-
-    lin_right, ang_right = bridge.calculate_velocities(0.0, -1.0, 0.0, 0.0)
-    assert lin_right == pytest.approx(0.0)
-    assert ang_right == pytest.approx(-1.8)
+def test_source_tree_uses_canonical_control_map(bridge: PS5RosBridge) -> None:
+    """Direct source-tree execution must resolve the sibling control package."""
+    control_map = bridge._load_control_map("/does/not/exist/control_map.yaml")
+    assert control_map.track_width_m == pytest.approx(0.194)
+    assert control_map.max_track_speed_mps == pytest.approx(0.8)
 
 
-def test_left_brake_variable_pressure(bridge: PS5RosBridge) -> None:
-    """L2 trigger slows down the left track proportionally."""
-    max_lin = bridge._effective_max_lin
-    lin_x, ang_z = bridge.calculate_velocities(1.0, 0.0, 0.5, 0.0)
-    assert lin_x == pytest.approx(max_lin * 0.75)
-    assert ang_z == pytest.approx(max_lin * 0.25)
+def test_loaded_button_indices_propagate_to_runtime_aliases(
+    bridge: PS5RosBridge, tmp_path
+) -> None:
+    """A commissioned map changes the live button behavior, not just YAML."""
+    source = tmp_path / "custom_control_map.yaml"
+    source.write_text(
+        """
+control_map:
+  axis_profiles:
+    ps5_bluetooth:
+      throttle_axis: 1
+      steer_axis: 2
+      drift_axis: 3
+      multiplier_axis: 4
+  button_indices:
+    cross: 13
+    circle: 14
+    triangle: 15
+    square: 16
+    l1: 17
+    r1: 18
+    l2_digital: 19
+    r2_digital: 20
+    share: 21
+    options: 22
+    ps: 23
+    l3: 24
+    r3: 25
+  shaping:
+    deadzone: 0.08
+    expo: 0.25
+    trigger_deadzone: 0.05
+  drift:
+    alpha: 0.9
+    beta: 2.75
+  geometry:
+    track_width_m: 0.194
+    max_track_speed_mps: 0.8
+""",
+        encoding="utf-8",
+    )
 
-    lin_x_full, ang_z_full = bridge.calculate_velocities(1.0, 0.0, 1.0, 0.0)
-    assert lin_x_full == pytest.approx(max_lin * 0.5)
-    assert ang_z_full == pytest.approx(max_lin * 0.5)
+    bridge._control_map = load_control_map(source)
+    bridge._apply_button_map()
+
+    assert bridge.BTN_PS == 23
+    assert bridge.BTN_OPTIONS == 22
+    assert bridge.BTN_L1 == 17
+    assert bridge.BUTTON_NAMES[23] == "PS"
+    assert len(bridge._buttons) >= 26
 
 
-def test_right_brake_variable_pressure(bridge: PS5RosBridge) -> None:
-    """R2 trigger slows down the right track proportionally."""
-    max_lin = bridge._effective_max_lin
-    lin_x, ang_z = bridge.calculate_velocities(1.0, 0.0, 0.0, 0.5)
-    assert lin_x == pytest.approx(max_lin * 0.75)
-    assert ang_z == pytest.approx(-max_lin * 0.25)
-
-    lin_x_full, ang_z_full = bridge.calculate_velocities(1.0, 0.0, 0.0, 1.0)
-    assert lin_x_full == pytest.approx(max_lin * 0.5)
-    assert ang_z_full == pytest.approx(-max_lin * 0.5)
+def test_steering_remains_live_when_r2_is_released(bridge: PS5RosBridge) -> None:
+    """Steering is independent of R2 and can pivot the stopped chassis."""
+    linear, angular = bridge.calculate_velocities(1.0, 1.0, 0.0, 0.0)
+    assert linear == pytest.approx(0.0)
+    assert abs(angular) > 0.0
 
 
-def test_both_brakes_fully_applied_stops_robot(bridge: PS5RosBridge) -> None:
-    """When both L2 and R2 are fully depressed, motion is zeroed."""
-    lin_x, ang_z = bridge.calculate_velocities(1.0, 1.0, 1.0, 1.0)
-    assert lin_x == pytest.approx(0.0)
-    assert ang_z == pytest.approx(0.0)
+def test_r2_pressure_scales_forward_and_reverse(bridge: PS5RosBridge) -> None:
+    """R2 pressure progressively enables signed left-stick throttle."""
+    linear, angular = bridge.calculate_velocities(1.0, 0.0, 0.0, 0.5)
+    assert linear == pytest.approx(bridge._max_track_speed * 0.5)
+    assert angular == pytest.approx(0.0)
+
+    reverse, _ = bridge.calculate_velocities(-1.0, 0.0, 0.0, 1.0)
+    assert reverse == pytest.approx(-bridge._max_track_speed)
+
+
+def test_l2_applies_progressive_drift_modifier(bridge: PS5RosBridge) -> None:
+    """L2 reduces forward traction and increases the steering differential."""
+    normal = bridge.calculate_velocities(1.0, 0.5, 0.0, 1.0)
+    drift = bridge.calculate_velocities(1.0, 0.5, 0.5, 1.0)
+    assert abs(drift[0]) < abs(normal[0])
+    assert abs(drift[1]) > abs(normal[1])
+
+
+def test_full_right_drift_reverses_inside_right_track(bridge: PS5RosBridge) -> None:
+    """The approved power-pivot model must reverse the inside track."""
+    from robot_control.control_map import drift_track_pair
+
+    left, right = drift_track_pair(1.0, 1.0, 1.0, 1.0)
+    assert left > 0.0
+    assert right < 0.0
+
+
+def test_live_right_stick_maps_to_a_right_turn(bridge: PS5RosBridge) -> None:
+    """A positive joydev right-stick value reverses the right inside track."""
+    bridge._joy_fd = object()
+    bridge._axes[bridge._throttle_axis] = -1.0  # stick up
+    bridge._axes[bridge._steer_axis] = 1.0  # stick right
+    bridge._axes[bridge._drift_axis] = 1.0  # L2 fully pressed
+    bridge._axes[bridge._multiplier_axis] = 1.0  # R2 fully pressed
+    bridge._axis_ever_moved[bridge._multiplier_axis] = True
+    bridge._axis_calibrated[bridge._throttle_axis] = True
+    bridge._axis_calibrated[bridge._steer_axis] = True
+    bridge._read_joystick = lambda: None
+
+    bridge._publish_twist()
+
+    command = bridge._pub.last_msg
+    assert command.angular.z < 0.0
+    assert abs(command.angular.z) > abs(command.linear.x)
 
 
 def test_trigger_uninitialized_safety(bridge: PS5RosBridge) -> None:

@@ -1,54 +1,53 @@
 {
-  "format": "tank-robot-foxglove-layout-v1",
-  "name": "Tank Robot - Read Only Commissioning",
-  "connection": {
-    "type": "foxglove-websocket",
-    "url": "ws://127.0.0.1:8765"
-  },
-  "panels": [
-    {
-      "type": "3d",
-      "title": "Map and LiDAR",
-      "topics": ["/map", "/scan", "/tf", "/tf_static"],
-      "fixed_frame": "map"
+  "configById": {
+    "ImageView!esp32": {
+      "topic": "/camera/image_raw/compressed",
+      "imageMode": "fit"
     },
-    {
-      "type": "image",
-      "title": "ESP32 camera",
-      "topic": "/camera/image_raw/compressed"
+    "ImageView!usb": {
+      "topic": "/camera/usb/image_raw/compressed",
+      "imageMode": "fit"
     },
-    {
-      "type": "image",
-      "title": "USB webcam",
-      "topic": "/camera/usb/image_raw/compressed"
+    "3D!robot": {
+      "cameraState": {
+        "distance": 5,
+        "phi": 0.8,
+        "target": [0, 0, 0],
+        "theta": 0.8
+      },
+      "followTf": "base_link",
+      "fixedFrame": "odom"
     },
-    {
-      "type": "plot",
-      "title": "Range and motion",
-      "topics": ["/ultrasonic/range", "/stm32/odom", "/stm32/imu"]
-    },
-    {
-      "type": "raw_messages",
-      "title": "Health",
+    "RawMessages!health": {
+      "diffEnabled": false,
       "topics": [
         "/stm32/diagnostics",
-        "/stm32/battery",
-        "/stm32/bridge_alive",
-        "/stm32/self_test_result",
-        "/stm32/servo/state_degrees",
-        "/lidar/diagnostics",
+        "/safety/diagnostics",
         "/camera/diagnostics",
         "/camera/usb/diagnostics",
-        "/safety/diagnostics",
         "/teleop/ps5_status"
       ]
     }
-  ],
-  "read_only": true,
-  "forbidden_publish_topics": [
-    "/cmd_vel",
-    "/ranger/cmd_vel_safe",
-    "/agent/cmd_vel_proposed",
-    "/nav2/cmd_vel"
-  ]
+  },
+  "globalVariables": {},
+  "layout": {
+    "direction": "column",
+    "first": {
+      "direction": "row",
+      "first": "ImageView!esp32",
+      "second": "ImageView!usb",
+      "splitPercentage": 50
+    },
+    "second": {
+      "direction": "row",
+      "first": "3D!robot",
+      "second": "RawMessages!health",
+      "splitPercentage": 65
+    },
+    "splitPercentage": 50
+  },
+  "playbackConfig": {},
+  "savedProps": {},
+  "userNodes": {},
+  "version": 1
 }

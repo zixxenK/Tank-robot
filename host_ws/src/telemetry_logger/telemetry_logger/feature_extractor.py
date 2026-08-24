@@ -6,8 +6,18 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
-from scipy import signal
-from scipy.stats import skew, kurtosis
+
+try:
+    from scipy.stats import skew
+except ImportError:  # Keep offline/runtime imports usable without optional SciPy.
+    def skew(values: np.ndarray) -> float:
+        """Return the biased Fisher-Pearson skewness using NumPy only."""
+        values = np.asarray(values, dtype=float)
+        centered = values - np.mean(values)
+        second_moment = np.mean(centered ** 2)
+        if second_moment == 0.0:
+            return 0.0
+        return float(np.mean(centered ** 3) / second_moment ** 1.5)
 
 
 @dataclass

@@ -12,21 +12,20 @@ static void pwm_servo1_write_pin(uint32_t new_state)
 
 static void pwm_servo3_write_pin(uint32_t new_state)
 {
-    /* Channel 3 has no output in the production image: PC8 is HC-SR04 TRIG. */
+    /* Channel 3 has no output in the production image. */
     (void)new_state;
 }
 
 static void pwm_servo4_write_pin(uint32_t new_state)
 {
-    /* Channel 4 has no output in the production image: PC9 is unused. */
+    /* Channel 4 has no output in the production image. */
     (void)new_state;
 }
 
 static void pwm_servo2_write_pin(uint32_t new_state)
 {
-    /* Channel 2 has no output in the production image: PA12 is HC-SR04 ECHO.
-     * Keeping this as a no-op preserves the legacy four-object API without
-     * ever writing the EXTI input's output latch. */
+    /* Channel 2 has no output in the production image. Keeping this as a
+     * no-op preserves the legacy four-object API. */
     (void)new_state;
 }
 

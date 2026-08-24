@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Launch the complete Rock64 hardware and autonomous ROS 2 graph.
+"""Launch the hardware graph plus an explicitly opt-in autonomy profile.
 
 This is a complete-stack entry point, not a companion to
 ``rock64_bringup.launch.py``. The included canonical bringup owns the STM32
 serial bridge, safety gateway, sensor acquisition, and optional operator
-inputs; this file adds perception, planning, and terrain adaptation on top.
+inputs; this file adds future-facing perception, planning, and terrain
+adaptation on top. Autonomous nodes publish proposals only and remain
+disabled by default until an agent supervisor and heartbeat are commissioned.
 """
 
 from launch import LaunchDescription
@@ -37,6 +39,15 @@ def generate_launch_description() -> LaunchDescription:
         default_value="/dev/rock64_stm32",
         description="Production STM32 serial device",
     )
+    control_map_arg = DeclareLaunchArgument(
+        "control_map",
+        default_value=PathJoinSubstitution([
+            FindPackageShare("robot_control"),
+            "config",
+            "control_map.yaml",
+        ]),
+        description="Canonical PS5 control mapping and tracked-drive geometry",
+    )
     monitor_battery_arg = DeclareLaunchArgument(
         "monitor_battery",
         default_value="false",
@@ -49,23 +60,23 @@ def generate_launch_description() -> LaunchDescription:
     )
     use_perception_arg = DeclareLaunchArgument(
         "use_perception",
-        default_value="true",
-        description="Launch object and obstacle perception nodes",
+        default_value="false",
+        description="Opt in to future read-only perception nodes",
     )
     use_navigation_arg = DeclareLaunchArgument(
         "use_navigation",
-        default_value="true",
-        description="Launch the odometry-gated path planner",
+        default_value="false",
+        description="Opt in to future proposal-only path planning",
     )
     use_terrain_adaptation_arg = DeclareLaunchArgument(
         "use_terrain_adaptation",
-        default_value="true",
-        description="Launch IMU terrain classification and command adaptation",
+        default_value="false",
+        description="Opt in to future proposal-only terrain adaptation",
     )
     use_camera_arg = DeclareLaunchArgument(
         "use_camera",
-        default_value="false",
-        description="Launch the ESP32 camera and feed perception images",
+        default_value="true",
+        description="Launch the ESP32 and USB camera acquisition paths",
     )
     camera_ip_arg = DeclareLaunchArgument(
         "camera_ip",
@@ -89,12 +100,13 @@ def generate_launch_description() -> LaunchDescription:
             "use_hardware_bridge": LaunchConfiguration("use_hardware_bridge"),
             "use_teleop": LaunchConfiguration("use_teleop"),
             "serial_port": LaunchConfiguration("serial_port"),
+            "control_map": LaunchConfiguration("control_map"),
             "monitor_battery": LaunchConfiguration("monitor_battery"),
             "use_audio": LaunchConfiguration("use_audio"),
             "use_camera_bridge": LaunchConfiguration("use_camera"),
             "use_compressed_camera_transport": LaunchConfiguration("use_camera"),
             "camera_ip": LaunchConfiguration("camera_ip"),
-            "use_usb_camera": "false",
+            "use_usb_camera": LaunchConfiguration("use_camera"),
             "use_lidar": "false",
         }.items(),
     )
@@ -136,9 +148,10 @@ def generate_launch_description() -> LaunchDescription:
             "resolution": 0.1,
             "goal_topic": "/goal_pose",
             "path_topic": "/planned_path",
-            # Terrain adaptation consumes this intermediate command and emits
-            # the final /cmd_vel input for the safety gateway.
-            "cmd_vel_topic": "/cmd_vel_planned",
+            # Terrain adaptation consumes this intermediate proposal and
+            # emits the final agent proposal. Never publish autonomy to the
+            # PS5/maintenance /cmd_vel lane.
+            "cmd_vel_topic": "/agent/cmd_vel_planned",
             "odom_topic": "/stm32/odom",
             "diagonal": True,
         }],
@@ -164,10 +177,10 @@ def generate_launch_description() -> LaunchDescription:
         name="adaptive_controller",
         parameters=[{
             "imu_topic": "/stm32/imu",
-            "cmd_vel_input": "/cmd_vel_planned",
-            # The safety gateway owns /cmd_vel and applies its timeout, clamp,
-            # e-stop, and optional battery gate before the bridge.
-            "cmd_vel_output": "/cmd_vel",
+            "cmd_vel_input": "/agent/cmd_vel_planned",
+            # The safety gateway owns the final agent proposal boundary and
+            # applies its heartbeat, timeout, clamp, e-stop, and battery gate.
+            "cmd_vel_output": "/agent/cmd_vel_proposed",
             "terrain_topic": "/terrain/type",
             "window_size": 100,
             "sample_rate": 50.0,
@@ -180,11 +193,11 @@ def generate_launch_description() -> LaunchDescription:
         executable="cmd_vel_relay",
         name="autonomous_cmd_vel_relay",
         parameters=[{
-            "input_topic": "/cmd_vel_planned",
-            "output_topic": "/cmd_vel",
+            "input_topic": "/agent/cmd_vel_planned",
+            "output_topic": "/agent/cmd_vel_proposed",
         }],
         # If terrain adaptation is disabled, keep the planner connected to
-        # the safety gateway instead of leaving /cmd_vel_planned unconsumed.
+        # the agent proposal boundary instead of leaving it unconsumed.
         condition=IfCondition(PythonExpression([
             "'",
             LaunchConfiguration("use_navigation"),
@@ -199,6 +212,7 @@ def generate_launch_description() -> LaunchDescription:
         use_hardware_bridge_arg,
         use_teleop_arg,
         serial_port_arg,
+        control_map_arg,
         monitor_battery_arg,
         use_audio_arg,
         use_perception_arg,

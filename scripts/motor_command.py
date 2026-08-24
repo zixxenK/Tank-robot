@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Send one bounded direct motor command over the Rock64 WCH link."""
+"""Send one bounded direct motor command over the Rock64 WCH link.
+
+MAINTENANCE ONLY: use this for raised-track commissioning after the normal
+ROS acceptance path is unavailable or a single UART direction proof is
+needed. Normal operation is PS5/agent -> safety_gateway -> STM32 bridge.
+"""
 
 from __future__ import annotations
 

@@ -361,8 +361,7 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
 
   /* USER CODE END EXTI15_10_IRQn 0 */
-  /* PA12 is the board's physical HC-SR04 ECHO input and owns EXTI12. */
-  HAL_GPIO_EXTI_IRQHandler(HC_SR04_ECHO_Pin);
+  /* No production peripheral owns EXTI10..15 in this image. */
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */

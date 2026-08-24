@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Exercise the Hiwonder WCH USART1 motor link without requesting movement.
 
+MAINTENANCE/COMMISSIONING ONLY: the normal runtime owns the serial port via
+the hardened ROS bridge. This proof sends only stop and zero-speed frames.
+
 This sends only an emergency-stop frame followed by a two-motor zero-speed
 frame. It requires at least one valid packed response by default, so a wrong
 UART profile or dead host path fails instead of looking like a successful

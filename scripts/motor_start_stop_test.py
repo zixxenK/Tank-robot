@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Guarded, independent motor 1 / motor 2 start-stop proof test.
 
+MAINTENANCE ONLY: this is a direct WCH UART commissioning path for raised
+tracks. It is not a normal operator drive interface.
+
 The test uses the same packed frame as the ROS 2 STM32 bridge, but talks to
 the WCH adapter directly so it is useful before ROS 2 is started. It always
 ends with an emergency stop. Run with tracks lifted and use ``--confirm``.

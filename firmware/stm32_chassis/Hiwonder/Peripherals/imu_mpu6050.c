@@ -246,24 +246,35 @@ int mpu6050_get_all(MPU6050ObjectTypeDef *self, float *accel, float *temp, float
 * @param self mpu6050对象实例指针
 * @retval None
 */
+int mpu6050_reset(MPU6050ObjectTypeDef *self)
+{
+    if (self->i2c_write_byte_to_mem(self, MPU6050_PWR_MGMT_1, 0x80) != 0) {
+        return -1;
+    }
+    self->sleep_ms(50);
+    if (self->i2c_write_byte_to_mem(self, MPU6050_PWR_MGMT_1, 0x00) != 0) {
+        return -2;
+    }
+    if (mpu6050_set_accel_fsr(self, MPU6050_ACCEL_FSR_4G) != 0 ||
+        mpu6050_set_gyro_fsr(self, MPU6050_GYRO_FSR_2000DPS) != 0) {
+        return -3;
+    }
+    if (self->i2c_write_byte_to_mem(self, MPU6050_INT_EN_REG, 0x00) != 0 ||
+        self->i2c_write_byte_to_mem(self, MPU6050_USER_CTRL, 0x00) != 0 ||
+        self->i2c_write_byte_to_mem(self, MPU6050_FIFO_EN_REG, 0x00) != 0 ||
+        self->i2c_write_byte_to_mem(self, MPU6050_INT_PIN_CFG, 0x00) != 0 ||
+        mpu6050_set_rate(self, 100) != 0 ||
+        self->i2c_write_byte_to_mem(self, MPU6050_INT_EN_REG, 0x01) != 0) {
+        return -4;
+    }
+    return 0;
+}
+
 static void export_mpu6050_reset(IMU_ObjectTypeDef *self_base)
 {
-	MPU6050ObjectTypeDef *self = (MPU6050ObjectTypeDef*)self_base;
-    self->i2c_write_byte_to_mem(self, MPU6050_PWR_MGMT_1, 0x80); // 复位mpu6050
-    self->i2c_write_byte_to_mem(self, MPU6050_PWR_MGMT_1, 0x80); // 复位mpu6050
-    self->sleep_ms(50);
-    self->i2c_write_byte_to_mem(self, MPU6050_PWR_MGMT_1, 0x00); // 唤醒mpu6050
-    self->i2c_write_byte_to_mem(self, MPU6050_PWR_MGMT_1, 0x00); // 唤醒mpu6050
-
-    mpu6050_set_accel_fsr(self, MPU6050_ACCEL_FSR_4G); // 设置加速度量程为±4G
-    mpu6050_set_gyro_fsr(self, MPU6050_GYRO_FSR_2000DPS); // 设置角速度量程为±2000°/s
-
-    self->i2c_write_byte_to_mem(self, MPU6050_INT_EN_REG, 0x00); //关闭中断
-    self->i2c_write_byte_to_mem(self, MPU6050_USER_CTRL, 0x00);  // 关闭I2C主模式
-    self->i2c_write_byte_to_mem(self, MPU6050_FIFO_EN_REG, 0x00); // 关闭FIFO
-    self->i2c_write_byte_to_mem(self, MPU6050_INT_PIN_CFG, 0x00); // 中断为高电平触发
-    mpu6050_set_rate(self, 100); // 设置采样率为100SPS
-    self->i2c_write_byte_to_mem(self, MPU6050_INT_EN_REG, 0x01); // 开启数据就绪中断
+	/* The interface cannot return an error, but all production callers use
+	 * mpu6050_reset() directly so failures are still handled during startup. */
+	(void)mpu6050_reset((MPU6050ObjectTypeDef *)self_base);
 }
 
 /**
@@ -309,7 +320,11 @@ static int export_mpu6050_update(IMU_ObjectTypeDef *self_base)
         return 0;
     }
 
-    FusionAhrsUpdateNoMagnetometer(&self->ahrs, gyroscope, accelerometer, 0.01);
+    /* The production integration samples at 50 Hz, so the filter period is
+     * 20 ms. Keep this value aligned with IMU_FIXED_DT_SEC in the wrapper;
+     * the old 10 ms value made orientation lag and drift relative to the
+     * published sensor cadence. */
+    FusionAhrsUpdateNoMagnetometer(&self->ahrs, gyroscope, accelerometer, 0.02f);
     const FusionQuaternion quat = FusionAhrsGetQuaternion(&self->ahrs);
     const FusionEuler euler = FusionQuaternionToEuler(quat);
     memcpy(&self->quat, &quat, sizeof(FusionQuaternion));

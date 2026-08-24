@@ -22,7 +22,7 @@
 #include "imu_integration.h"
 #include "battery_integration.h"
 #include "status_integration.h"
-#include "hc_sr04.h"
+#include "glowy_ultrasonic.h"
 #include "sg90_servo.h"
 #include "watchdog.h"
 #include "buzzer.h"
@@ -82,7 +82,7 @@ void binary_protocol_integration_init_packed(void) {
     MotorControl_Init();
 
     MotorControl_EmergencyStop();
-    hc_sr04_init();
+    glowy_ultrasonic_init();
     SG90Servo_Init();
 
     /* Sensor bring-up is non-fatal: the protocol remains available when an
@@ -224,31 +224,22 @@ void binary_protocol_telemetry_task(void) {
                                      accel_x, accel_y, accel_z,
                                      gyro_x, gyro_y, gyro_z);
 
-    HcSr04Measurement ultrasonic;
-    /* Consume a completed echo before starting the next trigger.  If this
-     * task was delayed for more than the normal 20 ms cadence, servicing
-     * first could otherwise replace an unread measurement. */
-    bool ultrasonic_ready = hc_sr04_get_measurement(&ultrasonic);
-    hc_sr04_service();
+    GlowyUltrasonicMeasurement ultrasonic;
+    bool ultrasonic_ready = glowy_ultrasonic_read(&ultrasonic);
     if (ultrasonic_ready) {
         protocol_ctx.telemetry.ultrasonic.distance_mm = ultrasonic.distance_mm;
-        protocol_ctx.telemetry.ultrasonic.echo_us = ultrasonic.echo_us;
         protocol_ctx.telemetry.ultrasonic.valid = ultrasonic.valid ? 1U : 0U;
-        protocol_ctx.telemetry.ultrasonic.reserved = hc_sr04_get_status();
+        protocol_ctx.telemetry.ultrasonic.status = ultrasonic.status;
     } else {
-        /* Do not carry a previous measurement into a timeout/no-echo frame.
-         * The validity flag is authoritative, but zeroing the payload keeps
-         * diagnostics and downstream consumers from mistaking stale values
-         * for the current cycle. */
         protocol_ctx.telemetry.ultrasonic.distance_mm = 0U;
-        protocol_ctx.telemetry.ultrasonic.echo_us = 0U;
         protocol_ctx.telemetry.ultrasonic.valid = 0U;
-        protocol_ctx.telemetry.ultrasonic.reserved = hc_sr04_get_status();
+        protocol_ctx.telemetry.ultrasonic.status = ultrasonic.status;
     }
     
     // Send telemetry burst
     binary_protocol_send_telemetry_burst(&protocol_ctx);
-    binary_protocol_send_ultrasonic_diagnostics(&protocol_ctx);
+    binary_protocol_send_glowy_ultrasonic_diagnostics(&protocol_ctx);
+    binary_protocol_send_imu_diagnostics(&protocol_ctx);
 }
 
 // ============================================================================

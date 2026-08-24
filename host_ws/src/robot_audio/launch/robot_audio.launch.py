@@ -1,12 +1,21 @@
-import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'control_map_path',
+            default_value=PathJoinSubstitution([
+                FindPackageShare('robot_control'),
+                'config',
+                'control_map.yaml',
+            ]),
+            description='Canonical DualSense control-map YAML'
+        ),
         DeclareLaunchArgument(
             'joy_topic',
             default_value='/joy',
@@ -14,8 +23,8 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'odom_topic',
-            default_value='/odom',
-            description='Topic name for Odometry messages'
+            default_value='/stm32/odom',
+            description='Canonical STM32 odometry topic'
         ),
         DeclareLaunchArgument(
             'target_x',
@@ -47,6 +56,7 @@ def generate_launch_description():
                 'frequency_topic': '/buzzer/frequency',
                 'play_sequence_topic': '/buzzer/play_sequence',
                 'status_topic': '/buzzer/status',
+                'control_map_path': LaunchConfiguration('control_map_path'),
                 'triangle_index': LaunchConfiguration('triangle_index'),
             }]
         ),

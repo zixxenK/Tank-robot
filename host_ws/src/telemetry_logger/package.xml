@@ -19,6 +19,7 @@
   <depend>rosbag2_py</depend>
   <depend>rosbag2_storage</depend>
   <depend>rosbag2_cpp</depend>
+  <exec_depend>python3-numpy</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

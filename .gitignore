@@ -9,7 +9,7 @@ dist/
 *.pyc
 
 # ROS2
-# Build artifacts belong inside ros2_ws/ only - never at repo root
+# Build artifacts belong inside host_ws/ only - never at repo root
 install/
 log/
 build/

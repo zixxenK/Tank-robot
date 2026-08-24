@@ -1,29 +1,9 @@
 /**:
   ros__parameters:
-    # Teleop shaping (Left Stick: Throttle, Right Stick: Steer, L2/R2: Left/Right Brakes, L1/R1: Mode Combos)
-    max_linear_speed: 0.8
-    max_angular_speed: 2.0
-    joy_device: /dev/input/ps5_controller
-    publish_rate_hz: 40.0
-    deadzone: 0.08
-    expo: 0.25
-    trigger_deadzone: 0.05
-    profile: auto
-    throttle_axis: -1
-    steer_axis: -1
-    brake_left_axis: -1
-    brake_right_axis: -1
-    enforce_physical_speed_ceiling: false
-
-    # Tracked chassis geometry
-    track_width_m: 0.194
-    wheel_separation: 0.194  # Track width in meters (matches track_width_m)
-    wheel_radius: 0.065      # TODO: Measure actual wheel/sprocket radius
+    # The PS5 control map and track geometry are owned by
+    # robot_control/config/control_map.yaml and are passed explicitly by the
+    # bringup launch. This file contains hardware-bridge parameters only.
     encoder_ticks_per_rev: 1980  # JGB3865-520R45: 11 pulses * 4 edges * 45:1 gearbox
-    max_track_speed_mps: 0.8
-    input_topic: /cmd_vel
-    left_topic: /tracks/left_cmd
-    right_topic: /tracks/right_cmd
 
     # Production link: physical UART1 USB-C -> USART1 PA9/PA10, 1M 8N1.
     serial_port: /dev/rock64_stm32
@@ -43,6 +23,7 @@
     buzzer_frequency_topic: /buzzer/frequency
     linear_slew_rate: 3.0
     angular_slew_rate: 6.0
+    slew_limit_commands: false
     diagnostics_period: 0.5
     encoder_timeout: 1.0
     encoder_topic: /stm32/encoder_ticks

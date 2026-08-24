@@ -30,6 +30,7 @@ git merge --ff-only "origin/${BRANCH}"
 
 if git diff --name-only "${CURRENT_SHA}" "${REMOTE_SHA}" | grep -q '^host_ws/'; then
   echo "[self_update] host_ws changed - rebuilding."
+  export HOST_WS_PATH="${REPO_ROOT}/host_ws"
   # shellcheck source=/dev/null
   source "${SCRIPT_DIR}/source_host_ws.sh"
   cd "${HOST_WS_PATH}"

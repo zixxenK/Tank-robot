@@ -45,7 +45,8 @@ The STM32 bridge remains the only serial writer and continuously refreshes the
 
 | Component | Responsibility |
 | --- | --- |
-| `robot_teleop` | Produce PS5 DualSense velocity proposals |
+| `robot_teleop` | Produce PS5 DualSense velocity proposals on `/cmd_vel` |
+| `navigation` / `terrain_adaptation` | Produce future proposal topics only; no direct operator or hardware authority |
 | `agent_core/safety_gateway` | Select source and enforce host safety policy |
 | `stm32_hardened_bridge` | Encode safe commands and manage the serial link |
 | STM32 packed protocol | Validate frames and enforce communication timeouts |

@@ -45,6 +45,10 @@
 */
 #define MPU6050_DEV_ADDR_1 0x68 /**< mpu6050器件地址 */
 #define MPU6050_DEV_ADDR_2 0x69 /**< mpu6050器件地址 */
+/* Known WHO_AM_I values for MPU-family devices with the same register map. */
+#define MPU6050_WHO_AM_I_MPU6500 0x70
+#define MPU6050_WHO_AM_I_MPU9250 0x71
+#define MPU6050_WHO_AM_I_MPU9255 0x73
 /** @} */
 
 /**
@@ -145,6 +149,7 @@ int mpu6050_set_gyro_fsr(MPU6050ObjectTypeDef *self, uint32_t fsr);
 int mpu6050_set_accel_fsr(MPU6050ObjectTypeDef *self, uint32_t fsr);
 int mpu6050_set_lpf(MPU6050ObjectTypeDef *self, uint32_t lpf);
 int mpu6050_set_rate(MPU6050ObjectTypeDef *self, uint32_t rate);
+int mpu6050_reset(MPU6050ObjectTypeDef *self);
 int mpu6050_get_temperature(MPU6050ObjectTypeDef *self, float *temp);
 int mpu6050_get_accel(MPU6050ObjectTypeDef *self, float *x, float *y, float *z);
 int mpu6050_get_gyro(MPU6050ObjectTypeDef *self, float *gx, float *gy, float *gz);

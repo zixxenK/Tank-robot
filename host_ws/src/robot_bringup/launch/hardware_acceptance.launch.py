@@ -43,6 +43,11 @@ def generate_launch_description() -> LaunchDescription:
             description="Launch and require the optional STL-50B2 LiDAR",
         ),
         DeclareLaunchArgument(
+            "use_ultrasonic",
+            default_value="false",
+            description="Launch the optional Glowy ultrasonic frame",
+        ),
+        DeclareLaunchArgument(
             "require_battery",
             default_value=EnvironmentVariable(
                 "MONITOR_BATTERY",
@@ -52,6 +57,21 @@ def generate_launch_description() -> LaunchDescription:
                 "Require finite STM32 battery voltage telemetry. Keep false "
                 "until the ADC divider is calibrated on the physical pack."
             ),
+        ),
+        DeclareLaunchArgument(
+            "require_imu",
+            default_value="true",
+            description="Require the onboard MPU6050 on the drive controller",
+        ),
+        DeclareLaunchArgument(
+            "require_ultrasonic",
+            default_value="false",
+            description="Require the optional Hiwonder Glowy range module",
+        ),
+        DeclareLaunchArgument(
+            "require_servo",
+            default_value="false",
+            description="Require the optional SG90 command-path proof",
         ),
         DeclareLaunchArgument(
             "use_hardware_bridge",
@@ -105,6 +125,7 @@ def generate_launch_description() -> LaunchDescription:
             ),
             "use_audio": LaunchConfiguration("use_audio"),
             "use_lidar": LaunchConfiguration("use_lidar"),
+            "use_ultrasonic": LaunchConfiguration("use_ultrasonic"),
         }.items(),
     )
 
@@ -117,6 +138,9 @@ def generate_launch_description() -> LaunchDescription:
                 "tracks_raised": _bool_parameter("tracks_raised"),
                 "require_lidar": _bool_parameter("use_lidar"),
                 "require_battery": _bool_parameter("require_battery"),
+                "require_imu": _bool_parameter("require_imu"),
+                "require_ultrasonic": _bool_parameter("require_ultrasonic"),
+                "require_servo": _bool_parameter("require_servo"),
             }
         ],
         output="screen",

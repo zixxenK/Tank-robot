@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Guarded 1-second forward/reverse motor test for the WCH UART link.
 
+MAINTENANCE ONLY: run with tracks raised for commissioning; normal driving
+must use the ROS safety gateway and hardened bridge.
+
 The default command is deliberately low speed (0.15 normalized RPS). Both
 tracked motors receive the same sign. The script always sends a final stop.
 It requires --confirm so it cannot be started accidentally.

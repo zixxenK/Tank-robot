@@ -67,11 +67,6 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(HC_SR04_TRIG_GPIO_Port,
-                    HC_SR04_TRIG_Pin,
-                    GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, BUZZER_Pin|PWM_SERVO_1_Pin, GPIO_PIN_RESET);
@@ -121,9 +116,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(LED_SYS_GPIO_Port, &GPIO_InitStruct);
 
-  /* PB12 shares EXTI12 with the physical HC-SR04 ECHO on PA12. The IMU
-   * integration polls I2C2, so keep its data-ready pin as an input and let
-   * PA12 own the EXTI12 route. */
+  /* The IMU integration polls I2C2, so keep its optional data-ready pin as
+   * an input. The Glowy ultrasonic module is also on the shared I2C2 bus. */
   GPIO_InitStruct.Pin = IMU_ITR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -144,23 +138,15 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /* The populated HC-SR04 headers on this controller are J4/PC8 (TRIG) and
-   * J2/PA12 (ECHO). */
-  GPIO_InitStruct.Pin = HC_SR04_TRIG_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  /* These legacy PWM pads are deliberately inert. The production
+   * distance sensor is the 4-pin I2C module on PB10/PB11. */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(HC_SR04_TRIG_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  GPIO_InitStruct.Pin = HC_SR04_ECHO_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(HC_SR04_ECHO_GPIO_Port, &GPIO_InitStruct);
-
-  /* PA12 is EXTI12 and is serviced by the shared 10..15 IRQ vector. */
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = BUZZER_Pin;

@@ -207,7 +207,7 @@ Record the output with the firmware commit, ROS distribution, kernel, active
 RMW implementation, and whether the camera is enabled.
 
 For motor testing, use the repository’s guarded scripts and follow the
-raised-track requirements in [`HARDWARE_VALIDATION.md`](HARDWARE_VALIDATION.md):
+raised-track requirements in [`OPERATOR_GUIDE.md`](OPERATOR_GUIDE.md):
 
 ```bash
 python3 scripts/motor_start_stop_test.py \

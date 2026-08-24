@@ -5,7 +5,6 @@ set -euo pipefail
 MODE="sim"
 TELEOP_MODE="keyboard"
 INSTALL_DEPS=1
-BUILD_PKGS="robot_bringup robot_drivers robot_teleop"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -62,16 +61,15 @@ resolve_host_ws() {
   return 1
 }
 
-HOST_WS="$(resolve_host_ws)"
+HOST_WS="${REPO_ROOT}/host_ws"
+if [[ ! -d "${HOST_WS}/src" ]]; then
+  echo "[unify] ERROR: canonical workspace not found at ${HOST_WS}/src" >&2
+  exit 1
+fi
+export HOST_WS_PATH="${HOST_WS}"
 
 # Ensure standard Linux binary paths are present even if shell overlays mutate PATH.
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
-
-if [[ ! -f /opt/ros/humble/setup.bash ]]; then
-  echo "[unify] ROS2 humble not found at /opt/ros/humble/setup.bash" >&2
-  echo "[unify] Install ROS2 Humble first, then re-run." >&2
-  exit 3
-fi
 
 UBUNTU_VERSION="$(lsb_release -rs 2>/dev/null || echo "0")"
 if [[ ! "$UBUNTU_VERSION" =~ ^22\. ]]; then
@@ -160,9 +158,11 @@ install_deps_if_needed() {
   sudo apt-get install -y "${missing[@]}"
 }
 
-# ROS setup scripts may read optional vars that are unset under nounset.
+# Use the same base ROS/workspace sourcing policy as the Rock64 service and
+# every other maintained build/launch entry point. Force this checkout's
+# canonical host_ws so an inherited overlay cannot select a stale workspace.
 set +u
-source /opt/ros/humble/setup.bash
+source "${REPO_ROOT}/deployment/scripts/source_host_ws.sh"
 set -u
 
 if [[ "$MODE" == "sim" ]]; then
@@ -172,14 +172,18 @@ fi
 echo "[unify] Host workspace: ${HOST_WS}"
 cd "${HOST_WS}"
 
-colcon build --symlink-install --packages-up-to ${BUILD_PKGS}
+colcon build --symlink-install
 set +u
-source install/setup.bash
+source "${REPO_ROOT}/deployment/scripts/source_host_ws.sh"
 set -u
 
-if [[ ! -f install/robot_bringup/share/robot_bringup/launch/gazebo_telemetry.launch.py ]]; then
+if [[ "$MODE" == "sim" && ! -f install/robot_bringup/share/robot_bringup/launch/gazebo_telemetry.launch.py ]]; then
   echo "[unify] ERROR: gazebo_telemetry.launch.py not installed." >&2
-  echo "[unify] Try: colcon build --symlink-install --packages-select robot_bringup --cmake-clean-cache" >&2
+  echo "[unify] Re-run the complete canonical build from ${HOST_WS}: colcon build --symlink-install" >&2
+  exit 5
+fi
+if [[ "$MODE" == "hardware" && ! -f install/robot_bringup/share/robot_bringup/launch/rock64_bringup.launch.py ]]; then
+  echo "[unify] ERROR: rock64_bringup.launch.py not installed." >&2
   exit 5
 fi
 

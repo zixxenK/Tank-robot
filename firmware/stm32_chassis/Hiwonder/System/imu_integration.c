@@ -12,6 +12,8 @@
 #include "imu_mpu6050.h"
 #include "i2c.h"
 #include "main.h"
+#include <math.h>
+#include <stddef.h>
 
 // ============================================================================
 // FIXED DELTA TIME CONFIGURATION
@@ -31,6 +33,28 @@ static bool imu_initialized = false;
 static uint32_t last_imu_update_time = 0;
 static uint32_t next_imu_init_attempt = 0;
 static int imu_last_error = -2;
+static uint8_t imu_status = IMU_STATUS_UNAVAILABLE;
+static uint8_t imu_device_address = 0;
+static uint8_t imu_who_am_i = 0;
+static uint32_t imu_sample_count = 0;
+static uint32_t imu_error_count = 0;
+
+static void imu_failure(uint8_t status, int error, uint32_t now) {
+    imu_initialized = false;
+    imu_status = status;
+    imu_last_error = error;
+    imu_error_count++;
+    last_imu_update_time = now;
+    next_imu_init_attempt = now + IMU_RETRY_PERIOD_MS;
+}
+
+static bool imu_identity_is_supported(uint8_t who_am_i) {
+    return who_am_i == MPU6050_DEV_ADDR_1 ||
+           who_am_i == MPU6050_DEV_ADDR_2 ||
+           who_am_i == MPU6050_WHO_AM_I_MPU6500 ||
+           who_am_i == MPU6050_WHO_AM_I_MPU9250 ||
+           who_am_i == MPU6050_WHO_AM_I_MPU9255;
+}
 
 // ============================================================================
 // I2C HARDWARE ABSTRACTION
@@ -62,7 +86,11 @@ int IMU_Init(void) {
     };
     bool device_found = false;
     imu_initialized = false;
+    imu_status = IMU_STATUS_UNAVAILABLE;
+    imu_device_address = 0;
+    imu_who_am_i = 0;
     imu_last_error = -2;
+    uint32_t init_time = HAL_GetTick();
     for (size_t i = 0;
          i < (sizeof(candidate_addresses) / sizeof(candidate_addresses[0]));
          ++i) {
@@ -75,22 +103,27 @@ int IMU_Init(void) {
 
         if (HAL_I2C_IsDeviceReady(&hi2c2, imu_sensor.dev_addr << 1, 2, 20) ==
             HAL_OK) {
-            /* Match the factory Hiwonder driver: an ACK from the onboard
-             * MPU-compatible device is authoritative.  Some production
-             * controller revisions use a compatible MPU6050 variant whose
-            * WHO_AM_I value is not the address byte, so rejecting that value
-             * made a working factory sensor disappear as error -2.  The
-             * complete 14-byte transfer below remains the real readiness
-             * check before telemetry is marked valid. */
+            /* Require a readable identity from the onboard MPU-compatible
+             * device.  The address byte and WHO_AM_I value are independent;
+             * the accepted list includes the known MPU6050/6500/9250 family
+             * values used by compatible controller revisions. */
             uint8_t who_am_i = 0;
-            (void)HAL_I2C_Mem_Read(&hi2c2,
-                                   imu_sensor.dev_addr << 1,
-                                   MPU6050_WHO_AM_I,
-                                   I2C_MEMADD_SIZE_8BIT,
-                                   &who_am_i,
-                                   1,
-                                   20);
-            (void)who_am_i;
+            if (HAL_I2C_Mem_Read(&hi2c2,
+                                 imu_sensor.dev_addr << 1,
+                                 MPU6050_WHO_AM_I,
+                                 I2C_MEMADD_SIZE_8BIT,
+                                 &who_am_i,
+                                 1,
+                                 20) != HAL_OK) {
+                imu_last_error = -3;
+                continue;
+            }
+            if (!imu_identity_is_supported(who_am_i)) {
+                imu_last_error = -4;
+                continue;
+            }
+            imu_device_address = imu_sensor.dev_addr;
+            imu_who_am_i = who_am_i;
             device_found = true;
             break;
         }
@@ -99,24 +132,19 @@ int IMU_Init(void) {
     /* Probe both addresses first so an absent or unpowered module is a normal
      * telemetry fault instead of a startup failure or an unsafe I2C access. */
     if (!device_found) {
-        imu_initialized = false;
-        last_imu_update_time = HAL_GetTick();
-        next_imu_init_attempt = last_imu_update_time + IMU_RETRY_PERIOD_MS;
-        imu_last_error = -2;
-        return -2;
+        imu_failure(
+            imu_last_error == -2 ? IMU_STATUS_UNAVAILABLE : IMU_STATUS_ERROR,
+            imu_last_error,
+            init_time);
+        return imu_last_error;
     }
     
     // Reset the device. Calibration is intentionally deferred until the
     // sensor path has produced valid samples.
-    imu_sensor.base.reset(&imu_sensor.base);
-
-    // Configure for optimal performance
-    mpu6050_set_accel_fsr(&imu_sensor, MPU6050_ACCEL_FSR_4G);     // ±4g for good dynamic range
-    mpu6050_set_gyro_fsr(&imu_sensor, MPU6050_GYRO_FSR_1000DPS); // ±1000°/s for tank robotics
-    mpu6050_set_rate(&imu_sensor, IMU_UPDATE_FREQ_HZ);           // 50Hz sampling rate
-
-    // Set low-pass filter to 20Hz (helps reduce vibration noise)
-    mpu6050_set_lpf(&imu_sensor, 20);
+    if (mpu6050_reset(&imu_sensor) != 0) {
+        imu_failure(IMU_STATUS_ERROR, -5, init_time);
+        return -5;
+    }
 
     /* Confirm that configuration writes and a complete sensor transfer both
      * work before advertising the IMU as ready. */
@@ -124,10 +152,8 @@ int IMU_Init(void) {
         mpu6050_set_gyro_fsr(&imu_sensor, MPU6050_GYRO_FSR_1000DPS) != 0 ||
         mpu6050_set_rate(&imu_sensor, IMU_UPDATE_FREQ_HZ) != 0 ||
         mpu6050_set_lpf(&imu_sensor, 20) != 0) {
-        last_imu_update_time = HAL_GetTick();
-        next_imu_init_attempt = last_imu_update_time + IMU_RETRY_PERIOD_MS;
-        imu_last_error = -3;
-        return -3;
+        imu_failure(IMU_STATUS_ERROR, -5, init_time);
+        return -5;
     }
 
     float startup_accel[3];
@@ -137,13 +163,13 @@ int IMU_Init(void) {
                         startup_accel,
                         &startup_temperature,
                         startup_gyro) != 0) {
-        last_imu_update_time = HAL_GetTick();
-        next_imu_init_attempt = last_imu_update_time + IMU_RETRY_PERIOD_MS;
-        imu_last_error = -3;
-        return -3;
+        imu_failure(IMU_STATUS_ERROR, -6, init_time);
+        return -6;
     }
 
     imu_initialized = true;
+    imu_status = IMU_STATUS_READY;
+    imu_sample_count = 0;
     last_imu_update_time = HAL_GetTick();
     next_imu_init_attempt = last_imu_update_time + IMU_RETRY_PERIOD_MS;
     imu_last_error = 0;
@@ -181,10 +207,8 @@ int IMU_Update(float *accel, float *gyro) {
     if (imu_sensor.base.update(&imu_sensor.base) != 0) {
         /* Recover from a transient I2C fault instead of publishing stale
          * values forever. The next bounded retry re-probes both addresses. */
-        imu_initialized = false;
-        imu_last_error = -3;
-        next_imu_init_attempt = current_time + IMU_RETRY_PERIOD_MS;
-        return -3; // Sensor read failed
+        imu_failure(IMU_STATUS_ERROR, -7, current_time);
+        return imu_last_error; // Sensor read failed
     }
     
     /* mpu6050_object_init exposes update(), but the legacy base object does
@@ -209,6 +233,13 @@ int IMU_Update(float *accel, float *gyro) {
     gyro[0] = raw_gyro[0] * degrees_to_radians;
     gyro[1] = raw_gyro[1] * degrees_to_radians;
     gyro[2] = raw_gyro[2] * degrees_to_radians;
+    if (!isfinite(accel[0]) || !isfinite(accel[1]) ||
+        !isfinite(accel[2]) || !isfinite(gyro[0]) ||
+        !isfinite(gyro[1]) || !isfinite(gyro[2])) {
+        imu_failure(IMU_STATUS_ERROR, -8, current_time);
+        return -8;
+    }
+    imu_sample_count++;
     imu_last_error = 0;
     
     return 0; // Success
@@ -242,6 +273,18 @@ int IMU_GetOrientation(float *rpy, float *quat) {
 
 bool IMU_IsReady(void) {
     return imu_initialized;
+}
+
+void IMU_GetDiagnostics(IMUDiagnostics *diagnostics) {
+    if (diagnostics == NULL) {
+        return;
+    }
+    diagnostics->state = imu_status;
+    diagnostics->address = imu_device_address;
+    diagnostics->who_am_i = imu_who_am_i;
+    diagnostics->sample_count = imu_sample_count;
+    diagnostics->error_count = imu_error_count;
+    diagnostics->last_error = imu_last_error;
 }
 
 int IMU_GetTemperature(float *temp) {

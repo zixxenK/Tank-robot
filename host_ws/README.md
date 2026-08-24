@@ -9,8 +9,11 @@ The directly connected STL-50B2 LiDAR uses ROCK64 UART2 on header pins 8/10
 and the required synchronization input on pin 12. Build and launch it with:
 
 ```bash
-colcon build --symlink-install --packages-select robot_drivers robot_bringup
-source install/setup.bash
+cd ..
+source deployment/scripts/source_host_ws.sh
+cd "$HOST_WS_PATH"
+colcon build --symlink-install
+source deployment/scripts/source_host_ws.sh
 ros2 launch robot_bringup stl50b2.launch.py
 ```
 
@@ -42,14 +45,15 @@ on the Rock64. See [`deployment/pc/README.md`](../deployment/pc/README.md).
 Build from this folder:
 
    ```bash
-   cd host_ws
-   colcon build --symlink-install
+    cd host_ws
+    source ../deployment/scripts/source_host_ws.sh
+    colcon build --symlink-install
    ```
 
 Verify bringup:
 
    ```bash
-   source install/setup.bash
+    source ../deployment/scripts/source_host_ws.sh
    ros2 launch robot_bringup rock64_bringup.launch.py use_teleop:=true
    ```
 
@@ -60,9 +64,9 @@ Verify bringup:
    ```
 
    The current deployed STM32 motor-only image intentionally reports no
-   battery telemetry. Keep the safety default enabled for normal operation;
-   for a raised-track bench test only, explicitly use
-   `monitor_battery:=false` and restore it before production use:
+   calibrated battery telemetry. The current milestone keeps the battery gate
+   disabled (`monitor_battery:=false`) until the divider is calibrated; enable
+   it before making battery-aware autonomy an active profile:
 
    ```bash
    ros2 launch robot_bringup rock64_bringup.launch.py \
@@ -72,23 +76,30 @@ Verify bringup:
 
 ## LM Studio integration
 
-LM Studio runs on the development PC, not on the Rock64. Start its local
-server, load the exact model identifier shown by LM Studio, and make port
-`1234` reachable from the Rock64. Verify from the PC first:
+LM Studio runs on the development PC/WSL side, not on the Rock64. Start its
+authenticated local server, load the exact model identifier shown by LM
+Studio, and use the bounded `agent_core` nodes described in
+[`docs/LM_STUDIO_INTEGRATION.md`](../docs/LM_STUDIO_INTEGRATION.md).
+Verify from the PC first:
 
 ```bash
-curl http://localhost:1234/api/v1/chat \
+export LM_API_TOKEN='token-entered-locally'
+export LM_STUDIO_BASE_URL='http://localhost:1234'
+export LM_STUDIO_MODEL='exact-loaded-model-id'
+curl "${LM_STUDIO_BASE_URL}/api/v1/chat" \
   -H "Content-Type: application/json" \
-  -d '{"model":"nvidia/nemotron-3-nano-4b","input":"Reply with OK."}'
+  -H "Authorization: Bearer ${LM_API_TOKEN}" \
+  -d "{\"model\":\"${LM_STUDIO_MODEL}\",\"input\":\"Reply with OK.\"}"
 ```
 
 Then verify from the Rock64 using the development PC address (never
 `localhost` on the Rock64):
 
 ```bash
-curl http://<DEVELOPMENT-PC-IP>:1234/api/v1/chat \
+curl "http://<DEVELOPMENT-PC-IP>:1234/api/v1/chat" \
   -H "Content-Type: application/json" \
-  -d '{"model":"nvidia/nemotron-3-nano-4b","input":"Reply with OK."}'
+  -H "Authorization: Bearer ${LM_API_TOKEN}" \
+  -d "{\"model\":\"${LM_STUDIO_MODEL}\",\"input\":\"Reply with OK.\"}"
 ```
 
 Run the safety-gated AI node only after that check succeeds:
@@ -96,7 +107,7 @@ Run the safety-gated AI node only after that check succeeds:
 ```bash
 ros2 run agent_core lmstudio_teleop --ros-args \
   -p base_url:=http://<DEVELOPMENT-PC-IP>:1234 \
-  -p model:=nvidia/nemotron-3-nano-4b
+  -p model:="${LM_STUDIO_MODEL}"
 ```
 
 The Hugging Face MCP and weather examples are LM Studio API feature tests;

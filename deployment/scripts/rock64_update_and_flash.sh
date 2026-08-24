@@ -115,9 +115,11 @@ echo "[rock64_update] Installing host dependencies..."
 # Do not let an older overlay (for example /home/rock64/install) influence
 # dependency discovery or the generated entry-point wrappers.
 unset AMENT_PREFIX_PATH CMAKE_PREFIX_PATH COLCON_PREFIX_PATH PYTHONPATH ROS_PACKAGE_PATH
-# shellcheck source=/dev/null
+# Force the deployment checkout's only maintained ROS workspace before using
+# the shared sourcing policy.
+export HOST_WS_PATH="${HOST_WS}"
 set +u
-source /opt/ros/humble/setup.bash
+source "${REPO_ROOT}/deployment/scripts/source_host_ws.sh"
 set -u
 cd "${HOST_WS}"
 rosdep install --from-paths src --ignore-src -r -y
@@ -133,9 +135,7 @@ if [[ -d "${REPO_ROOT}/deployment/udev" ]]; then
 fi
 
 echo "[rock64_update] Building ROS packages..."
-colcon build --symlink-install \
-  --packages-up-to agent_core robot_bringup robot_drivers robot_teleop robot_audio \
-  navigation perception telemetry_logger terrain_adaptation
+colcon build --symlink-install
 
 echo "[rock64_update] Building STM32 Release image..."
 export STM32_BUILD_JOBS="${STM32_BUILD_JOBS:-4}"
@@ -163,11 +163,10 @@ echo "[rock64_update] Firmware SHA-256: $(sha256sum "${IMAGE}" | awk '{print $1}
 echo "[rock64_update] Flash and verification completed."
 echo "[rock64_update] Firmware is running and the safe UART proof passed."
 
-# Re-source the newly generated overlay before service restart. The service
-# itself sources it independently, but this makes the health check below use
-# exactly the same environment.
+# Re-source the newly generated overlay through the same helper used by the
+# service. This makes the health check below use exactly the same environment.
 set +u
-source "${HOST_WS}/install/setup.bash"
+source "${REPO_ROOT}/deployment/scripts/source_host_ws.sh"
 set -u
 
 if [[ "${SERVICE_WAS_ACTIVE}" == true ]]; then

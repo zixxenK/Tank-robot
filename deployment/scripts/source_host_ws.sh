@@ -97,9 +97,10 @@ resolve_ros_distro() {
 DISTRO="$(resolve_ros_distro)"
 ROS_BASE="/opt/ros/${DISTRO}"
 
-# A generated config may use ROS_DISTRO=auto as a policy value. Do not expose
-# that sentinel while sourcing the real distro setup; ROS itself warns about
-# mixed paths and some ros2 CLI versions then create an invalid context.
+# A generated config may use an unresolved distro sentinel as a policy value.
+# Do not expose that sentinel while sourcing the real distro setup; ROS itself
+# warns about mixed paths and some ros2 CLI versions then create an invalid
+# context.
 if [[ "${ROS_DISTRO:-}" == "auto" ]]; then
   unset ROS_DISTRO
 fi

@@ -18,8 +18,10 @@ class AdaptiveControllerNode(Node):
 
         # Parameters
         self.declare_parameter("imu_topic", "/stm32/imu")
-        self.declare_parameter("cmd_vel_input", "/cmd_vel")
-        self.declare_parameter("cmd_vel_output", "/cmd_vel_adapted")
+        # Terrain adaptation transforms an autonomous proposal.  It must not
+        # publish into the PS5 /cmd_vel operator lane or directly to hardware.
+        self.declare_parameter("cmd_vel_input", "/agent/cmd_vel_planned")
+        self.declare_parameter("cmd_vel_output", "/agent/cmd_vel_proposed")
         self.declare_parameter("terrain_topic", "/terrain/type")
         self.declare_parameter("window_size", 100)
         self.declare_parameter("sample_rate", 50.0)

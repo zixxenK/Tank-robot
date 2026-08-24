@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop both tracks through the single STM32 bridge.
+# MAINTENANCE ONLY: direct stop helper for a raised-track UART proof.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 exec "${SCRIPT_DIR}/motor_direction.sh" stop

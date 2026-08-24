@@ -17,9 +17,8 @@ Treat it as authoritative for all future firmware, Rock64, and agent work.
 | Serial-servo bus | `USART6` |
 | Programming/debug | ST-Link `0483:3748` over SWD only |
 | Motors | Hiwonder JGB3865-520R45-12, 12V, 45:1, 1980 ticks/output rev |
-| Host motor output cap | 60% normalized command by default; STM32 PID remains authoritative |
-| HC-SR04 trigger | Controller J4 signal (`S`) -> STM32 `PC8` |
-| HC-SR04 echo | Controller J2 signal (`S`) -> STM32 `PA12` EXTI; level-protect the 5 V echo line |
+| Host motor output cap | Full signed normalized range; STM32 PID, watchdog, and current protection remain authoritative |
+| Distance sensor | Optional Hiwonder Glowy 4-pin module -> controller `5V/GND/SDA/SCL` I2C connector, address `0x77` |
 
 `USART3` on `PD8/PD9` is the stock Hiwonder 7in1/factory reference endpoint.
 It is not the Rock64 host link for this robot and must not be selected for a
@@ -48,9 +47,9 @@ The Rock64 Pi-2 header bus allocation is documented in
 are for direct Rock64 sensors; they do not replace the production WCH
 USB-UART motor link.
 
-The complete ultrasonic build, transport, and bench procedure is the
-[HC-SR04 production build path](ULTRASONIC_BUILD_PATH.md). `PC10/PC11` are not
-the production ultrasonic pins for this controller image.
+The optional distance-sensor build, transport, and bench procedure is the
+[Hiwonder Glowy future-upgrade path](GLOWY_ULTRASONIC_BUILD_PATH.md). It is not
+part of the current drive/camera/IMU acceptance gate.
 
 For a raised-track bench test, the bounded direct test is:
 

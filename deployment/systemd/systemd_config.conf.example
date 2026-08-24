@@ -35,6 +35,10 @@ LIDAR_USE_SYNC=true
 USE_USB_CAMERA=true
 USB_CAMERA_DEVICE=auto
 
+# Optional Glowy I2C range sensor frame. Keep disabled until the module is
+# physically installed and its separate acceptance check is requested.
+USE_ULTRASONIC=false
+
 # The web dashboard is external to this repository. ROS topics can be exposed
 # through rosbridge on this separate port to avoid the dashboard HTTPS port.
 USE_ROSBRIDGE=false
@@ -60,8 +64,10 @@ MONITOR_BATTERY=false
 ROCK64_SELF_UPDATE_ENABLED=false
 
 # ── ROS2 ───────────────────────────────────────────────────────────────────
-# Set to: humble or auto (auto mode supports Ubuntu 22.04 only)
-ROS_DISTRO=auto
+# The supported runtime is Ubuntu 22.04 with ROS 2 Humble. The setup script may
+# accept --ros-distro auto while provisioning, but installed services use the
+# resolved distro explicitly so every launcher shares one runtime policy.
+ROS_DISTRO=humble
 
 # ROS2 domain ID — all nodes on the same domain can communicate
 ROS_DOMAIN_ID=42

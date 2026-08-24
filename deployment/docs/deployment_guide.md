@@ -43,7 +43,7 @@ USE_HARDWARE_BRIDGE=true
 USE_CAMERA_BRIDGE=true
 USE_USB_CAMERA=true
 USE_TELEOP=true
-ROS_DISTRO=auto
+ROS_DISTRO=humble
 ROS_DOMAIN_ID=42
 ```
 
@@ -53,10 +53,10 @@ hardware serial device is missing.
 ## Manual Build and Launch
 
 ```bash
-source /opt/ros/humble/setup.bash
-cd host_ws
+source deployment/scripts/source_host_ws.sh
+cd "$HOST_WS_PATH"
 colcon build --symlink-install
-source install/setup.bash
+source deployment/scripts/source_host_ws.sh
 ros2 launch robot_bringup rock64_bringup.launch.py
 ```
 
@@ -147,8 +147,9 @@ Expected control nodes are:
 - `/ps5_ros_bridge` when teleop is enabled
 - `/stm32_hardened_bridge` when hardware is enabled
 
-Before enabling motor power, complete the preflight and raised-track checks in
-`docs/HARDWARE_VALIDATION.md`.
+Before enabling motor power, follow the current operator procedure in
+`docs/OPERATOR_GUIDE.md`. `docs/HARDWARE_VALIDATION.md` is the detailed
+technical appendix, not a second operator workflow.
 
 ## Battery-powered startup
 

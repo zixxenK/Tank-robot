@@ -47,7 +47,8 @@ if ($SymlinkInstall) {
   $symlinkArg = " --symlink-install"
 }
 
-$bashCmd = "set -e; if [ ! -f /opt/ros/$RosDistro/local_setup.bash ]; then echo 'ROS2 $RosDistro not found in WSL distro $Distro.'; echo 'Policy path: Ubuntu 22.04 + ROS2 humble.'; echo 'Install ROS2 humble in this distro, then re-run this script.'; exit 2; fi; source /opt/ros/$RosDistro/local_setup.bash; cd '$wslWorkspace'; colcon build$symlinkArg"
+$wslRepo = Convert-ToWslPath -WindowsPath $repoRoot
+$bashCmd = "set -e; export HOST_WS_PATH='$wslWorkspace'; source '$wslRepo/deployment/scripts/source_host_ws.sh'; cd \"`$HOST_WS_PATH\"; colcon build$symlinkArg; source '$wslRepo/deployment/scripts/source_host_ws.sh'"
 
 Write-Host "[build_host_wsl] Distro: $Distro"
 Write-Host "[build_host_wsl] ROS2  : $RosDistro"

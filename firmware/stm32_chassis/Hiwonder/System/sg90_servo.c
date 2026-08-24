@@ -5,7 +5,8 @@
  * TIM13 runs at 1 MHz with a 20 ms period.  PA11 remains an ordinary GPIO:
  * the update interrupt drives the rising edge and CC1 drives the falling
  * edge.  This deliberately avoids the factory heap-backed PWM-servo code and
- * never touches PC8/PA12, which belong to the HC-SR04 production path.
+ * never touches the legacy secondary servo pads, which are inert in this
+ * production image.
  */
 
 #include "sg90_servo.h"

@@ -1,7 +1,7 @@
 # Rock64 Ranger Tank Robot
 
 A differential-drive robot with an STM32F407 motor controller, a Rock64 ROS 2
-Humble host, and an optional ESP32 camera.
+Humble host, and paired ESP32/USB cameras.
 
 The validated 1.0 hardware/software contract is recorded in
 [docs/SOURCE_OF_TRUTH_1_0.md](docs/SOURCE_OF_TRUTH_1_0.md). Read that before
@@ -53,7 +53,8 @@ E-stop + battery telemetry ─────────────────> 
 
 The STM32 bridge never subscribes to raw command topics. Teleoperation remains
 available without an autonomous-agent heartbeat, but all commands are clamped,
-command-timed-out, battery-gated, and emergency-stopped. Autonomous commands
+command-timed-out, optionally battery-gated after ADC calibration, and
+emergency-stopped. Autonomous commands
 also require a fresh `True` heartbeat.
 
 ## Repository Layout
@@ -87,14 +88,14 @@ The firmware uses ARM GNU Toolchain and Ninja:
 ```powershell
 cd firmware/stm32_chassis
 cmake --preset Debug
-cmake --build --preset Debug -j 4
+cmake --build --preset Debug --parallel 4
 ```
 
 Release build:
 
 ```powershell
 cmake --preset Release
-cmake --build --preset Release -j 4
+cmake --build --preset Release --parallel 4
 ```
 
 The production firmware has one host-UART mapping. Do not select or hand-edit
@@ -118,9 +119,10 @@ The preferred host validation path is the one-shot mission runner above. For
 focused package work, the lower-level commands remain available:
 
 ```bash
-source /opt/ros/humble/setup.bash
-cd host_ws
+source deployment/scripts/source_host_ws.sh
+cd "$HOST_WS_PATH"
 colcon build --symlink-install
+source deployment/scripts/source_host_ws.sh
 colcon test
 colcon test-result --verbose
 ```
@@ -133,8 +135,8 @@ python -m pytest host_ws/src/agent_core/test host_ws/src/robot_drivers/test -q
 ```
 
 Offline launch and ROS-shim contract tests are also available without a ROS
-installation. The repository `pytest.ini` supplies the offline import paths
-and excludes generated ROS build/install trees:
+installation. The repository test configuration supplies the offline import
+paths and excludes generated ROS build/install trees:
 
 ```powershell
 python -m pytest -q
@@ -165,14 +167,16 @@ bash scripts/hardware_acceptance.sh
 
 For the complete independent M1/M2 proof, securely raise both tracks first,
 then use `bash scripts/hardware_acceptance.sh --tracks-raised`. The runner
-checks fresh STM32, encoder, IMU, HC-SR04, PS5, ESP32-camera, USB-camera, and
-servo data before any optional motor stage, prints a numbered PASS/FAIL table,
+checks fresh STM32, encoder, odometry, onboard IMU, PS5, ESP32-camera, and
+USB-camera data before any optional motor stage, prints a numbered PASS/FAIL table,
 always stops both motors, and writes a JSON report. See
 [the exact Rock64 procedure](docs/ROCK64_HARDWARE_ACCEPTANCE.md).
 
-The older individual commissioning commands remain available for focused
-maintenance. Send exactly one of these only when a single direction test is
-needed:
+The older individual commissioning commands remain available only as guarded
+maintenance exceptions for raised-track bench work. They are not a normal
+operator motion path; normal driving is always PS5/agent -> safety gateway ->
+hardened STM32 bridge. Send exactly one of these only when a single direction
+test is needed:
 
 ```bash
 ros2 topic pub --once /stm32/test_direction std_msgs/msg/String "{data: forward}"
@@ -248,7 +252,7 @@ ROS 2 Python development, see
 [deployment/docs/pycharm_remote_ssh.md](deployment/docs/pycharm_remote_ssh.md).
 
 ```bash
-sudo bash deployment/scripts/rock64_setup.sh --ros-distro auto
+sudo bash deployment/scripts/rock64_setup.sh --ros-distro humble
 ```
 
 The setup script targets Ubuntu 22.04/Humble, builds `host_ws`, installs the
@@ -294,13 +298,14 @@ synchronization.
 
 ## Hardware Gate
 
-The single supported HC-SR04 integration is documented in
-[docs/ULTRASONIC_BUILD_PATH.md](docs/ULTRASONIC_BUILD_PATH.md): `J4/PC8` is
-TRIG and `J2/PA12` is ECHO. It uses the STM32 already in the robot; an Arduino
-shield is not part of the build.
+The optional distance sensor is the Hiwonder Glowy RGB ultrasonic module. It
+is documented in [docs/GLOWY_ULTRASONIC_BUILD_PATH.md](docs/GLOWY_ULTRASONIC_BUILD_PATH.md)
+and plugs into the controller's four-pin `5V/GND/SDA/SCL` I2C connector at
+address `0x77`. It is not part of the current drive/camera/IMU gate; no
+Arduino or pulse-timing adapter is required when it is later enabled.
 
 Firmware builds and host/mock tests are pre-flash checks. Before operating the
-robot, complete [docs/HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md),
-including raised-track direction tests, all encoder channels, the 250 ms
-command timeout, battery thresholds, reconnect behavior, and a controlled
-soak test.
+robot, follow the single current procedure in
+[docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md). The detailed
+[docs/HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md) remains a technical
+appendix for raised-track, timeout, reconnect, and future accessory checks.

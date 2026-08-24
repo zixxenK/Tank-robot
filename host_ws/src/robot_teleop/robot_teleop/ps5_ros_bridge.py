@@ -17,7 +17,7 @@ Command chain (confirmed live against github.com/zixxenK/Tank-robot @ 4ae83be):
 
 Physical chassis (docs/robot_hardware_reference.md §2, Hiwonder SKU 21030201
 "Suspension Shock-Absorbing Tracked Chassis"):
-    Track width (outer bracket)   : 0.194 m  (rock64_hardware.yaml: track_width_m / wheel_separation)
+    Track width (outer bracket)   : 0.194 m  (robot_control/control_map.yaml)
     Chassis length                 : 0.270 m
     Weight                         : 1.4 kg (single layer) / 1.6 kg (double layer)
     Drive motor                    : JGB3865-520R45-12, 12V (7-13V), rated 150±10 RPM output,
@@ -46,17 +46,32 @@ figure below inherits that uncertainty until it's measured with calipers.
                              = 0.065 * 2*pi * 1.35
                              ~= 0.551 m/s   (see enforce_physical_speed_ceiling below)
 
-stm32_hardened_bridge.py's own conversion (for reference, not duplicated
-here): left_vel = lin - ang; right_vel = lin + ang; both divided by
-max(1.0, |left_vel|, |right_vel|) before applying the conservative host
-motor_output_limit cap. This node's calculate_velocities() below produces
-exactly the inverse encoding on purpose (unbraked round-trip is the identity),
-so the per-track ratio requested here survives that downstream normalization
-unchanged even at stick saturation.
+The shared control map first computes a normalized left/right track pair. The
+pair is encoded as a standard physical ROS Twist before entering the safety
+gateway. The hardened bridge decodes that Twist with the measured track width,
+so the differential ratio survives the host safety path and remains correct
+even when one track reverses during a power pivot.
 """
+
+from __future__ import annotations
 
 import os
 import time
+import math
+from pathlib import Path
+
+from robot_control.control_map import (
+    ControlMap,
+    DEFAULT_BUTTON_INDICES,
+    DEFAULT_BUTTON_NAMES,
+    DEFAULT_AXIS_PROFILES,
+    default_control_map,
+    drift_track_pair,
+    load_control_map,
+    shape_stick as shape_control_stick,
+    track_pair_to_twist,
+    trigger_pressure as control_trigger_pressure,
+)
 
 try:
     import rclpy
@@ -245,8 +260,8 @@ class PS5RosBridge(Node):
     Layout:
     - Left stick vertical: Forward / Reverse throttle
     - Right stick horizontal: Left / Right steering
-    - L2 trigger: Variable left track brake (progressive pressure)
-    - R2 trigger: Variable right track brake (progressive pressure)
+    - L2 trigger: Drift/power-pivot modifier (progressive pressure)
+    - R2 trigger: Throttle multiplier; released means zero linear throttle
     - L1 (hold): Precision mode — throttle/steer scaled by precision_mode_scale
     - R1 (hold): Boost mode — throttle/steer scaled by boost_mode_scale
     - L1/R1 + other button: reserved one-shot combo dispatch (_on_mode_combo)
@@ -255,51 +270,27 @@ class PS5RosBridge(Node):
     - PS: publish /safety/e_stop = True (hard stop through safety_gateway)
     """
 
-    # Button indices for standard Linux DualSense / joydev
-    BTN_CROSS = 0
-    BTN_CIRCLE = 1
-    BTN_TRIANGLE = 2
-    BTN_SQUARE = 3
-    BTN_L1 = 4
-    BTN_R1 = 5
-    BTN_L2_DIGITAL = 6
-    BTN_R2_DIGITAL = 7
-    BTN_SHARE = 8
-    BTN_OPTIONS = 9
-    BTN_PS = 10
-    BTN_L3 = 11
-    BTN_R3 = 12
+    # Compatibility aliases; all indices and names are owned by the shared
+    # robot_control map so teleop and accessory consumers cannot drift.
+    BTN_CROSS = DEFAULT_BUTTON_INDICES["cross"]
+    BTN_CIRCLE = DEFAULT_BUTTON_INDICES["circle"]
+    BTN_TRIANGLE = DEFAULT_BUTTON_INDICES["triangle"]
+    BTN_SQUARE = DEFAULT_BUTTON_INDICES["square"]
+    BTN_L1 = DEFAULT_BUTTON_INDICES["l1"]
+    BTN_R1 = DEFAULT_BUTTON_INDICES["r1"]
+    BTN_L2_DIGITAL = DEFAULT_BUTTON_INDICES["l2_digital"]
+    BTN_R2_DIGITAL = DEFAULT_BUTTON_INDICES["r2_digital"]
+    BTN_SHARE = DEFAULT_BUTTON_INDICES["share"]
+    BTN_OPTIONS = DEFAULT_BUTTON_INDICES["options"]
+    BTN_PS = DEFAULT_BUTTON_INDICES["ps"]
+    BTN_L3 = DEFAULT_BUTTON_INDICES["l3"]
+    BTN_R3 = DEFAULT_BUTTON_INDICES["r3"]
 
-    BUTTON_NAMES = {
-        0: "CROSS",
-        1: "CIRCLE",
-        2: "TRIANGLE",
-        3: "SQUARE",
-        4: "L1",
-        5: "R1",
-        6: "L2",
-        7: "R2",
-        8: "SHARE",
-        9: "OPTIONS",
-        10: "PS",
-        11: "L3",
-        12: "R3",
-    }
+    BUTTON_NAMES = DEFAULT_BUTTON_NAMES
 
-    AXIS_PROFILES = {
-        "ps5_bluetooth": {
-            "throttle_axis": 1,      # Left stick vertical
-            "steer_axis": 2,         # Right stick horizontal (ABS_Z)
-            "brake_left_axis": 3,    # L2 analog trigger (ABS_RX)
-            "brake_right_axis": 4,   # R2 analog trigger (ABS_RY)
-        },
-        "ps5_usb": {
-            "throttle_axis": 1,      # Left stick vertical
-            "steer_axis": 3,         # Right stick horizontal (ABS_RX)
-            "brake_left_axis": 2,    # L2 analog trigger (ABS_Z)
-            "brake_right_axis": 5,   # R2 analog trigger (ABS_RZ)
-        },
-    }
+    # Kept as a compatibility alias for integrations that inspect the node;
+    # the values themselves live in robot_control/config/control_map.yaml.
+    AXIS_PROFILES = DEFAULT_AXIS_PROFILES
 
     # motors_param.h: MOTOR_DEFAULT_RPS_LIMIT, applied in
     # uart_binary_protocol_integration_packed.c:127 before the per-motor PID
@@ -309,32 +300,40 @@ class PS5RosBridge(Node):
     def __init__(self):
         super().__init__("ps5_ros_bridge")
 
-        self.declare_parameter("max_linear_speed",  0.6)
-        self.declare_parameter("max_angular_speed", 1.8)
+        # Negative means use the canonical control-map geometry/speed.
+        self.declare_parameter("max_linear_speed",  -1.0)
+        # Kept for launch-file compatibility. The effective angular ceiling
+        # is derived from the canonical track geometry below so drift cannot
+        # be silently clipped by a stale independent parameter.
+        self.declare_parameter("max_angular_speed", -1.0)
         self.declare_parameter("joy_device",        "/dev/input/js0")
         self.declare_parameter("joy_topic",         "/joy")
         self.declare_parameter("publish_joy",        True)
         self.declare_parameter("publish_rate_hz",   40.0)
-        self.declare_parameter("deadzone",          0.08)
-        self.declare_parameter("expo",              0.25)
-        self.declare_parameter("trigger_deadzone",  0.05)
+        self.declare_parameter("deadzone",          -1.0)
+        self.declare_parameter("expo",              -1.0)
+        self.declare_parameter("trigger_deadzone",  -1.0)
         self.declare_parameter("reconnect_interval_s", 1.0)
         self.declare_parameter("profile",           "auto")  # auto, ps5_bluetooth, ps5_usb, custom
+        self.declare_parameter("control_map_path",  "")
         self.declare_parameter("throttle_axis",     -1)  # -1 = use profile default
         self.declare_parameter("steer_axis",        -1)  # -1 = use profile default
-        self.declare_parameter("brake_left_axis",   -1)  # -1 = use profile default
-        self.declare_parameter("brake_right_axis",  -1)  # -1 = use profile default
+        self.declare_parameter("drift_axis",        -1)  # -1 = use profile default
+        self.declare_parameter("multiplier_axis",   -1)  # -1 = use profile default
         self.declare_parameter("invert_throttle",   False)
         self.declare_parameter("invert_steer",      False)
 
         # --- Physical-chassis parameters (docs/robot_hardware_reference.md,
         #     rock64_hardware.yaml). Informational + used only to derive the
         #     optional speed ceiling below; NOT used to reshape steering math.
-        self.declare_parameter("track_width_m",      0.194)
+        # Legacy geometry override; normal operation uses control_map.yaml.
+        self.declare_parameter("track_width_m",      -1.0)
         self.declare_parameter("wheel_radius",       0.065)  # TODO unmeasured, see module docstring
         self.declare_parameter("encoder_ticks_per_rev", 1980)
         self.declare_parameter("firmware_rps_ceiling", self._FIRMWARE_RPS_CEILING)
-        self.declare_parameter("enforce_physical_speed_ceiling", True)
+        self.declare_parameter("enforce_physical_speed_ceiling", False)
+        self.declare_parameter("drift_alpha", -1.0)
+        self.declare_parameter("drift_beta", -1.0)
 
         # --- Mode-hold scaling (continuous, while button is held)
         self.declare_parameter("normal_mode_scale",    1.0)
@@ -348,44 +347,87 @@ class PS5RosBridge(Node):
         self.declare_parameter("estop_topic",   "/safety/e_stop")
         self.declare_parameter("status_topic",  "/teleop/ps5_status")
 
-        self._max_lin = float(self.get_parameter("max_linear_speed").value or 0.6)
-        self._max_ang = float(self.get_parameter("max_angular_speed").value or 1.8)
         self._joy_dev = str(self.get_parameter("joy_device").value or "/dev/input/js0")
         self._joy_topic = str(self.get_parameter("joy_topic").value or "/joy")
         self._publish_joy_enabled = bool(self.get_parameter("publish_joy").value)
         rate_hz = float(self.get_parameter("publish_rate_hz").value or 40.0)
-        self._deadzone = float(self.get_parameter("deadzone").value or 0.08)
-        self._expo = float(self.get_parameter("expo").value or 0.25)
-        self._trigger_deadzone = float(
-            self.get_parameter("trigger_deadzone").value or 0.05
-        )
         self._reconnect_interval = float(
             self.get_parameter("reconnect_interval_s").value or 1.0
         )
 
         self._profile_param = str(self.get_parameter("profile").value or "auto").lower()
+        control_map_path = str(self.get_parameter("control_map_path").value or "")
+        self._control_map = self._load_control_map(control_map_path)
+        self._apply_button_map()
+        configured_max_lin = self._positive_float_parameter("max_linear_speed")
+        self._max_lin = (
+            configured_max_lin
+            if configured_max_lin is not None
+            else self._control_map.max_track_speed_mps
+        )
+        if configured_max_lin is not None and not math.isclose(
+            configured_max_lin,
+            self._control_map.max_track_speed_mps,
+            rel_tol=1e-6,
+            abs_tol=1e-6,
+        ):
+            self.get_logger().warn(
+                "max_linear_speed is an explicit legacy override; tune the "
+                "canonical robot_control control map for normal operation"
+            )
+        self._deadzone = self._map_float_parameter(
+            "deadzone", self._control_map.deadzone
+        )
+        self._expo = self._map_float_parameter("expo", self._control_map.expo)
+        self._trigger_deadzone = self._map_float_parameter(
+            "trigger_deadzone", self._control_map.trigger_deadzone
+        )
         self._param_throttle = int(self.get_parameter("throttle_axis").value or -1)
         self._param_steer = int(self.get_parameter("steer_axis").value or -1)
-        self._param_brake_l = int(self.get_parameter("brake_left_axis").value or -1)
-        self._param_brake_r = int(self.get_parameter("brake_right_axis").value or -1)
+        self._param_drift = int(self.get_parameter("drift_axis").value or -1)
+        self._param_multiplier = int(self.get_parameter("multiplier_axis").value or -1)
 
         self._detected_profile = "ps5_bluetooth"
-        self._throttle_axis = self._param_throttle if self._param_throttle >= 0 else 1
-        self._steer_axis = self._param_steer if self._param_steer >= 0 else 2
-        self._brake_left_axis = self._param_brake_l if self._param_brake_l >= 0 else 3
-        self._brake_right_axis = self._param_brake_r if self._param_brake_r >= 0 else 4
+        self._apply_profile_axes(self._detected_profile)
         self._actual_joy_dev = None
 
         self._invert_throttle = bool(self.get_parameter("invert_throttle").value)
         self._invert_steer = bool(self.get_parameter("invert_steer").value)
 
-        self._track_width = float(self.get_parameter("track_width_m").value or 0.194)
+        configured_track_width = self._positive_float_parameter("track_width_m")
+        self._track_width = (
+            configured_track_width
+            if configured_track_width is not None
+            else self._control_map.track_width_m
+        )
+        if (
+            configured_track_width is not None
+            and not math.isclose(
+                configured_track_width,
+                self._control_map.track_width_m,
+                rel_tol=1e-6,
+                abs_tol=1e-6,
+            )
+        ):
+            self.get_logger().warn(
+                "track_width_m is an explicit legacy override; tune the "
+                "canonical robot_control control map for normal operation"
+            )
         self._wheel_radius = float(self.get_parameter("wheel_radius").value or 0.065)
         self._ticks_per_rev = int(self.get_parameter("encoder_ticks_per_rev").value or 1980)
         self._firmware_rps_ceiling = float(
             self.get_parameter("firmware_rps_ceiling").value or self._FIRMWARE_RPS_CEILING
         )
         self._enforce_ceiling = bool(self.get_parameter("enforce_physical_speed_ceiling").value)
+
+        configured_alpha = self._map_float_parameter(
+            "drift_alpha", self._control_map.drift_alpha
+        )
+        configured_beta = self._map_float_parameter(
+            "drift_beta", self._control_map.drift_beta
+        )
+        self._drift_alpha = max(0.0, min(1.0, configured_alpha))
+        self._drift_beta = max(0.0, configured_beta)
 
         self._normal_scale = _clamp01(self.get_parameter("normal_mode_scale").value, 1.0)
         self._precision_scale = _clamp01(self.get_parameter("precision_mode_scale").value, 0.4)
@@ -415,6 +457,30 @@ class PS5RosBridge(Node):
         else:
             self._effective_max_lin = self._max_lin
 
+        self._max_track_speed = min(
+            self._control_map.max_track_speed_mps,
+            self._effective_max_lin,
+        )
+        configured_max_ang = self._positive_float_parameter("max_angular_speed")
+        self._max_ang = (
+            2.0 * self._max_track_speed / self._track_width
+            if self._track_width > 0.0
+            else 0.0
+        )
+        if (
+            configured_max_ang is not None
+            and not math.isclose(
+                configured_max_ang,
+                self._max_ang,
+                rel_tol=1e-6,
+                abs_tol=1e-6,
+            )
+        ):
+            self.get_logger().warn(
+                "max_angular_speed is derived from the canonical track "
+                "geometry; the independent parameter is informational only"
+            )
+
         self._pub = self.create_publisher(Twist, "/cmd_vel", 10)
         self._joy_pub = (
             self.create_publisher(Joy, self._joy_topic, 10)
@@ -434,7 +500,7 @@ class PS5RosBridge(Node):
         self._axes = [0.0] * 16
         self._axis_ever_moved = [False] * 16
         self._axis_calibrated = [not self._require_calibration] * 16
-        self._buttons = [0] * 32
+        self._buttons = [0] * self._button_count
         self._last_reconnect_attempt = 0.0
         self._last_missing_log = 0.0
         self._last_calib_warn = 0.0
@@ -453,6 +519,123 @@ class PS5RosBridge(Node):
             "Auto-detection active: will dynamically connect when the PS5 controller powers on."
         )
 
+    def _load_control_map(self, configured_path: str) -> ControlMap:
+        """Load the canonical map, retaining a safe source-tree fallback."""
+        candidates = []
+        if configured_path:
+            candidates.append(Path(configured_path))
+        # In the source tree robot_control is a sibling package, not a
+        # subdirectory of robot_teleop.  The launch graph normally supplies
+        # the installed share path explicitly, but this fallback keeps direct
+        # source-tree execution on the canonical YAML as well.
+        candidates.append(
+            Path(__file__).resolve().parents[2]
+            / "robot_control"
+            / "config"
+            / "control_map.yaml"
+        )
+        try:
+            from ament_index_python.packages import get_package_share_directory
+
+            candidates.append(
+                Path(get_package_share_directory("robot_control"))
+                / "config"
+                / "control_map.yaml"
+            )
+        except (ImportError, LookupError, RuntimeError):
+            # Source-tree unit tests and non-ROS tooling do not have ament's
+            # package index; the sibling-package candidate above is enough.
+            pass
+        for candidate in candidates:
+            if not candidate.is_file():
+                continue
+            try:
+                return load_control_map(candidate)
+            except (OSError, ValueError, ImportError) as error:
+                self.get_logger().warn(
+                    f"Unable to load control map {candidate}: {error}"
+                )
+        self.get_logger().warn("Using built-in canonical PS5 control map")
+        return default_control_map()
+
+    def _map_float_parameter(self, name: str, default: float) -> float:
+        """Use a finite explicit parameter or the canonical-map value."""
+        value = self.get_parameter(name).value
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return default
+        return default if value < 0.0 or not math.isfinite(value) else value
+
+    def _apply_button_map(self) -> None:
+        """Apply YAML button indices to the compatibility aliases at runtime.
+
+        The class attributes retain the historical default aliases for code
+        that imports them without constructing a node.  A running node must,
+        however, use the loaded map so a commissioned controller layout is
+        applied consistently to e-stop, mode buttons, audio, and raw Joy
+        publication.
+        """
+        aliases = {
+            "BTN_CROSS": "cross",
+            "BTN_CIRCLE": "circle",
+            "BTN_TRIANGLE": "triangle",
+            "BTN_SQUARE": "square",
+            "BTN_L1": "l1",
+            "BTN_R1": "r1",
+            "BTN_L2_DIGITAL": "l2_digital",
+            "BTN_R2_DIGITAL": "r2_digital",
+            "BTN_SHARE": "share",
+            "BTN_OPTIONS": "options",
+            "BTN_PS": "ps",
+            "BTN_L3": "l3",
+            "BTN_R3": "r3",
+        }
+        for attribute, key in aliases.items():
+            setattr(self, attribute, int(self._control_map.button_indices[key]))
+        self.BUTTON_NAMES = {
+            int(index): str(name).upper()
+            for name, index in self._control_map.button_indices.items()
+        }
+        self._button_count = max(
+            32,
+            max(self._control_map.button_indices.values(), default=31) + 1,
+        )
+        if hasattr(self, "_buttons") and len(self._buttons) < self._button_count:
+            self._buttons.extend([0] * (self._button_count - len(self._buttons)))
+
+    def _positive_float_parameter(self, name: str) -> float | None:
+        """Return a finite positive legacy override, if one was supplied."""
+        try:
+            value = float(self.get_parameter(name).value)
+        except (TypeError, ValueError):
+            return None
+        return value if math.isfinite(value) and value > 0.0 else None
+
+    def _apply_profile_axes(self, profile_name: str) -> None:
+        """Apply mapped axes while retaining parameter override compatibility."""
+        profile_defaults = self._control_map.profile(profile_name)
+        self._throttle_axis = (
+            self._param_throttle
+            if self._param_throttle >= 0
+            else profile_defaults["throttle_axis"]
+        )
+        self._steer_axis = (
+            self._param_steer
+            if self._param_steer >= 0
+            else profile_defaults["steer_axis"]
+        )
+        self._drift_axis = (
+            self._param_drift
+            if self._param_drift >= 0
+            else profile_defaults["drift_axis"]
+        )
+        self._multiplier_axis = (
+            self._param_multiplier
+            if self._param_multiplier >= 0
+            else profile_defaults["multiplier_axis"]
+        )
+
     def _open_joystick(self, device: str):
         actual_dev = find_joystick_device(device)
         if not actual_dev:
@@ -468,31 +651,17 @@ class PS5RosBridge(Node):
             # Detect profile dynamically on connection
             if self._profile_param == "auto":
                 self._detected_profile = detect_device_profile(actual_dev)
-            elif self._profile_param in self.AXIS_PROFILES:
+            elif self._profile_param in self._control_map.axis_profiles:
                 self._detected_profile = self._profile_param
             else:
                 self._detected_profile = "ps5_bluetooth"
 
-            profile_defaults = self.AXIS_PROFILES.get(
-                self._detected_profile, self.AXIS_PROFILES["ps5_bluetooth"]
-            )
-            self._throttle_axis = (
-                self._param_throttle if self._param_throttle >= 0 else profile_defaults["throttle_axis"]
-            )
-            self._steer_axis = (
-                self._param_steer if self._param_steer >= 0 else profile_defaults["steer_axis"]
-            )
-            self._brake_left_axis = (
-                self._param_brake_l if self._param_brake_l >= 0 else profile_defaults["brake_left_axis"]
-            )
-            self._brake_right_axis = (
-                self._param_brake_r if self._param_brake_r >= 0 else profile_defaults["brake_right_axis"]
-            )
+            self._apply_profile_axes(self._detected_profile)
 
             self.get_logger().info(
                 f"PS5 controller connected on {actual_dev} (profile: {self._detected_profile}, "
                 f"throttle: axis {self._throttle_axis}, steer: axis {self._steer_axis}, "
-                f"L2 brake: axis {self._brake_left_axis}, R2 brake: axis {self._brake_right_axis}) — "
+                f"L2 drift: axis {self._drift_axis}, R2 multiplier: axis {self._multiplier_axis}) — "
                 "ready for operator use!"
             )
             return fd
@@ -511,7 +680,7 @@ class PS5RosBridge(Node):
 
     def _handle_button_event(self, button_idx: int, pressed: bool):
         """Track button states, dispatch edge-triggered controls and combos."""
-        if button_idx >= len(self._buttons):
+        if button_idx < 0 or button_idx >= len(self._buttons):
             return
         self._buttons[button_idx] = 1 if pressed else 0
 
@@ -624,14 +793,10 @@ class PS5RosBridge(Node):
 
     def shape_stick(self, v: float) -> float:
         """Apply deadzone and cubic expo blend for smooth fine control."""
-        if abs(v) < self._deadzone:
-            return 0.0
-        scaled = (abs(v) - self._deadzone) / max(1.0 - self._deadzone, 1e-6)
-        shaped = (1.0 - self._expo) * scaled + self._expo * (scaled ** 3)
-        return max(-1.0, min(1.0, shaped if v >= 0.0 else -shaped))
+        return shape_control_stick(v, self._deadzone, self._expo)
 
     def get_trigger_pressure(self, axis_idx: int) -> float:
-        """Read analog trigger brake pressure [0.0, 1.0] safely."""
+        """Read analog trigger pressure [0.0, 1.0] safely."""
         if axis_idx < 0 or axis_idx >= len(self._axes):
             return 0.0
         # If trigger has never sent a dynamic event, return 0.0 to prevent
@@ -639,42 +804,32 @@ class PS5RosBridge(Node):
         if not self._axis_ever_moved[axis_idx]:
             return 0.0
 
-        raw = self._axes[axis_idx]  # Linux joydev range [-1.0, 1.0]
-        # Map: released (-1.0) -> 0.0, fully pressed (+1.0) -> 1.0
-        norm = (raw + 1.0) / 2.0
-        norm = max(0.0, min(1.0, norm))
-
-        if norm < self._trigger_deadzone:
-            return 0.0
-        scaled = (norm - self._trigger_deadzone) / max(
-            1.0 - self._trigger_deadzone, 1e-6
+        return control_trigger_pressure(
+            self._axes[axis_idx], self._trigger_deadzone
         )
-        return max(0.0, min(1.0, scaled))
 
     def calculate_velocities(
         self,
         throttle_input: float,
         steer_input: float,
-        brake_left: float,
-        brake_right: float,
+        drift: float,
+        multiplier: float,
     ) -> tuple[float, float]:
-        """Convert throttle, steering, and track brakes into (linear_x, angular_z)."""
-        v_raw = throttle_input * self._effective_max_lin
-        omega_raw = steer_input * self._max_ang
-
-        # Unbraked left and right track demands
-        v_left_raw = v_raw - omega_raw
-        v_right_raw = v_raw + omega_raw
-
-        # Apply progressive variable braking per track
-        v_left_braked = v_left_raw * (1.0 - max(0.0, min(1.0, brake_left)))
-        v_right_braked = v_right_raw * (1.0 - max(0.0, min(1.0, brake_right)))
-
-        # Convert back to Twist linear and angular representation
-        linear_x = (v_left_braked + v_right_braked) / 2.0
-        angular_z = (v_right_braked - v_left_braked) / 2.0
-
-        return linear_x, angular_z
+        """Convert the canonical PS5 inputs into a standard ROS Twist."""
+        left, right = drift_track_pair(
+            throttle_input,
+            steer_input,
+            multiplier,
+            drift,
+            alpha=self._drift_alpha,
+            beta=self._drift_beta,
+        )
+        return track_pair_to_twist(
+            left,
+            right,
+            self._track_width,
+            self._max_track_speed,
+        )
 
     def _publish_twist(self):
         self._read_joystick()
@@ -688,7 +843,10 @@ class PS5RosBridge(Node):
                     "PS5 bridge waiting for controller connection..."
                 )
             self._pub.publish(Twist())
-            self._maybe_publish_status(connected=False, mode="NONE", brake_l=0.0, brake_r=0.0, lin=0.0, ang=0.0)
+            self._maybe_publish_status(
+                connected=False, mode="NONE", drift=0.0, multiplier=0.0,
+                lin=0.0, ang=0.0,
+            )
             return
 
         # Left stick vertical: up is negative in joydev -> invert to make up positive
@@ -699,8 +857,11 @@ class PS5RosBridge(Node):
         if self._require_calibration and not self._axis_calibrated[self._throttle_axis]:
             throttle_cmd = 0.0
 
-        # Right stick horizontal: right is positive in joydev -> invert for ROS REP-103 CCW (+)
-        raw_steer = -self._axes[self._steer_axis] if self._steer_axis < len(self._axes) else 0.0
+        # Right stick horizontal: joydev's positive direction is the
+        # operator's right. drift_track_pair() intentionally treats positive
+        # steering as a right turn, whose ROS angular.z is negative after the
+        # track-pair conversion.
+        raw_steer = self._axes[self._steer_axis] if self._steer_axis < len(self._axes) else 0.0
         if self._invert_steer:
             raw_steer = -raw_steer
         steer_cmd = self.shape_stick(raw_steer)
@@ -727,9 +888,9 @@ class PS5RosBridge(Node):
         throttle_cmd *= scale
         steer_cmd *= scale
 
-        # L2 and R2 analog variable brakes
-        brake_l = self.get_trigger_pressure(self._brake_left_axis)
-        brake_r = self.get_trigger_pressure(self._brake_right_axis)
+        # L2 is drift/power-pivot pressure; R2 gates linear throttle.
+        drift = self.get_trigger_pressure(self._drift_axis)
+        multiplier = self.get_trigger_pressure(self._multiplier_axis)
 
         gate_open = self._armed and not self._estop_latched
         if not gate_open:
@@ -737,7 +898,7 @@ class PS5RosBridge(Node):
             steer_cmd = 0.0
 
         lin_x, ang_z = self.calculate_velocities(
-            throttle_cmd, steer_cmd, brake_l, brake_r
+            throttle_cmd, steer_cmd, drift, multiplier
         )
 
         msg = Twist()
@@ -746,7 +907,7 @@ class PS5RosBridge(Node):
         self._pub.publish(msg)
 
         self._maybe_publish_status(
-            connected=True, mode=mode, brake_l=brake_l, brake_r=brake_r,
+            connected=True, mode=mode, drift=drift, multiplier=multiplier,
             lin=lin_x, ang=ang_z,
         )
 
@@ -759,14 +920,14 @@ class PS5RosBridge(Node):
         msg.buttons = list(self._buttons)
         self._joy_pub.publish(msg)
 
-    def _maybe_publish_status(self, *, connected, mode, brake_l, brake_r, lin, ang) -> None:
+    def _maybe_publish_status(self, *, connected, mode, drift, multiplier, lin, ang) -> None:
         if self._status_pub is None:
             return
         msg = String()
         msg.data = (
             f"connected={int(connected)} armed={int(self._armed)} "
             f"estop={int(self._estop_latched)} mode={mode} "
-            f"brake_l={brake_l:.2f} brake_r={brake_r:.2f} "
+            f"drift={drift:.2f} multiplier={multiplier:.2f} "
             f"lin={lin:.2f} ang={ang:.2f}"
         )
         self._status_pub.publish(msg)

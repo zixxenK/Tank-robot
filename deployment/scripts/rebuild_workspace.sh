@@ -1,65 +1,40 @@
 #!/usr/bin/env bash
-# rebuild_workspace.sh - Rebuild the ROS2 workspace to fix Python module issues
-# Run this to rebuild the workspace after changes
-
-set -eo pipefail  # Removed -u to allow undefined variables
-
-echo "=========================================="
-echo "ROS2 Workspace Rebuild"
-echo "=========================================="
+# Complete rebuild of the canonical ROS 2 workspace.
+#
+# This historical entry point is retained for operator compatibility.  It
+# deliberately rebuilds every package under host_ws/src so removed or newly
+# added lab-assistant packages cannot remain stale in install/.
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-cd "${REPO_ROOT}" || exit 1
-
 WS_PATH="${REPO_ROOT}/host_ws"
-if [[ ! -d "${WS_PATH}" ]]; then
-    echo "❌ Workspace not found at ${WS_PATH}"
-    exit 1
+
+if [[ ! -d "${WS_PATH}/src" ]]; then
+  echo "[rebuild_workspace] ERROR: workspace not found at ${WS_PATH}/src" >&2
+  exit 1
 fi
 
-echo ""
-echo "Step 1: Source ROS2 environment..."
-echo "----------------------------------------------"
-source /opt/ros/humble/setup.bash
-
-echo ""
-echo "Step 2: Clean previous build..."
-echo "----------------------------------------------"
 cd "${WS_PATH}"
+echo "[rebuild_workspace] Removing generated ROS state from ${WS_PATH}"
 rm -rf build install log
 
-echo ""
-echo "Step 3: Install dependencies..."
-echo "----------------------------------------------"
+export HOST_WS_PATH="${WS_PATH}"
+set +u
+# shellcheck disable=SC1091
+source "${REPO_ROOT}/deployment/scripts/source_host_ws.sh"
+set -u
+
+echo "[rebuild_workspace] Installing package dependencies"
 rosdep install --from-paths src --ignore-src -r -y
 
-echo ""
-echo "Step 4: Build workspace..."
-echo "----------------------------------------------"
+echo "[rebuild_workspace] Building all packages under host_ws/src"
 colcon build --symlink-install
 
-echo ""
-echo "Step 5: Verify build..."
-echo "----------------------------------------------"
-if [[ -f "install/setup.bash" ]]; then
-    echo "✅ Workspace built successfully"
-    source install/setup.bash
-else
-    echo "❌ Build failed - setup.bash not found"
-    exit 1
+if [[ ! -f install/setup.bash ]]; then
+  echo "[rebuild_workspace] ERROR: install/setup.bash was not generated" >&2
+  exit 1
 fi
 
-echo ""
-echo "Step 6: Test Python imports..."
-echo "----------------------------------------------"
-cd "${WS_PATH}/src/robot_bringup/launch"
-python3 -c "import preflight_check; print('✅ preflight_check module imports successfully')"
-
-echo ""
-echo "=========================================="
-echo "Workspace Rebuild Complete"
-echo "=========================================="
-echo ""
-echo "Restart the systemd service:"
+echo "[rebuild_workspace] Complete. Restart with:"
 echo "  sudo systemctl restart rock64-robot.service"

@@ -11,7 +11,7 @@ The Rock64 must be reachable as `rock64` and already have the production host
 environment installed:
 
 ```bash
-sudo bash deployment/scripts/rock64_setup.sh --ros-distro auto
+sudo bash deployment/scripts/rock64_setup.sh --ros-distro humble
 ```
 
 The target environment is Ubuntu 22.04 with ROS 2 Humble. Confirm the account
@@ -19,9 +19,8 @@ and workspace before configuring PyCharm:
 
 ```bash
 ssh rock64@rock64
-source /opt/ros/humble/setup.bash
-cd /opt/rock64-robot/host_ws
-source install/setup.bash
+source /opt/rock64-robot/deployment/scripts/source_host_ws.sh
+cd "$HOST_WS_PATH"
 ros2 pkg prefix robot_drivers
 python3 -c 'import rclpy, serial; print("Rock64 Python environment OK")'
 ```
@@ -63,15 +62,14 @@ configuration with:
 - **Interpreter options / wrapper:**
 
 ```bash
-bash -lc 'source /opt/ros/humble/setup.bash && source /opt/rock64-robot/host_ws/install/setup.bash && exec python3 "$@"' --
+bash -lc 'source /opt/rock64-robot/deployment/scripts/source_host_ws.sh && exec python3 "$@"' --
 ```
 
 For normal bringup, use the existing ROS launch command from an SSH terminal
 instead of debugging individual processes:
 
 ```bash
-source /opt/ros/humble/setup.bash
-source /opt/rock64-robot/host_ws/install/setup.bash
+source /opt/rock64-robot/deployment/scripts/source_host_ws.sh
 ros2 launch robot_bringup rock64_bringup.launch.py
 ```
 
@@ -88,7 +86,8 @@ ros2 launch robot_bringup rock64_bringup.launch.py \
 2. Run host tests on the Rock64:
 
    ```bash
-   cd /opt/rock64-robot/host_ws
+   source /opt/rock64-robot/deployment/scripts/source_host_ws.sh
+   cd "$HOST_WS_PATH"
    colcon build --symlink-install
    colcon test
    colcon test-result --verbose
@@ -100,8 +99,9 @@ ros2 launch robot_bringup rock64_bringup.launch.py \
    service.
 4. Use `/dev/rock64_stm32` for motor communication. Never substitute the
    stock USART3/PD8-PD9 reference endpoint.
-5. Complete the raised-track and emergency-stop checks in
-   `docs/HARDWARE_VALIDATION.md` before enabling motor power.
+5. Follow `docs/OPERATOR_GUIDE.md` for the current raised-track and
+   emergency-stop procedure before enabling motor power. The detailed
+   `docs/HARDWARE_VALIDATION.md` file is a technical appendix.
 
 PyCharm should be treated as the development and debugging client; it does not
 replace the Rock64's ROS environment, the deployment script, or the hardware

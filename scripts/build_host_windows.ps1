@@ -1,6 +1,7 @@
 param(
   [string]$Workspace = "host_ws",
   [string]$Ros2Setup = "",
+  [string]$Python = "",
   [switch]$SymlinkInstall = $true,
   [switch]$UseWslFallback,
   [string]$WslDistro = "Ubuntu-22.04",
@@ -11,14 +12,23 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 $wsPath = Join-Path $repoRoot $Workspace
-$py = "C:\Users\ZIXXE\AppData\Local\Programs\Python\Python312\python.exe"
 
 if (-not (Test-Path $wsPath)) {
   throw "Workspace not found: $wsPath"
 }
 
-if (-not (Test-Path $py)) {
-  throw "Python not found at $py"
+if (-not $Python) {
+  $pythonCommand = Get-Command python.exe -ErrorAction SilentlyContinue
+  if (-not $pythonCommand) {
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+  }
+  if ($pythonCommand) {
+    $Python = $pythonCommand.Source
+  }
+}
+
+if (-not $Python -or -not (Test-Path $Python)) {
+  throw "Python executable not found. Provide -Python <path> or add Python to PATH."
 }
 
 if (-not $Ros2Setup) {
@@ -82,7 +92,7 @@ if ($SymlinkInstall) {
 
 Push-Location $wsPath
 try {
-  $cmd = '"{0}" -no_logo -arch=amd64 && call "{1}" && "{2}" -m colcon {3}' -f $vsDevCmd, $Ros2Setup, $py, $colconArgs
+  $cmd = '"{0}" -no_logo -arch=amd64 && call "{1}" && "{2}" -m colcon {3}' -f $vsDevCmd, $Ros2Setup, $Python, $colconArgs
   cmd.exe /d /s /c $cmd
   if ($LASTEXITCODE -ne 0) {
     throw "Host build failed with exit code $LASTEXITCODE"

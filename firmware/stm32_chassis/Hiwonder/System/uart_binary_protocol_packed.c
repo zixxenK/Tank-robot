@@ -17,7 +17,7 @@
 #include "battery_integration.h"
 #include "sg90_servo.h"
 #include "buzzer.h"
-#include "hc_sr04.h"
+#include "glowy_ultrasonic.h"
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -465,7 +465,7 @@ void binary_protocol_process_frame(BinaryProtocolContext *ctx, uint8_t func, uin
         case FUNC_SERVO:
             /* Payload/ack: [subcommand][channel][pulse_us LE16]
              *              [duration_ms LE16].  The dedicated driver owns
-             * only SG90 J1 on PA11; PC8/PA12 remain exclusively HC-SR04. */
+             * only SG90 J1 on PA11. */
             if (payload_len == sizeof(ServoCommandPayload) &&
                 payload[0] == SERVO_SUBCMD_SET_PULSE) {
                 uint8_t channel = payload[1];
@@ -679,36 +679,62 @@ void binary_protocol_send_telemetry_burst(BinaryProtocolContext *ctx) {
                                     frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
     }
 
-    frame_len = build_frame(FUNC_ULTRASONIC,
+    frame_len = build_frame(FUNC_GLOWY_ULTRASONIC,
                             (const uint8_t *)&ctx->telemetry.ultrasonic,
-                            sizeof(UltrasonicTelemetry),
+                            sizeof(GlowyUltrasonicTelemetry),
                             frame_buffer,
                             MAX_FRAME_SIZE);
     if (frame_len > 0) {
-        binary_protocol_queue_frame(ctx, FUNC_ULTRASONIC,
+        binary_protocol_queue_frame(ctx, FUNC_GLOWY_ULTRASONIC,
                                     frame_buffer + FRAME_HEADER_SIZE,
                                     frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
     }
 }
 
-void binary_protocol_send_ultrasonic_diagnostics(BinaryProtocolContext *ctx) {
+void binary_protocol_send_glowy_ultrasonic_diagnostics(BinaryProtocolContext *ctx) {
     if (!ctx->telemetry_enabled) {
         return;
     }
-    HcSr04Diagnostics diagnostics;
-    hc_sr04_get_diagnostics(&diagnostics);
-    UltrasonicDiagnosticsTelemetry telemetry = {
-        diagnostics.trigger_count,
-        diagnostics.rising_edge_count,
-        diagnostics.falling_edge_count,
+    GlowyUltrasonicDiagnostics diagnostics;
+    glowy_ultrasonic_get_diagnostics(&diagnostics);
+    GlowyUltrasonicDiagnosticsTelemetry telemetry = {
+        diagnostics.read_count,
+        diagnostics.valid_count,
+        diagnostics.error_count,
     };
     uint8_t frame_buffer[MAX_FRAME_SIZE];
-    uint16_t frame_len = build_frame(FUNC_ULTRASONIC_DIAG,
+    uint16_t frame_len = build_frame(FUNC_GLOWY_ULTRASONIC_DIAG,
                                      (const uint8_t *)&telemetry,
                                      sizeof(telemetry), frame_buffer,
                                      MAX_FRAME_SIZE);
     if (frame_len > 0) {
-        binary_protocol_queue_frame(ctx, FUNC_ULTRASONIC_DIAG,
+        binary_protocol_queue_frame(ctx, FUNC_GLOWY_ULTRASONIC_DIAG,
+                                    frame_buffer + FRAME_HEADER_SIZE,
+                                    frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
+    }
+}
+
+void binary_protocol_send_imu_diagnostics(BinaryProtocolContext *ctx) {
+    if (!ctx->telemetry_enabled) {
+        return;
+    }
+    IMUDiagnostics diagnostics;
+    IMU_GetDiagnostics(&diagnostics);
+    IMUDiagnosticsTelemetry telemetry = {
+        diagnostics.state,
+        diagnostics.address,
+        diagnostics.who_am_i,
+        diagnostics.sample_count,
+        diagnostics.error_count,
+        diagnostics.last_error,
+    };
+    uint8_t frame_buffer[MAX_FRAME_SIZE];
+    uint16_t frame_len = build_frame(FUNC_IMU_DIAG,
+                                     (const uint8_t *)&telemetry,
+                                     sizeof(telemetry), frame_buffer,
+                                     MAX_FRAME_SIZE);
+    if (frame_len > 0) {
+        binary_protocol_queue_frame(ctx, FUNC_IMU_DIAG,
                                     frame_buffer + FRAME_HEADER_SIZE,
                                     frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
     }

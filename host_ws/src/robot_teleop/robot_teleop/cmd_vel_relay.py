@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Fail-closed relay for autonomous commands that skip terrain adaptation."""
+"""Fail-closed relay for autonomous proposal commands.
+
+This node never relays autonomy to ``/cmd_vel`` by default.  Its output is
+the agent proposal boundary, which still requires a fresh ``/agent/heartbeat``
+at the safety gateway before it can reach the motors.
+"""
 
 from __future__ import annotations
 
@@ -15,8 +20,8 @@ class CmdVelRelay(Node):
 
     def __init__(self) -> None:
         super().__init__("cmd_vel_relay")
-        self.declare_parameter("input_topic", "/cmd_vel_planned")
-        self.declare_parameter("output_topic", "/cmd_vel")
+        self.declare_parameter("input_topic", "/agent/cmd_vel_planned")
+        self.declare_parameter("output_topic", "/agent/cmd_vel_proposed")
         input_topic = str(self.get_parameter("input_topic").value)
         output_topic = str(self.get_parameter("output_topic").value)
         self._publisher = self.create_publisher(Twist, output_topic, 10)
@@ -24,7 +29,7 @@ class CmdVelRelay(Node):
             Twist, input_topic, self._on_command, 10
         )
         self.get_logger().info(
-            f"Relaying finite autonomous commands {input_topic} -> {output_topic}"
+            f"Relaying finite autonomous proposals {input_topic} -> {output_topic}"
         )
 
     def _on_command(self, message: Twist) -> None:

@@ -13,6 +13,19 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+#define IMU_STATUS_UNAVAILABLE 0U
+#define IMU_STATUS_READY       1U
+#define IMU_STATUS_ERROR       2U
+
+typedef struct {
+    uint8_t state;
+    uint8_t address;
+    uint16_t who_am_i;
+    uint32_t sample_count;
+    uint32_t error_count;
+    int32_t last_error;
+} IMUDiagnostics;
+
 // ============================================================================
 // FUNCTION PROTOTYPES
 // ============================================================================
@@ -54,6 +67,9 @@ int IMU_GetOrientation(float *rpy, float *quat);
  * @return true if ready, false otherwise
  */
 bool IMU_IsReady(void);
+
+/** @brief Copy explicit onboard MPU6050 readiness and bus diagnostics. */
+void IMU_GetDiagnostics(IMUDiagnostics *diagnostics);
 
 /**
  * @brief Get IMU temperature reading

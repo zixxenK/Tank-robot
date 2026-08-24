@@ -13,7 +13,7 @@ if ($NoSlam) {
   $launchArguments += " use_slam:=false"
 }
 
-$remoteCommand = "source /opt/ros/humble/setup.bash; source /opt/rock64-robot/host_ws/install/setup.bash; export ROS_DOMAIN_ID=42; export RMW_IMPLEMENTATION=rmw_fastrtps_cpp; export ROS_LOCALHOST_ONLY=1; exec ros2 launch robot_bringup pc_dashboard.launch.py $launchArguments"
+$remoteCommand = "export ROS_DOMAIN_ID=42; export RMW_IMPLEMENTATION=rmw_fastrtps_cpp; export ROS_LOCALHOST_ONLY=1; source /opt/rock64-robot/deployment/scripts/source_host_ws.sh; exec ros2 launch robot_bringup pc_dashboard.launch.py $launchArguments"
 $forward = "${LocalPort}:127.0.0.1:${RemotePort}"
 
 Write-Host "[remote_dashboard] Rock64: $UserName@$HostName"

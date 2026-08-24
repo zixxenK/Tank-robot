@@ -4,17 +4,18 @@ Run these commands on the Ubuntu Rock64 from the repository root.
 
 ## One-time firmware and ROS deployment
 
-This release adds the STM32 servo protocol, so the STM32 must be rebuilt and
-flashed once before the servo test can pass:
+The current release owns the drive, camera, and onboard MPU6050 acceptance
+path. Servo, Glowy ultrasonic, LiDAR, and battery checks are optional
+accessory/future-upgrade checks and are not required for this milestone.
 
 ```bash
 bash deployment/scripts/rock64_update_and_flash.sh
 ```
 
-The deployment keeps HC-SR04 on J4/PC8 (TRIG) and J2/PA12 (ECHO), and enables
-only the SG90 connected to J1/PA11. It also enables the STM32 bridge, PS5
-bridge, ESP32 camera bridge, USB camera bridge, and compressed camera transport
-in the Rock64 service config.
+The deployment enables the STM32 bridge, PS5 bridge, ESP32 camera bridge, USB
+camera bridge, and compressed camera transport in the Rock64 service config.
+The Glowy module and SG90 remain disabled unless their future checks are
+explicitly requested.
 
 ## Start everything
 
@@ -35,9 +36,8 @@ First run all tests that do not move the tracks:
 bash scripts/hardware_acceptance.sh
 ```
 
-For the complete test, physically raise and secure both tracks, keep the power
-cutoff within reach, place a solid target 2 cm to 4 m in front of the HC-SR04,
-then run one command:
+For the complete drive test, physically raise and secure both tracks and keep
+the power cutoff within reach, then run one command:
 
 ```bash
 bash scripts/hardware_acceptance.sh --tracks-raised
@@ -55,8 +55,11 @@ The runner performs and prints these stages one at a time:
 2. Encoders: requires fresh left and right count messages.
 3. Odometry: requires fresh finite pose/twist messages with a unit quaternion;
    this proves the derived navigation input, not only the raw encoder topic.
-4. IMU: requires finite, physically plausible acceleration and gyro samples.
-5. HC-SR04: requires multiple fresh, finite echoes in its valid range.
+4. Onboard IMU: requires finite, physically plausible acceleration and gyro
+   samples plus a ready diagnostic from the MPU6050 integrated into the
+   Hiwonder controller on I2C2 PB10/PB11.
+5. Hiwonder Glowy ultrasonic: skipped by default and outside this milestone;
+   test it separately only when the optional module is connected.
 6. Battery voltage: reported as `SKIP` by default because this firmware image
    has one uncalibrated ADC channel. Set `MONITOR_BATTERY=true` (or
    `require_battery:=true`) after the divider and pack are calibrated to make
@@ -66,7 +69,7 @@ The runner performs and prints these stages one at a time:
 8. ESP32 camera: requires advancing, valid `/camera/image_raw` frames.
 9. USB camera: requires advancing, valid `/camera/usb/image_raw` frames.
 10. STL-50B2: skipped unless `--with-lidar` is supplied.
-11. SG90: commands center/low/high/center and requires a fresh STM32
+11. SG90: skipped by default; commands center/low/high/center and requires a fresh STM32
    acknowledgement after every position. Watch the servo make the sweep; an
    SG90 has no position-feedback wire, so ROS can prove the command and PWM
    path but cannot electrically measure the horn angle.

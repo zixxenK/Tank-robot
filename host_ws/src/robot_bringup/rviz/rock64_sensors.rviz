@@ -35,7 +35,7 @@ Visualization Manager:
       Topic: /camera/usb/image_raw
     - Class: rviz_default_plugins/Range
       Enabled: true
-      Name: HC-SR04
+      Name: Hiwonder Glowy ultrasonic
       Topic: /ultrasonic/range
     - Class: rviz_default_plugins/Odometry
       Enabled: true

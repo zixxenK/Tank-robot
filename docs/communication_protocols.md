@@ -42,8 +42,8 @@ the reflected CRC-8/MAXIM table (`table[1] == 0x5E`).
 | `0x11` | Battery | `<ff` voltage/current |
 | `0x12` | IMU | `<ffffff` acceleration/gyro |
 | `0x13` | Legacy self-test | Reserved; use the Rock64 hardware acceptance runner |
-| `0x14` | HC-SR04 | `<HHBB` distance mm, echo us, valid, reserved |
-| `0x15` | HC-SR04 diagnostics | `<III` trigger count, rising-edge count, falling-edge count |
+| `0x14` | Hiwonder Glowy ultrasonic | `<HBB` distance mm, valid, status |
+| `0x15` | Glowy ultrasonic diagnostics | `<III` I2C read count, valid count, error count |
 | `0xF0` | Heartbeat | Empty |
 | `0xF1` | Acknowledgement | Implementation-defined |
 | `0xFF` | Error | Error code |
@@ -93,8 +93,8 @@ physical sound.
 ## SG90 Servo Commands
 
 The production image controls one PWM servo only: channel `0`, board header
-J1, STM32 PA11. J4/PC8 is HC-SR04 TRIG and J2/PA12 is HC-SR04 ECHO; neither is
-driven by the servo implementation.
+J1, STM32 PA11. The distance sensor uses the dedicated four-pin I2C connector;
+the legacy secondary servo pads are not part of the production image.
 
 ```text
 01 00 PULSE_US_UINT16_LE DURATION_MS_UINT16_LE
@@ -122,6 +122,7 @@ acknowledged state on `/stm32/servo/state_degrees` and
 | Topic | Type | Producer | Consumer |
 | --- | --- | --- | --- |
 | `/cmd_vel` | `geometry_msgs/Twist` | Teleop | Safety gateway |
+| `/agent/cmd_vel_planned` | `geometry_msgs/Twist` | Navigation/terrain pipeline | Agent proposal boundary |
 | `/agent/cmd_vel_proposed` | `geometry_msgs/Twist` | Agent | Safety gateway |
 | `/agent/heartbeat` | `std_msgs/Bool` | Agent | Safety gateway |
 | `/safety/e_stop` | `std_msgs/Bool` | Operator/test runner | Safety gateway and hardened bridge |
@@ -135,6 +136,11 @@ acknowledged state on `/stm32/servo/state_degrees` and
 | `/joy` | `sensor_msgs/Joy` | PS5 bridge | Buzzer/song controls |
 | `/buzzer/frequency` | `std_msgs/Int32` | Song creator | Hardened STM32 bridge |
 | `/buzzer/status` | `std_msgs/String` | Song creator | Operator/diagnostics |
+
+Autonomous planners and terrain adaptation must use the `/agent/*` proposal
+topics above. They must not publish autonomous commands to `/cmd_vel`, and
+only an authorized agent supervisor may publish the fresh `/agent/heartbeat`
+that allows a proposal to pass the safety gateway.
 
 For raised-track commissioning, the bridge additionally provides
 `/stm32/motor_1/enable` and `/stm32/motor_2/enable` as

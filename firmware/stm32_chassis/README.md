@@ -1,9 +1,10 @@
-# Rock64 Ranger Firmware
+# STM32 Chassis Firmware
 
 STM32F407VGT6 chassis controller firmware for the Rock64-based tank robot.
 
 ## Active Project
-- **Authoritative hardware reference**: `legacy_hiwonder_reference/RosRobotControllerM4.ioc`
+- **Authoritative CubeMX project**: `RosRobotControllerM4.ioc`
+- **Historical factory reference**: `legacy_hiwonder_reference/RosRobotControllerM4.ioc`
 - **Generated project name**: `RosRobotControllerM4`
 - **Target**: STM32F407VGT6 (ARM Cortex-M4F)
 - **Host transport**: onboard WCH USB-UART on product UART1 to USART1 on
@@ -17,8 +18,8 @@ The reference is not a production host-port selector.
 ## Build
 ```bash
 cd firmware/stm32_chassis
-cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -DCMAKE_BUILD_TYPE=Debug -B build
-ninja -C build
+cmake --preset Debug
+cmake --build --preset Debug --parallel 4
 ```
 
 The production host link is fixed and requires no generated-code edits:

@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import threading
+from pathlib import Path
 from typing import List, Optional
 
 try:
@@ -81,6 +82,11 @@ except ImportError:
 
 
 from robot_audio.songs import NOTE_FREQ, SEA_SHANTY_2_SEQ
+from robot_control.control_map import (
+    ControlMap,
+    default_control_map,
+    load_control_map,
+)
 
 
 class BuzzerSongCreator(Node):
@@ -94,13 +100,15 @@ class BuzzerSongCreator(Node):
         self.declare_parameter('frequency_topic', '/buzzer/frequency')
         self.declare_parameter('play_sequence_topic', '/buzzer/play_sequence')
         self.declare_parameter('status_topic', '/buzzer/status')
-        self.declare_parameter('l1_index', 4)
-        self.declare_parameter('r1_index', 5)
-        self.declare_parameter('hat_x_index', 6)
-        self.declare_parameter('hat_y_index', 7)
-        # Matches the DualSense button map used by ps5_ros_bridge:
-        # Cross=0, Circle=1, Triangle=2, Square=3.
-        self.declare_parameter('triangle_index', 2)
+        self.declare_parameter('control_map_path', '')
+        # Negative values use the canonical robot_control map. These remain
+        # parameters so a lab-specific accessory layout can be commissioned
+        # without changing the node API.
+        self.declare_parameter('l1_index', -1)
+        self.declare_parameter('r1_index', -1)
+        self.declare_parameter('hat_x_index', -1)
+        self.declare_parameter('hat_y_index', -1)
+        self.declare_parameter('triangle_index', -1)
         self.declare_parameter('step_duration_s', 0.25)
         self.declare_parameter('gap_duration_s', 0.05)
         self.declare_parameter('async_playback', True)
@@ -111,11 +119,20 @@ class BuzzerSongCreator(Node):
         seq_topic = self._get_param_val('play_sequence_topic', '/buzzer/play_sequence')
         status_topic = self._get_param_val('status_topic', '/buzzer/status')
 
-        self.L1_INDEX = int(self._get_param_val('l1_index', 4))
-        self.R1_INDEX = int(self._get_param_val('r1_index', 5))
-        self.HAT_X_INDEX = int(self._get_param_val('hat_x_index', 6))
-        self.HAT_Y_INDEX = int(self._get_param_val('hat_y_index', 7))
-        self.TRIANGLE_INDEX = int(self._get_param_val('triangle_index', 2))
+        control_map_path = str(
+            self._get_param_val('control_map_path', '') or ''
+        )
+        self._control_map = self._load_control_map(control_map_path)
+        profile = self._control_map.profile('ps5_bluetooth')
+        self.L1_INDEX = self._map_index('l1_index', 'l1', 4)
+        self.R1_INDEX = self._map_index('r1_index', 'r1', 5)
+        self.HAT_X_INDEX = self._map_axis_index(
+            'hat_x_index', profile, 'dpad_x_axis', 6
+        )
+        self.HAT_Y_INDEX = self._map_axis_index(
+            'hat_y_index', profile, 'dpad_y_axis', 7
+        )
+        self.TRIANGLE_INDEX = self._map_index('triangle_index', 'triangle', 2)
         self.step_duration_s = float(self._get_param_val('step_duration_s', 0.25))
         self.gap_duration_s = float(self._get_param_val('gap_duration_s', 0.05))
         self.async_playback = bool(self._get_param_val('async_playback', True))
@@ -143,6 +160,57 @@ class BuzzerSongCreator(Node):
         except Exception:
             pass
         return default
+
+    def _load_control_map(self, configured_path: str) -> ControlMap:
+        """Load the shared controller map for audio/operator inputs."""
+        candidates = []
+        if configured_path:
+            candidates.append(Path(configured_path))
+        candidates.append(
+            Path(__file__).resolve().parents[2]
+            / 'robot_control'
+            / 'config'
+            / 'control_map.yaml'
+        )
+        try:
+            from ament_index_python.packages import get_package_share_directory
+
+            candidates.append(
+                Path(get_package_share_directory('robot_control'))
+                / 'config'
+                / 'control_map.yaml'
+            )
+        except (ImportError, LookupError, RuntimeError):
+            pass
+        for candidate in candidates:
+            if not candidate.is_file():
+                continue
+            try:
+                return load_control_map(candidate)
+            except (OSError, ValueError, ImportError) as error:
+                self.get_logger().warn(
+                    f'Unable to load control map {candidate}: {error}'
+                )
+        self.get_logger().warn('Using built-in canonical audio control map')
+        return default_control_map()
+
+    def _map_index(self, parameter: str, map_key: str, fallback: int) -> int:
+        """Use an explicit compatibility override or a mapped button index."""
+        value = int(self._get_param_val(parameter, -1))
+        return value if value >= 0 else int(
+            self._control_map.button_indices.get(map_key, fallback)
+        )
+
+    def _map_axis_index(
+        self,
+        parameter: str,
+        profile,
+        map_key: str,
+        fallback: int,
+    ) -> int:
+        """Use an explicit compatibility override or a mapped axis index."""
+        value = int(self._get_param_val(parameter, -1))
+        return value if value >= 0 else int(profile.get(map_key, fallback))
 
     def joy_callback(self, msg: Joy):
         """Process incoming joystick messages and handle modifier / note triggers."""

@@ -13,6 +13,7 @@ LOCAL_PACKAGES = {
     "agent_core",
     "navigation",
     "perception",
+    "robot_control",
     "robot_audio",
     "robot_drivers",
     "robot_teleop",
@@ -97,3 +98,27 @@ def test_stm32_telemetry_snapshot_preserves_battery_presence_state():
     ).read_text()
     assert "tel = replace(self._telemetry)" in bridge
     assert "if tel.battery_received:" in bridge
+
+
+def test_bringup_passes_the_canonical_control_map_to_ps5_bridge():
+    """The launch graph must not grow a second controller-map source."""
+    launch = (
+        SOURCE_ROOT / "robot_bringup" / "launch" / "rock64_bringup.launch.py"
+    ).read_text()
+    assert 'FindPackageShare("robot_control")' in launch
+    assert '"control_map.yaml"' in launch
+    assert '"control_map_path": LaunchConfiguration("control_map")' in launch
+    # The serial bridge must decode the same geometry as the teleop encoder.
+    assert launch.count(
+        '"control_map_path": LaunchConfiguration("control_map")'
+    ) >= 2
+
+
+def test_hardware_config_does_not_duplicate_canonical_track_geometry():
+    """The active parameter file must leave geometry ownership to the map."""
+    hardware = (
+        SOURCE_ROOT / "robot_bringup" / "config" / "rock64_hardware.yaml"
+    ).read_text()
+    assert "track_width_m:" not in hardware
+    assert "wheel_separation:" not in hardware
+    assert "max_track_speed_mps:" not in hardware

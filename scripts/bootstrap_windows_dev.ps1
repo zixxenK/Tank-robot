@@ -150,6 +150,6 @@ Write-Host ""
 Write-Host "[bootstrap] Done. This PowerShell session is now ready." -ForegroundColor Green
 Write-Host "[bootstrap] Next commands:"
 Write-Host "  cd $repoRoot\firmware\stm32_chassis"
-Write-Host "  cmake -S . -B build-ninja-local -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake -DSTM32_ENABLE_MICROROS=OFF"
-Write-Host "  cmake --build build-ninja-local -j4"
+Write-Host "  cmake --preset Debug"
+Write-Host "  cmake --build --preset Debug --parallel 4"
 Write-Host "  powershell -ExecutionPolicy Bypass -File .\scripts\build_host_windows.ps1 -UseWslFallback"

@@ -9,6 +9,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${DEPLOY_DIR}/.." && pwd)"
+TELEOP_OVERRIDE=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-teleop) TELEOP_OVERRIDE=false; shift ;;
+    --teleop) TELEOP_OVERRIDE=true; shift ;;
+    --help|-h)
+      echo "usage: $0 [--teleop|--no-teleop]"
+      exit 0
+      ;;
+    *)
+      echo "[robot_start] ERROR: unknown option: $1" >&2
+      exit 2
+      ;;
+  esac
+done
 
 resolve_host_ws() {
   if [[ -n "${HOST_WS_PATH:-}" ]]; then
@@ -67,7 +83,7 @@ echo "[robot_start] Host WS  : $(resolve_host_ws)"
 # Validate serial port
 SERIAL_PORT="${SERIAL_PORT:-/dev/rock64_stm32}"
 USE_HARDWARE_BRIDGE="${USE_HARDWARE_BRIDGE:-true}"
-USE_TELEOP="${USE_TELEOP:-true}"
+USE_TELEOP="${TELEOP_OVERRIDE:-${USE_TELEOP:-true}}"
 PS5_JOY_DEVICE="${PS5_JOY_DEVICE:-/dev/input/ps5_controller}"
 MONITOR_BATTERY="${MONITOR_BATTERY:-false}"
 USE_AUDIO="${USE_AUDIO:-true}"
@@ -81,6 +97,7 @@ LIDAR_BAUDRATE="${LIDAR_BAUDRATE:-115200}"
 LIDAR_USE_SYNC="${LIDAR_USE_SYNC:-true}"
 USE_USB_CAMERA="${USE_USB_CAMERA:-true}"
 USB_CAMERA_DEVICE="${USB_CAMERA_DEVICE:-auto}"
+USE_ULTRASONIC="${USE_ULTRASONIC:-false}"
 USE_COMPRESSED_CAMERA_TRANSPORT="${USE_COMPRESSED_CAMERA_TRANSPORT:-true}"
 CAMERA_JPEG_QUALITY="${CAMERA_JPEG_QUALITY:-70}"
 
@@ -151,5 +168,6 @@ exec ros2 launch robot_bringup rock64_bringup.launch.py \
   lidar_use_sync:="${LIDAR_USE_SYNC}" \
   use_usb_camera:="${USE_USB_CAMERA}" \
   usb_camera_device:="${USB_CAMERA_DEVICE}" \
+  use_ultrasonic:="${USE_ULTRASONIC}" \
   use_compressed_camera_transport:="${USE_COMPRESSED_CAMERA_TRANSPORT}" \
   camera_jpeg_quality:="${CAMERA_JPEG_QUALITY}"

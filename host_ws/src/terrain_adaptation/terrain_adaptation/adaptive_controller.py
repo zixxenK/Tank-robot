@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Adaptive controller that adjusts robot behavior based on terrain classification."""
 
+from __future__ import annotations
+
 import numpy as np
 from typing import Optional, Dict
 from dataclasses import dataclass

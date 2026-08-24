@@ -29,7 +29,7 @@ resolve_host_ws() {
 HOST_WS="$(resolve_host_ws)"
 
 # ── Defaults ──────────────────────────────────────────────────────────────
-ROS_DISTRO_ARG="auto"
+ROS_DISTRO_ARG="humble"
 SERIAL_PORT="/dev/rock64_stm32"
 CAMERA_IP="192.168.1.125"
 ROCK64_IP="192.168.1.139"
@@ -141,25 +141,14 @@ fi
 
 # ── Create udev rules for STM32 and PS5 controller ────────────────────────
 echo "[setup] Installing udev rules..."
-cat > /etc/udev/rules.d/99-rock64-stm32.rules <<'EOF'
-# Rock64 Ranger — Hiwonder WCH USB-UART (1a86:55d4) to USART1 PA9/PA10
-# (product connector labeled UART1).
-# Creates a stable alias to the underlying /dev/ttyACM* node.
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", \
-  SYMLINK+="rock64_stm32", SYMLINK+="rock64_stm32_wch", GROUP="dialout", MODE="0664", \
-  ENV{ID_MM_PORT_IGNORE}="1"
-EOF
+# The canonical udev rules are maintained in deployment/udev and installed below.
+# Keep this setup script responsible for installation, not a second embedded copy.
 
-cat > /etc/udev/rules.d/99-rock64-ps5.rules <<'EOF'
-# Sony DualSense (PS5) Wireless Controller — USB link
-KERNEL=="js[0-9]*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0ce6", MODE="0666", GROUP="input", SYMLINK+="input/ps5_controller", SYMLINK+="input/ps5_controller_js"
-# Sony DualSense (PS5) Wireless Controller — Bluetooth link
-KERNEL=="js[0-9]*", KERNELS=="*054C:0CE6*", MODE="0666", GROUP="input", SYMLINK+="input/ps5_controller", SYMLINK+="input/ps5_controller_js"
-# General joystick device permissions: allow non-root operator reading
-KERNEL=="js[0-9]*", SUBSYSTEM=="input", MODE="0666", GROUP="input"
-KERNEL=="event[0-9]*", SUBSYSTEM=="input", MODE="0666", GROUP="input"
-EOF
-
+install -m 0644 "${DEPLOY_DIR}/udev/99-rock64-stm32-usb.rules" \
+  /etc/udev/rules.d/99-rock64-stm32-usb.rules
+install -m 0644 "${DEPLOY_DIR}/udev/99-rock64-ps5.rules" \
+  /etc/udev/rules.d/99-rock64-ps5.rules
+rm -f /etc/udev/rules.d/99-rock64-stm32.rules
 udevadm control --reload-rules
 udevadm trigger
 
@@ -209,9 +198,12 @@ EOF
 
 # ── Build ROS2 workspace ───────────────────────────────────────────────────
 echo "[setup] Building ROS2 workspace..."
-# shellcheck source=/dev/null
-source "/opt/ros/${RESOLVED_DISTRO}/setup.bash"
-cd "${HOST_WS}"
+export HOST_WS_PATH="${HOST_WS}"
+set +u
+# shellcheck disable=SC1091
+source "${DEPLOY_DIR}/scripts/source_host_ws.sh"
+set -u
+cd "${HOST_WS_PATH}"
 colcon build --symlink-install
 
 # ── Install systemd service ────────────────────────────────────────────────

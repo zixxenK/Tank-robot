@@ -1,140 +1,67 @@
 #!/usr/bin/env bash
-# fix_ps5_device_path.sh - Configure PS5 bridge to use correct device path
-# Run this to fix the PS5 controller device path issue
+# Configure the canonical PS5 device path used by robot_start.sh.
+#
+# This replaces the obsolete approach of editing generated install YAML or
+# adding an unused ps5_device launch argument. The source deployment config is
+# the only persistent machine-local setting; robot_start.sh passes it as
+# joy_device to rock64_bringup.launch.py.
+set -Eeuo pipefail
 
-set -eo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+CONFIG_FILE="${REPO_ROOT}/deployment/systemd/systemd_config.conf"
 
-echo "=========================================="
-echo "Fix PS5 Controller Device Path"
-echo "=========================================="
-
-echo ""
-echo "Step 1: Detect PS5 Controller Device"
-echo "----------------------------------------------"
-
-PS5_DEVICE=""
-# Try event devices first (Bluetooth controllers)
-for event in /dev/input/event*; do
-    if [[ -e "$event" ]]; then
-        if command -v evtest &>/dev/null; then
-            DEVICE_INFO=$(timeout 1 evtest "$event" 2>&1 | head -3 || echo "")
-            if echo "$DEVICE_INFO" | grep -qi "dualsense\|sony\|playstation"; then
-                PS5_DEVICE="$event"
-                echo "✅ Found PS5 controller at: $PS5_DEVICE"
-                break
-            fi
-        fi
-    fi
-done
-
-# Fallback to js0 if no event device found
-if [[ -z "$PS5_DEVICE" && -e /dev/input/js0 ]]; then
-    PS5_DEVICE="/dev/input/js0"
-    echo "⚠️  Using fallback device: $PS5_DEVICE"
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "Run as root so the service can be restarted: sudo bash $0" >&2
+  exit 1
 fi
 
-if [[ -z "$PS5_DEVICE" ]]; then
-    echo "❌ No PS5 controller device found"
-    exit 1
+detect_ps5_device() {
+  if [[ -e /dev/input/ps5_controller ]]; then
+    echo /dev/input/ps5_controller
+    return
+  fi
+  if [[ -e /dev/input/ps5_controller_js ]]; then
+    echo /dev/input/ps5_controller_js
+    return
+  fi
+  if [[ -e /dev/input/js0 ]]; then
+    echo /dev/input/js0
+    return
+  fi
+  return 1
+}
+
+PS5_DEVICE="${1:-$(detect_ps5_device || true)}"
+if [[ -z "${PS5_DEVICE}" || ! -e "${PS5_DEVICE}" ]]; then
+  echo "No PS5 joystick device found. Pass its path explicitly." >&2
+  echo "Example: sudo bash $0 /dev/input/ps5_controller" >&2
+  exit 1
 fi
 
-echo ""
-echo "Step 2: Update PS5 Bridge Configuration"
-echo "----------------------------------------------"
+if [[ ! -f "${CONFIG_FILE}" ]]; then
+  echo "Missing ${CONFIG_FILE}; copy systemd_config.conf.example first." >&2
+  exit 1
+fi
 
-CONFIG_FILE="/opt/rock64-robot/host_ws/install/robot_bringup/share/robot_bringup/config/rock64_hardware.yaml"
-if [[ -f "$CONFIG_FILE" ]]; then
-    echo "Current PS5 device configuration:"
-    grep -A 2 "ps5_ros_bridge" "$CONFIG_FILE" || echo "Not found in config"
-    
-    echo ""
-    echo "Updating device path to $PS5_DEVICE..."
-    # Backup current config
-    cp "$CONFIG_FILE" "${CONFIG_FILE}.backup"
-    
-    # Update device path
-    sed -i "s|device: /dev/input/js[0-9]|device: $PS5_DEVICE|g" "$CONFIG_FILE"
-    echo "✅ Updated device path in configuration"
+backup="${CONFIG_FILE}.backup.$(date +%Y%m%d-%H%M%S)"
+cp "${CONFIG_FILE}" "${backup}"
+if grep -q '^PS5_JOY_DEVICE=' "${CONFIG_FILE}"; then
+  sed -i "s|^PS5_JOY_DEVICE=.*|PS5_JOY_DEVICE=${PS5_DEVICE}|" "${CONFIG_FILE}"
 else
-    echo "❌ Configuration file not found: $CONFIG_FILE"
-    exit 1
+  printf '\nPS5_JOY_DEVICE=%s\n' "${PS5_DEVICE}" >> "${CONFIG_FILE}"
 fi
 
-echo ""
-echo "Step 3: Alternative - Update Bridge Parameters"
-echo "----------------------------------------------"
+echo "Configured PS5 device: ${PS5_DEVICE}"
+echo "Backup: ${backup}"
 
-# Some bridges use command-line parameters, so let's update systemd config
-SYSTEMD_CONFIG="/opt/rock64-robot/deployment/systemd/systemd_config.conf"
-if [[ -f "$SYSTEMD_CONFIG" ]]; then
-    if ! grep -q "PS5_DEVICE" "$SYSTEMD_CONFIG"; then
-        echo "Adding PS5_DEVICE to systemd config..."
-        echo "PS5_DEVICE=$PS5_DEVICE" >> "$SYSTEMD_CONFIG"
-        echo "✅ Added PS5_DEVICE to systemd config"
-    else
-        sed -i "s|^PS5_DEVICE=.*|PS5_DEVICE=$PS5_DEVICE|" "$SYSTEMD_CONFIG"
-        echo "✅ Updated PS5_DEVICE in systemd config"
-    fi
+if command -v systemctl >/dev/null 2>&1 &&
+   systemctl cat rock64-robot.service >/dev/null 2>&1; then
+  systemctl restart rock64-robot.service
+  systemctl is-active --quiet rock64-robot.service
+  echo "rock64-robot.service restarted successfully."
+else
+  echo "rock64-robot.service is not installed; restart the canonical bringup manually."
 fi
 
-echo ""
-echo "Step 4: Update Launch Parameters"
-echo "----------------------------------------------"
-
-# Update robot_start.sh to pass PS5 device parameter
-ROBOT_START="/opt/rock64-robot/deployment/scripts/robot_start.sh"
-if [[ -f "$ROBOT_START" ]]; then
-    echo "Checking robot_start.sh for PS5 device parameter..."
-    if ! grep -q "ps5_device" "$ROBOT_START"; then
-        echo "Adding PS5 device parameter to launch command..."
-        # Add parameter to launch command
-        sed -i 's|ros2 launch robot_bringup rock64_bringup.launch.py|ros2 launch robot_bringup rock64_bringup.launch.py ps5_device:="'"$PS5_DEVICE"'"|' "$ROBOT_START"
-        echo "✅ Added ps5_device parameter to launch command"
-    else
-        sed -i "s|ps5_device:=.*|ps5_device:=$PS5_DEVICE|" "$ROBOT_START"
-        echo "✅ Updated ps5_device parameter in launch command"
-    fi
-fi
-
-echo ""
-echo "Step 5: Restart Service"
-echo "----------------------------------------------"
-
-systemctl restart rock64-robot.service
-
-sleep 3
-echo ""
-echo "Service status:"
-systemctl status rock64-robot.service --no-pager | head -15
-
-echo ""
-echo "Step 6: Verify PS5 Bridge Status"
-echo "----------------------------------------------"
-
-sleep 2
-source /opt/ros/humble/setup.bash
-source /opt/rock64-robot/host_ws/install/setup.bash
-
-echo "Running nodes:"
-ros2 node list
-
-echo ""
-echo "PS5 bridge logs (last 10 lines):"
-journalctl -u rock64-robot.service -n 10 --no-pager | grep -i "ps5" || echo "No PS5 logs found"
-
-echo ""
-echo "=========================================="
-echo "PS5 Device Path Fix Complete"
-echo "=========================================="
-
-echo ""
-echo "Summary:"
-echo "--------"
-echo "PS5 Device: $PS5_DEVICE"
-echo "Config Updated: $CONFIG_FILE"
-echo "Service Status: $(systemctl is-active rock64-robot.service)"
-
-echo ""
-echo "The PS5 bridge should now use the correct device path."
-echo "Test by pressing buttons on the controller and checking:"
-echo "  ros2 topic echo /joy"
+echo "Verify with: ros2 topic echo /teleop/ps5_status"

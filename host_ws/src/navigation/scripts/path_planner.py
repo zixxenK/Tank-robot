@@ -32,7 +32,10 @@ class PathPlannerNode(Node):
         self.declare_parameter("resolution", 0.1)  # meters
         self.declare_parameter("goal_topic", "/goal_pose")
         self.declare_parameter("path_topic", "/planned_path")
-        self.declare_parameter("cmd_vel_topic", "/cmd_vel")
+        # Autonomous output is a proposal.  The safety gateway accepts it
+        # only with an explicit agent heartbeat; /cmd_vel remains the PS5
+        # and maintenance teleop lane.
+        self.declare_parameter("cmd_vel_topic", "/agent/cmd_vel_proposed")
         self.declare_parameter("odom_topic", "/stm32/odom")
         self.declare_parameter("diagonal", True)
         self.declare_parameter("position_tolerance", 0.12)

@@ -63,7 +63,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Hiwonder/System/imu_integration.c
     Hiwonder/System/battery_integration.c
     Hiwonder/System/status_integration.c
-    Hiwonder/System/hc_sr04.c
+    Hiwonder/System/glowy_ultrasonic.c
     Hiwonder/System/sg90_servo.c
     Third_Party/Fusion/Fusion/FusionAhrs.c
     Third_Party/Fusion/Fusion/FusionCompass.c

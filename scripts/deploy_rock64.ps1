@@ -47,8 +47,7 @@ try {
       "--exclude=deployment/scripts/archive",
       "--exclude=host_ws/build", "--exclude=host_ws/install", "--exclude=host_ws/log",
       "--exclude=log", "--exclude=*.bin", "--exclude=*.elf", "--exclude=*.hex",
-      "--exclude=*.map", "--exclude=firmware_backup", "--exclude=ros2_ws_backup",
-      "--exclude=microros_agent_ws", "--exclude=uart_ros_bridge",
+      "--exclude=*.map",
       "deployment", "scripts", "tests", "stubs", "docs", "host_ws/src", "firmware/stm32_chassis", "firmware/esp32_sensors", "Makefile", "pytest.ini", "run_e2e.sh", "run_e2e.ps1"
     )
     Invoke-NativeChecked "tar.exe" $tarArgs

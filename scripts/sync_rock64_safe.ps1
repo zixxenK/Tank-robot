@@ -92,11 +92,12 @@ find '$RemoteRoot/scripts' '$RemoteRoot/deployment/scripts' -type f -name '*.sh'
   Write-Host "Installing source on Rock64 (no hardware programming)..."
   Invoke-NativeChecked "ssh.exe" @($target, $extract)
 
-  $build = @"
+$build = @"
 set -e
-unset AMENT_PREFIX_PATH CMAKE_PREFIX_PATH COLCON_PREFIX_PATH PYTHONPATH ROS_PACKAGE_PATH
-source /opt/ros/humble/setup.bash
-cd '$RemoteRoot/host_ws'
+export HOST_WS_PATH='$RemoteRoot/host_ws'
+source '$RemoteRoot/deployment/scripts/source_host_ws.sh'
+export HOST_WS_PATH='$RemoteRoot/host_ws'
+cd "`$HOST_WS_PATH"
 rosdep install --from-paths src --ignore-src -r -y
 # Generated ROS state is disposable and must be rebuilt from the synchronized
 # source tree; otherwise removed packages can survive as stale entry points.
@@ -104,7 +105,7 @@ rm -rf '$RemoteRoot/host_ws/build' '$RemoteRoot/host_ws/install' '$RemoteRoot/ho
 # Build every maintained local package carried by the source archive.  Keeping
 # the autonomous packages in this list prevents a clean sync from leaving
 # stale or missing installed entry points behind.
-colcon build --symlink-install --packages-up-to agent_core robot_bringup robot_drivers robot_teleop robot_audio navigation perception telemetry_logger terrain_adaptation
+colcon build --symlink-install
 "@
   Write-Host "Building Rock64 ROS workspace..."
   Invoke-NativeChecked "ssh.exe" @("-tt", $target, $build)

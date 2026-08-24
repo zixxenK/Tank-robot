@@ -241,8 +241,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
    * HAL_TIM_RegisterCallback() in the custom TIM14 timebase is not the path
    * used by HAL_TIM_IRQHandler().  Without handling TIM14 here, uwTick stays
    * at zero even though the timer and IRQ are active.  That freezes every
-   * HAL_GetTick()-based service, including the HC-SR04 trigger interval and
-   * protocol telemetry.  When callback registration is enabled, HAL dispatches
+   * HAL_GetTick()-based services and protocol telemetry. When callback
+   * registration is enabled, HAL dispatches
    * TimeBase_TIM_PeriodElapsedCallback() directly instead and this callback is
    * not entered, so this remains safe in either configuration. */
   if (htim->Instance == TIM14) {

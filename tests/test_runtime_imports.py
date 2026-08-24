@@ -12,6 +12,7 @@ PACKAGES = (
     "agent_core",
     "robot_drivers",
     "robot_teleop",
+    "robot_control",
     "robot_audio",
     "navigation",
     "perception",

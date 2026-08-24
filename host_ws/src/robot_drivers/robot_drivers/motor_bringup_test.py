@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """One-shot low-speed motor direction bring-up test for /cmd_vel.
 
+MAINTENANCE ONLY: this executable is opt-in and requires raised tracks. The
+normal operator path is PS5/agent -> safety_gateway -> hardened bridge.
+
 This sequence validates the tread pair mapped to motor 0 (left / M1) and
 motor 1 (right / M2) through the hardened bridge.
 """

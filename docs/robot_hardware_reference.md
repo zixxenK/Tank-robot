@@ -21,13 +21,13 @@ prompt / project context so it always has ground-truth specs instead of guessing
 
 | Layer | Hardware | Role |
 |---|---|---|
-| Main compute | Rock64 (Pine64, RK3328) | High-level control, ROS 2 / LangGraph, networking |
-| Real-time controller | STM32F407VET6 (custom firmware `rock64_ranger_fw`) | Motor PID, encoders, IMU, servo bus, SBUS in, LCD |
+| Main compute | Rock64 (Pine64, RK3328) | ROS 2 safety/teleop runtime and networking; future agent integration is bounded through proposals |
+| Real-time controller | STM32F407VET6 (production firmware `RosRobotControllerM4`) | Motor PID, encoders, onboard IMU, optional servo bus/SBUS/LCD |
 | Wireless bridge | ESP32-S3-WROOM-1 | Bluetooth/Wi-Fi bridge to Rock64 |
 | Drivetrain | Hiwonder Suspension Shock-Absorbing Tracked Chassis | 2-motor tracked base |
-| Ranging | STL-50B2 TOF LiDAR (UART) | Obstacle/mapping |
+| Ranging | Optional STL-50B2 TOF LiDAR (UART) | Future obstacle/mapping input |
 
-The STM32 firmware's pin config (`rock64_ranger_fw.ioc`) closely mirrors Hiwonder's own
+The STM32 firmware's pin config (`firmware/stm32_chassis/RosRobotControllerM4.ioc`) closely mirrors Hiwonder's own
 **ROS Robot Control Board** reference design for this chassis — same MCU, same 4-channel
 encoder/PWM-servo/bus-servo/SBUS/I2C/IMU topology. Section 3 covers that reference board
 in full since it's the closest official analog to the custom firmware.
@@ -103,7 +103,7 @@ There are two drive motors total (left track, right track) — this is a 2-motor
 
 This is Hiwonder's own STM32F407VET6 controller board sold as the electronics partner for chassis
 like the one above. It is **not necessarily the exact board in this project** (the project uses a
-custom `rock64_ranger_fw` build) — but the pin topology is close enough that this is the best
+custom `RosRobotControllerM4` build) — but the pin topology is close enough that this is the best
 official reference for cross-checking pin assignments, protocol choices, and default peripheral use.
 
 ### Full official spec table
@@ -135,14 +135,14 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Software | ROS1 and ROS2 SDKs (Python 3), full source for motor control / attitude calc / PC comms |
 
 > **Production-image pin ownership (current):** J1/PA11 is the only enabled
-> SG90 output. The HC-SR04 uses J4/PC8 for TRIG and J2/PA12 for ECHO. PC9,
-> PC10, and PC11 are not HC-SR04 connector signals on this controller.
+> SG90 output. The Hiwonder Glowy module uses the dedicated four-pin I2C
+> connector at address `0x77` and shares I2C2 with the onboard IMU.
 
-### Cross-reference to this project's `rock64_ranger_fw.ioc`
+### Cross-reference to this project's `RosRobotControllerM4.ioc`
 | Reference board feature | Project's STM32 pin | Match |
 |---|---|---|
 | 4× encoder motor ports | TIM2/TIM3/TIM4/TIM5, CH1+CH2 encoder mode | Exact peripheral match; only 2 of 4 channels are wired to the physical chassis motors (left/right track) |
-| Reference PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | J1/PA11 remains SG90; J4/PC8 is HC-SR04 TRIG and J2/PA12 is HC-SR04 ECHO |
+| Reference PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | J1/PA11 remains SG90; secondary pads are inert in the production image |
 | Serial bus servo port | USART6 (PC6 TX / PC7 RX) + PE7/PE8 as TX/RX bus-direction-enable | Matches Hiwonder's half-duplex bus-servo driver topology exactly |
 | SBUS input | UART5 RX (PD2), 100000 baud, 9-bit, even parity, 2 stop bits | Standard SBUS framing, matches |
 | Rock64 host link | USART1 (PA9 TX / PA10 RX), 1,000,000 baud | WCH USB-UART motor link on the product connector labeled UART1 |
@@ -153,10 +153,9 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Motor enable input | PD3, `GPIO_Input`, labeled MOTOR_ENABLE | Pin is present, but the current production firmware does not read it or gate PWM; polarity and physical wiring still require board validation |
 
 **Production pin ownership is resolved in the current image:** PA11 is the
-single CPU-timed SG90 output, PC8 is the HC-SR04 TRIG output, and PA12 is the
-HC-SR04 ECHO EXTI input. The legacy four-servo object array remains only as a
-compatibility API; channels 2–4 are no-ops and must not be wired as active
-servo outputs.
+single CPU-timed SG90 output. The legacy four-servo object array remains only
+as a compatibility API; channels 2–4 are no-ops and must not be wired as
+active servo outputs.
 
 ---
 
@@ -226,7 +225,7 @@ deliberate design choice worth keeping documented — it bypasses the reference 
 
 ---
 
-## 5. STM32F407VET6 Pin Mapping — rock64_ranger_fw Configuration
+## 5. STM32F407VET6 Pin Mapping — RosRobotControllerM4 Configuration
 
 Complete pin-by-pin mapping of the custom firmware configuration, cross-referenced with the Hiwonder reference board and component assignments.
 
@@ -296,16 +295,19 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 ### Timer/Encoder Inputs (Motor Encoders)
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PA0 | TIM5_CH1 | Motor encoder 4 | Quadrature encoder input channel 1 |
-| PA1 | TIM5_CH2 | Motor encoder 4 | Quadrature encoder input channel 2 |
-| PA15 | TIM2_CH1_ETR | Motor encoder 2 | Quadrature encoder input channel 1 |
-| PB3 | TIM2_CH2 | Motor encoder 2 | Quadrature encoder input channel 2 |
-| PB4 | TIM3_CH1 | Motor encoder 3 | Quadrature encoder input channel 1 |
-| PB5 | TIM3_CH2 | Motor encoder 3 | Quadrature encoder input channel 2 |
-| PB6 | TIM4_CH1 | Motor encoder 1 | Quadrature encoder input channel 1 |
-| PB7 | TIM4_CH2 | Motor encoder 1 | Quadrature encoder input channel 2 |
+| PA0 | TIM5_CH1 | Active left-track encoder (motor 0 / M1) | Quadrature encoder input channel 1 |
+| PA1 | TIM5_CH2 | Active left-track encoder (motor 0 / M1) | Quadrature encoder input channel 2 |
+| PA15 | TIM2_CH1_ETR | Active right-track encoder (motor 1 / M2) | Quadrature encoder input channel 1 |
+| PB3 | TIM2_CH2 | Active right-track encoder (motor 1 / M2) | Quadrature encoder input channel 2 |
+| PB4 | TIM3_CH1 | Spare encoder channel (motor 2 / M3) | Quadrature encoder input channel 1 |
+| PB5 | TIM3_CH2 | Spare encoder channel (motor 2 / M3) | Quadrature encoder input channel 2 |
+| PB6 | TIM4_CH1 | Spare encoder channel (motor 3 / M4) | Quadrature encoder input channel 1 |
+| PB7 | TIM4_CH2 | Spare encoder channel (motor 3 / M4) | Quadrature encoder input channel 2 |
 
-**Note:** Only encoders 1 (TIM4) and 2 (TIM2) are actively used for the 2-motor tracked chassis (left/right track). Encoders 3 (TIM3) and 4 (TIM5) are configured but not physically connected to the chassis motors.
+**Active two-motor image:** motor 0 / left track uses TIM5 (PA0/PA1), and
+motor 1 / right track uses TIM2 (PA15/PB3). TIM3 and TIM4 remain configured
+spare channels for future expansion and are not part of the current chassis
+drive or telemetry contract.
 
 ### Timer PWM Outputs (Motor Control)
 | Pin | Signal | Component | Rationale |
@@ -327,17 +329,18 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 | PD13 | GPIO_Output (LCD_DC) | LCD data/command | LCD data/command select |
 | PD14 | GPIO_Output (LCD_RES) | LCD reset | LCD hardware reset |
 
-### GPIO / HC-SR04 / SG90 ownership (production image)
+### GPIO / I2C sensor / SG90 ownership (production image)
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
 | PA11 | `PWM_SERVO_1` GPIO output | SG90 J1 | Sole production PWM servo output |
-| PA12 | `HC_SR04_ECHO` rising/falling EXTI input | J2 signal | Never drive as a servo output |
-| PC8 | `HC_SR04_TRIG` GPIO output | J4 signal | 10 us trigger pulse |
-| PC9/PC10/PC11 | Unused by HC-SR04 | None | Do not use as the sensor pair |
+| PB10 | `I2C2_SCL` | Dedicated I2C connector SCL | Shared with the Glowy module and onboard IMU |
+| PB11 | `I2C2_SDA` | Dedicated I2C connector SDA | Shared with the Glowy module and onboard IMU |
+| PA12/PC8/PC9/PC10/PC11 | Inert or candidate GPIO | No production sensor ownership | Do not use as an unverified sensor interface |
 
 The legacy reference-board timer-remapping suggestions are historical and do
-do not apply to the production image. Changing PC8 or PA12 back to servo
-outputs would break ultrasonic capture and is not an approved firmware change.
+not apply to the production image. The distance sensor is I2C-only; do not
+reassign the dedicated I2C bus or treat the legacy secondary pads as sensor
+inputs.
 
 #### Issue 2: WCH motor transport documentation
 **Resolution:** The approved custom image uses the physical UART1 connector

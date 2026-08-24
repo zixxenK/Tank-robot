@@ -42,17 +42,8 @@ if [[ "${DO_BUILD}" == true ]]; then
   # may retain a build directory from a different checkout, generator, or
   # compiler; reconfigure alone is not a sufficient stale-artifact guard.
   rm -rf build/Release
-  cmake -S . -B build/Release \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -G 'Unix Makefiles'
-  cmake --build build/Release -j"${STM32_BUILD_JOBS:-4}"
-fi
-
-# If a caller built the canonical Rock64 profile, use that artifact rather
-# than silently flashing an older Release checkout.
-if [[ ! -f "${BIN_FILE}" && -f "${FIRMWARE_DIR}/build/rock64/RosRobotControllerM4.bin" ]]; then
-  BUILD_DIR="${FIRMWARE_DIR}/build/rock64"
-  BIN_FILE="${BUILD_DIR}/RosRobotControllerM4.bin"
+  cmake --preset Release
+  cmake --build --preset Release --parallel "${STM32_BUILD_JOBS:-4}"
 fi
 
 if [[ ! -f "${BIN_FILE}" ]]; then

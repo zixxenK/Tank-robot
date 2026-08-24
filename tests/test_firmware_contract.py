@@ -87,21 +87,21 @@ def test_uninitialized_battery_cannot_emit_a_false_low_voltage_warning():
     assert "Battery_Update() == 0 && Battery_IsReady()" in freertos
 
 
-def test_hc_sr04_echo_exti_enables_the_irq_vector_for_the_real_board_pair():
+def test_glowy_ultrasonic_uses_the_i2c_expansion_sensor_contract():
+    sensor = _read(
+        "firmware/stm32_chassis/Hiwonder/System/glowy_ultrasonic.c"
+    )
+    assert "GLOWY_ULTRASONIC_ADDRESS       0x77U" in sensor
+    assert "GLOWY_ULTRASONIC_DISTANCE_REG  0x00U" in sensor
+    assert "HAL_I2C_IsDeviceReady(&hi2c2" in sensor
+    assert "HAL_I2C_Mem_Read(&hi2c2" in sensor
+
+
+def test_glowy_ultrasonic_does_not_claim_legacy_pulse_pins():
     gpio = _read("firmware/stm32_chassis/Core/Src/gpio.c")
     interrupt = _read("firmware/stm32_chassis/Core/Src/stm32f4xx_it.c")
-    assert "HAL_GPIO_Init(HC_SR04_ECHO_GPIO_Port" in gpio
-    assert "GPIO_MODE_IT_RISING_FALLING" in gpio
-    assert "HAL_NVIC_EnableIRQ(EXTI15_10_IRQn)" in gpio
-    assert "HAL_GPIO_EXTI_IRQHandler(HC_SR04_ECHO_Pin)" in interrupt
-    assert "EXTI9_5_IRQHandler" not in interrupt
-
-
-def test_hc_sr04_rejected_echoes_cannot_exceed_ros_range_contract():
-    ultrasonic = _read("firmware/stm32_chassis/Hiwonder/System/hc_sr04.c")
-    assert "#define HC_SR04_MIN_ECHO_US 117U" in ultrasonic
-    assert "#define HC_SR04_MAX_ECHO_US 23323U" in ultrasonic
-    assert "status_code = HC_SR04_STATUS_TIMEOUT" in ultrasonic
+    assert "GPIO_MODE_IT_RISING_FALLING" not in gpio
+    assert "HAL_GPIO_EXTI_IRQHandler" not in interrupt
 
 
 def test_imu_rate_limited_cycles_reuse_the_last_valid_sample():
@@ -139,29 +139,81 @@ def test_imu_startup_verifies_identity_and_retries_bus_failures():
     assert "IMU_RETRY_PERIOD_MS" in integration
     assert "next_imu_init_attempt" in integration
     assert "imu_initialized = false;" in integration
-    assert "imu_last_error = -3;" in integration
+    assert "IMU_STATUS_UNAVAILABLE" in integration
+    assert "HAL_I2C_Mem_Read" in integration
+    assert "imu_identity_is_supported" in integration
 
 
-def test_hc_sr04_owns_the_legacy_servo_conflict_pins():
+def test_imu_diagnostics_are_carried_over_the_packed_protocol():
+    integration = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_integration_packed.c"
+    )
+    protocol_h = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_packed.h"
+    )
+    protocol_c = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_packed.c"
+    )
+    imu = _read("firmware/stm32_chassis/Hiwonder/System/imu_integration.h")
+    assert "FUNC_IMU_DIAG          = 0x16" in protocol_h
+    assert "IMUDiagnosticsTelemetry" in protocol_h
+    assert "IMU_GetDiagnostics(&diagnostics)" in protocol_c
+    assert "binary_protocol_send_imu_diagnostics" in integration
+    assert "IMU_STATUS_READY" in imu
+
+
+def test_imu_accepts_known_mpu_family_identity_values():
+    """Known MPU-family identities remain explicitly checked."""
+    header = _read(
+        "firmware/stm32_chassis/Hiwonder/Peripherals/imu_mpu6050.h"
+    )
+    integration = _read(
+        "firmware/stm32_chassis/Hiwonder/System/imu_integration.c"
+    )
+    for value in (
+        "MPU6050_WHO_AM_I_MPU6500",
+        "MPU6050_WHO_AM_I_MPU9250",
+        "MPU6050_WHO_AM_I_MPU9255",
+    ):
+        assert value in header
+        assert value in integration
+
+
+def test_imu_reset_and_reads_check_i2c_return_values():
+    driver = _read(
+        "firmware/stm32_chassis/Hiwonder/Peripherals/imu_mpu6050.c"
+    )
+    integration = _read(
+        "firmware/stm32_chassis/Hiwonder/System/imu_integration.c"
+    )
+    assert "int mpu6050_reset(MPU6050ObjectTypeDef *self)" in driver
+    assert "mpu6050_reset(&imu_sensor) != 0" in integration
+    assert "!= HAL_OK" in integration
+    assert "imu_error_count++" in integration
+
+
+def test_legacy_secondary_servo_pads_are_inert_for_i2c_sensor_use():
     main_h = _read("firmware/stm32_chassis/Core/Inc/main.h")
     ioc = _read("firmware/stm32_chassis/RosRobotControllerM4.ioc")
     pins_csv = _read("firmware/stm32_chassis/stm32pinscustom.csv")
     servo_port = _read(
         "firmware/stm32_chassis/Hiwonder/Portings/pwm_servo_porting.c"
     )
-    assert "#define HC_SR04_ECHO_Pin GPIO_PIN_12" in main_h
-    assert "#define HC_SR04_TRIG_Pin GPIO_PIN_8" in main_h
+    assert "HC_" not in main_h
     assert "PC10/PC11" not in main_h
     assert "PC10" not in ioc
     assert "PC11" not in ioc
     assert "PWM_SERVO_2_Pin" not in main_h
     assert "PWM_SERVO_3_Pin" not in main_h
-    assert "PA12.GPIO_ModeDefault=GPIO_MODE_IT_RISING_FALLING" in ioc
+    assert "PA12.GPIO_Label=UNUSED_PA12" in ioc
     assert "PB12.Signal=GPIO_Input" in ioc
-    assert "PC8.Signal=GPIO_Output" in ioc
-    assert "PA12.Signal=GPIO_EXTI12" in ioc
-    assert '"65","PC8","Output","GPIO_Output","HC_SR04_TRIG"' in pins_csv
-    assert '"71","PA12","I/O","GPIO_EXTI12","HC_SR04_ECHO"' in pins_csv
+    assert "PC8.Signal=GPIO_Analog" in ioc
+    assert "PA12.Signal=GPIO_Analog" in ioc
+    assert '"65","PC8","Analog","GPIO_Analog","UNUSED_PC8"' in pins_csv
+    assert '"71","PA12","Analog","GPIO_Analog","UNUSED_PA12"' in pins_csv
     assert "HAL_GPIO_WritePin" in servo_port  # J1 remains the live output
     for channel in (2, 3, 4):
         body = re.search(

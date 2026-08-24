@@ -45,8 +45,8 @@ over a generic “GPIO available” label:
 | `PC12` | UART5 TX, paired with SBUS receive support | Not a free GPIO in the current image |
 | `PA2`, `PA3`, `PA6`, `PA7` | Analog/free GPIO initialization | Candidate GPIOs; verify board routing first |
 | `PC0`, `PC1`, `PC2`, `PC5` | Analog/free GPIO initialization | Candidate GPIOs; verify board routing first |
-| `PC10` | Free/candidate GPIO | Not used by the HC-SR04 |
-| `PC11` | Free/candidate GPIO | Not used by the HC-SR04 |
+| `PC10` | Free/candidate GPIO | Available only after board-routing verification |
+| `PC11` | Free/candidate GPIO | Available only after board-routing verification |
 | `PD4`, `PD10`, `PD15` | Analog/free GPIO initialization | Candidate GPIOs; verify board routing first |
 | `PE2`, `PE3` | Analog/free GPIO initialization | Candidate GPIOs; verify board routing first |
 
@@ -63,17 +63,15 @@ The current project intentionally keeps these non-expansion connections:
 
 - Host motor link: `PA9`/`PA10`, USART1, through the product UART1 USB-UART
 - SG90: `PA11`, J1 only
-- HC-SR04 trigger: `PC8`, J4 signal (`S`)
-- HC-SR04 echo: `PA12`, J2 signal (`S`); use level protection unless verified safe
+- Glowy ultrasonic: dedicated four-pin I2C connector (`5V`, `GND`, `SDA`, `SCL`), address `0x77`
 - Buzzer: `PA8`
 - Battery sense: `PB0`
 - IMU: I²C2 `PB10`/`PB11`, interrupt `PB12`
 
-Moving the HC-SR04 or another device onto the bottom expansion header requires
-changing the STM32 GPIO initialization, interrupt/timer setup where needed,
-the `.ioc` source of truth, firmware protocol documentation, and hardware
-tests together. Do not reassign motor encoder, UART1, SWD, SBUS, IMU, or bus-
-servo pins just because they appear near the expansion connector.
+The Glowy module is already supported on the controller's dedicated I2C
+connector and shares I2C2 with the onboard IMU. Do not reassign motor encoder,
+UART1, SWD, SBUS, IMU, or bus-servo pins just because they appear near the
+expansion connector.
 
 ## Agent interpretation rule
 

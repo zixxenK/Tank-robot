@@ -20,7 +20,10 @@ def generate_launch_description():
                 'resolution': 0.1,
                 'goal_topic': '/goal_pose',
                 'path_topic': '/planned_path',
-                'cmd_vel_topic': '/cmd_vel',
+                # Keep autonomous planning out of the operator /cmd_vel lane.
+                # The safety gateway still requires /agent/heartbeat before
+                # accepting this proposal.
+                'cmd_vel_topic': '/agent/cmd_vel_proposed',
                 'odom_topic': '/stm32/odom',
                 'diagonal': True,
             }],

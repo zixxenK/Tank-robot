@@ -29,8 +29,10 @@ def generate_launch_description():
             name='adaptive_controller',
             parameters=[{
                 'imu_topic': '/stm32/imu',
-                'cmd_vel_input': '/cmd_vel',
-                'cmd_vel_output': '/cmd_vel_adapted',
+                # Proposal-only path; the safety gateway owns the final
+                # arbitration and requires an agent heartbeat.
+                'cmd_vel_input': '/agent/cmd_vel_planned',
+                'cmd_vel_output': '/agent/cmd_vel_proposed',
                 'terrain_topic': '/terrain/type',
                 'window_size': 100,
                 'sample_rate': 50.0,

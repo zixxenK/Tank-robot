@@ -28,6 +28,16 @@ set +u
 source "${REPO_ROOT}/deployment/scripts/source_host_ws.sh"
 set -u
 
+command -v systemctl >/dev/null 2>&1 || {
+  echo "[start_and_test] ERROR: systemctl is required on the Rock64." >&2
+  exit 1
+}
+systemctl cat rock64-robot.service >/dev/null 2>&1 || {
+  echo "[start_and_test] ERROR: rock64-robot.service is not installed." >&2
+  echo "[start_and_test] Run deployment/scripts/rock64_setup.sh first." >&2
+  exit 1
+}
+
 echo "[start_and_test] spring-cleaning stale operator processes and ROS CLI state"
 bash "${REPO_ROOT}/scripts/cleanup_runtime.sh"
 echo "[start_and_test] restarting the single hardware owner: rock64-robot.service"
@@ -46,6 +56,13 @@ systemctl is-active --quiet rock64-robot.service || {
 }
 
 echo "[start_and_test] ROS 2 stack is active; running ordered checks"
-exec bash "${REPO_ROOT}/scripts/hardware_acceptance.sh" \
-  $( [[ "${TRACKS_RAISED}" == true ]] && echo --tracks-raised ) \
-  $( [[ "${REQUIRE_LIDAR}" == true ]] && echo --with-lidar || echo --no-lidar )
+ACCEPTANCE_ARGS=()
+if [[ "${TRACKS_RAISED}" == true ]]; then
+  ACCEPTANCE_ARGS+=(--tracks-raised)
+fi
+if [[ "${REQUIRE_LIDAR}" == true ]]; then
+  ACCEPTANCE_ARGS+=(--with-lidar)
+else
+  ACCEPTANCE_ARGS+=(--no-lidar)
+fi
+exec bash "${REPO_ROOT}/scripts/hardware_acceptance.sh" "${ACCEPTANCE_ARGS[@]}"

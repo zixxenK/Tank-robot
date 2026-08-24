@@ -1,201 +1,85 @@
-# End-to-End Integration Guide
+# End-to-end integration reference
 
-## Package Build Status
+This document describes the current graph and the safe extension boundary.
+The operator procedure is [OPERATOR_GUIDE.md](OPERATOR_GUIDE.md); this file is
+the technical wiring reference for future lab-assistant work.
 
-All packages are properly configured with `ament_cmake_python` build system:
+## Active milestone
 
-### ✅ Perception Package
-- **CMakeLists.txt**: Installs `object_detector.py` and `obstacle_detector.py`
-- **Launch**: `perception.launch.py` launches both perception nodes
-- **Dependencies**: `rclpy`, `sensor_msgs`, `vision_msgs`, `geometry_msgs`, `cv_bridge`, `opencv-python`
-
-### ✅ Navigation Package
-- **CMakeLists.txt**: Installs `path_planner.py`
-- **Launch**: `navigation.launch.py` launches path planner
-- **Dependencies**: `rclpy`, `geometry_msgs`, `nav_msgs`, `numpy`
-
-### ✅ Terrain Adaptation Package
-- **CMakeLists.txt**: Installs `terrain_classifier.py` and `adaptive_controller.py`
-- **Launch**: `terrain_adaptation.launch.py` launches both terrain nodes
-- **Dependencies**: `rclpy`, `sensor_msgs`, `geometry_msgs`, `std_msgs`, `numpy`
-
-### ✅ Robot Bringup Package
-- **package.xml**: Updated with dependencies on perception, navigation, terrain_adaptation
-- **Launch**: `full_stack.launch.py` includes the canonical Rock64 hardware
-  bringup (STM32 bridge, safety gateway, and acquisition nodes) before adding
-  perception, navigation, and terrain adaptation. Do not launch it alongside
-  `rock64_bringup.launch.py`, or duplicate safety/bridge owners will be created.
-
-## Topic Wiring Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           FULL AUTONOMOUS STACK                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────┐
-│ ESP32 Camera     │
-│ (esp32_camera   │
-│  _bridge)       │
-└────────┬─────────┘
-         │ /camera/image_raw
-         ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          PERCEPTION LAYER                                     │
-├──────────────────┬──────────────────────────────────────────────────────────┤
-│ Object Detector  │ Obstacle Detector                                       │
-│ (HSV color seg)  │ (Edge + motion detection)                               │
-└────────┬─────────┴──────────────────────────────────────────────────────────┘
-         │ /perception/detections    │ /perception/obstacles
-         │                           │ /perception/avoidance_vector
-         ▼                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          NAVIGATION LAYER                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Path Planner (A*/Dijkstra/Simple)                                           │
-│ Input: /goal_pose, /map                                                     │
-│ Output: /cmd_vel_planned, /planned_path                                     │
-└────────┬────────────────────────────────────────────────────────────────────┘
-         │ /cmd_vel_planned
-         ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      TERRAIN ADAPTATION LAYER                                │
-├──────────────────┬──────────────────────────────────────────────────────────┤
-│ Terrain          │ Adaptive Controller                                       │
-│ Classifier       │ (IMU-based speed/power adjustment)                        │
-│ (IMU → terrain)  │                                                          │
-└────────┬─────────┴──────────────────────────────────────────────────────────┘
-         │ /terrain/type
-         ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          SAFETY LAYER                                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Safety Gateway (agent_core)                                                 │
-│ Input: /cmd_vel (from adaptive controller)                                  │
-│ Output: /ranger/cmd_vel_safe (to STM32)                                     │
-└────────┬────────────────────────────────────────────────────────────────────┘
-         │ /ranger/cmd_vel_safe
-         ▼
-┌──────────────────┐
-│ STM32 Hardware   │
-│ (stm32_hardened  │
-│  _bridge)        │
-└──────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          TELEMETY LAYER                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Telemetry Recorder (rosbag2)                                                │
-│ Records: cmd_vel, encoder, imu, battery, odometry, camera, diagnostics     │
-└─────────────────────────────────────────────────────────────────────────────┘
+```text
+PS5 DualSense -> /cmd_vel --------------------+
+                                               v
+ESP32 camera -> /camera/image_raw       safety_gateway
+USB camera   -> /camera/usb/image_raw          |
+STM32 IMU    -> /stm32/imu                     v
+STM32 odom   -> /stm32/odom             /ranger/cmd_vel_safe
+                                               |
+                                      stm32_hardened_bridge
+                                               |
+                                  WCH UART1 -> STM32 USART1
 ```
 
-## Topic Reference
+The active acceptance gate covers the STM32 bridge, left/right encoder
+telemetry, derived odometry, the onboard MPU6050, PS5 input, and both cameras.
+Servo, battery, Glowy ultrasonic, and LiDAR checks are optional until their
+hardware is commissioned.
 
-### Input Topics (Hardware/External)
-- `/camera/image_raw` - Camera images from ESP32
-- `/stm32/imu` - IMU data from STM32
-- `/stm32/encoder_ticks` - Motor encoder feedback
-- `/stm32/joint_states` - Joint state telemetry
-- `/stm32/battery` - Battery state
-- `/stm32/odom` - Odometry
-- `/stm32/diagnostics` - Hardware diagnostics
-- `/map` - Occupancy grid for navigation
-- `/goal_pose` - Navigation goal
+## Future proposal path
 
-### Output Topics (Perception)
-- `/perception/detections` - Detected objects (Detection2DArray)
-- `/perception/debug_image` - Debug visualization
-- `/perception/obstacles` - Obstacle data (Float32MultiArray)
-- `/perception/obstacle_debug` - Obstacle debug image
-- `/perception/avoidance_vector` - Avoidance command (Twist)
+Perception, navigation, terrain adaptation, and LM Studio are future-facing
+lab-assistant components. They must remain outside the operator lane:
 
-### Output Topics (Navigation)
-- `/planned_path` - Planned path (nav_msgs/Path)
-- `/cmd_vel_planned` - Velocity command from planner
-
-### Output Topics (Terrain Adaptation)
-- `/terrain/type` - Terrain classification (String, format: "type:confidence")
-- `/cmd_vel` - Adapted velocity command (to safety gateway)
-
-### Safety Topics
-- `/ranger/cmd_vel_safe` - Safety-gated command to STM32
-- `/safety/e_stop` - Emergency stop signal
-- `/stm32/bridge_alive` - Bridge heartbeat
-
-## Launch Commands
-
-### Individual Package Launch
-```bash
-# Perception only
-ros2 launch perception perception.launch.py
-
-# Navigation only
-ros2 launch navigation navigation.launch.py
-
-# Terrain adaptation only
-ros2 launch terrain_adaptation terrain_adaptation.launch.py
+```text
+goal/map/camera/IMU
+       |
+       v
+navigation -> /agent/cmd_vel_planned
+       |
+terrain_adaptation -> /agent/cmd_vel_proposed
+       |
+LM Studio / agent supervisor -> /agent/heartbeat
+       +---------------------->
+                         safety_gateway
 ```
 
-### Full Autonomous Stack
-```bash
-# Launch all perception, navigation, and terrain adaptation nodes
-ros2 launch robot_bringup full_stack.launch.py
+The safety gateway accepts `/agent/cmd_vel_proposed` only while the agent
+heartbeat is fresh. Therefore launching a planner or terrain node alone cannot
+authorize motion. No autonomous node publishes to `/cmd_vel`, and no future
+node may write to the STM32 serial link directly.
 
-# With optional components
-ros2 launch robot_bringup full_stack.launch.py use_perception:=true use_navigation:=true use_terrain_adaptation:=true use_camera:=true
-```
+## Topic ownership
 
-### Hardware Bringup (Existing)
-```bash
-# Launch safety gateway, teleop, STM32 bridge, camera bridge
-ros2 launch robot_bringup rock64_bringup.launch.py
-```
+| Topic | Owner or source | Role |
+| --- | --- | --- |
+| `/cmd_vel` | PS5/keyboard and raised-track maintenance tools | Operator proposal lane |
+| `/agent/cmd_vel_planned` | Navigation | Internal autonomous proposal |
+| `/agent/cmd_vel_proposed` | Agent/terrain proposal boundary | Heartbeat-gated proposal |
+| `/agent/heartbeat` | Authorized agent supervisor | Autonomous motion authority |
+| `/ranger/cmd_vel_safe` | Safety gateway | Final host-safe command |
+| `/stm32/odom` | Hardened STM32 bridge | Canonical hardware odometry |
+| `/stm32/imu` | Hardened STM32 bridge | Onboard MPU6050 telemetry |
+| `/camera/image_raw` | ESP32 camera bridge | Primary camera image |
+| `/camera/usb/image_raw` | USB camera bridge | Secondary camera image |
 
-## Build Verification
+## Launch profiles
 
-To build all packages:
-```bash
-cd ~/Tank-robot/host_ws
-colcon build --packages-select perception navigation terrain_adaptation robot_bringup
-```
+Use `rock64_bringup.launch.py` for the active hardware acquisition and PS5
+profile. `full_stack.launch.py` includes that graph but defaults perception,
+navigation, and terrain adaptation off; those options are explicitly future
+profiles and remain heartbeat-gated when enabled.
 
-To source the workspace:
-```bash
-source install/setup.bash
-```
+Use `pc_dashboard.launch.py` for read-only Foxglove, TF completion, and
+optional SLAM on the PC/WSL side. The old `rock64_dashboard.launch.py` name is
+only a compatibility alias for that PC-only launch.
 
-## Data Flow Summary
+Use `gazebo_telemetry.launch.py` only for simulation. Simulation remaps Gazebo
+topics to `/cmd_vel` and `/odom` inside the simulation profile; it does not
+change the production hardware topics or the production safety boundary.
 
-1. **Camera → Perception**: ESP32 camera publishes images to `/camera/image_raw`
-2. **Perception → Navigation**: Object/obstacle detections published for higher-level planning
-3. **Navigation → Terrain**: Path planner outputs `/cmd_vel_planned`; when
-   terrain adaptation is disabled, the finite-value relay forwards this topic
-   to `/cmd_vel`
-4. **IMU → Terrain**: STM32 publishes IMU data to `/stm32/imu`
-5. **Terrain → Safety**: Adaptive controller outputs adapted `/cmd_vel`
-6. **Safety → Hardware**: Safety gateway outputs `/ranger/cmd_vel_safe` to STM32
+## LM Studio boundary
 
-Autonomous path following also fails closed until both `/stm32/odom` and a
-valid `/map` have arrived. Occupancy grids are applied at their published
-dimensions/resolution, and unknown (`-1`) cells are treated as occupied.
-
-### Battery availability boundary
-
-The ROS battery path is implemented end to end, but the current motor-only
-STM32 image intentionally sends an unavailable voltage because the board has
-only one uncalibrated battery ADC channel. Keep `MONITOR_BATTERY=false` until
-the divider is calibrated against the physical pack. The hardware acceptance
-runner reports this as an explicit `SKIP`; enable `MONITOR_BATTERY=true` to
-make finite battery telemetry a required acceptance stage.
-
-## Configuration Files
-
-All nodes use ROS2 parameters for configuration:
-- Color ranges (HSV thresholds)
-- Planner type (astar/dijkstra/simple)
-- Terrain classification thresholds
-- Control parameters per terrain type
-- Camera IP and port
-
-Parameters can be overridden via launch file arguments or YAML config files.
+LM Studio runs on the PC/WSL side with its token supplied through
+`LM_API_TOKEN`. Its codegen and diagnostics nodes are read-only. Its bounded
+teleop node publishes only to the agent proposal and heartbeat topics, with
+short finite commands. See [LM_STUDIO_INTEGRATION.md](LM_STUDIO_INTEGRATION.md)
+and [ROADMAP.md](ROADMAP.md) before adding tools or autonomous arbitration.

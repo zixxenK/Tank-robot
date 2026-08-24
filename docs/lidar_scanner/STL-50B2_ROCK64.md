@@ -44,9 +44,11 @@ stream parser for the LDROBOT STL packet format:
 ## Build and run
 
 ```bash
-cd ~/Tank-robot/host_ws
-colcon build --symlink-install --packages-select robot_drivers robot_bringup
-source install/setup.bash
+cd ~/Tank-robot
+source deployment/scripts/source_host_ws.sh
+cd "$HOST_WS_PATH"
+colcon build --symlink-install
+source ../deployment/scripts/source_host_ws.sh
 ros2 launch robot_bringup stl50b2.launch.py
 ```
 

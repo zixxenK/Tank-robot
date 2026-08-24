@@ -108,5 +108,6 @@ def test_runner_is_stable_in_minimal_ssh_ros_environment():
     runner = _read("scripts/e2e_mission.py")
 
     assert 'PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"' in runner
-    assert '"-S"' in runner and '"build/Release"' in runner
+    assert '"--preset", "Release"' in runner
+    assert '"--build", "--preset", "Release"' in runner
     assert 'ros_bin = ros_setup.parent / "bin"' in runner

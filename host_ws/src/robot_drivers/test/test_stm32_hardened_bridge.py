@@ -16,7 +16,8 @@ from robot_drivers.stm32_hardened_bridge import (
     FUNC_BUZZER,
     FUNC_SERVO,
     FUNC_HEARTBEAT,
-    FUNC_ULTRASONIC,
+    FUNC_GLOWY_ULTRASONIC,
+    FUNC_IMU_DIAG,
     MOTOR_SUBCMD_SET_SPEED,
     SERVO_CHANNEL_J1,
     SERVO_SUBCMD_SET_POSITION,
@@ -292,11 +293,11 @@ class TestFrameParser(unittest.TestCase):
         stats = parser.get_stats()
         self.assertEqual(stats["valid_frames"], 1)
 
-    def test_ultrasonic_telemetry_frame(self):
-        """Parse the six-byte HC-SR04 telemetry payload."""
+    def test_glowy_ultrasonic_telemetry_frame(self):
+        """Parse the four-byte Glowy I2C telemetry payload."""
         parser = FrameParser()
-        payload = struct.pack("<HHBB", 1234, 7198, 1, 0)
-        body = bytes([FUNC_ULTRASONIC, len(payload)]) + payload
+        payload = struct.pack("<HBB", 1234, 1, 1)
+        body = bytes([FUNC_GLOWY_ULTRASONIC, len(payload)]) + payload
         frame = bytes([SYNC_1, SYNC_2]) + body + bytes([
             crc8_ccitt(body)
         ])
@@ -307,9 +308,9 @@ class TestFrameParser(unittest.TestCase):
 
         self.assertIsNotNone(result)
         function_code, parsed_payload = result
-        self.assertEqual(function_code, FUNC_ULTRASONIC)
-        self.assertEqual(struct.unpack("<HHBB", parsed_payload),
-                         (1234, 7198, 1, 0))
+        self.assertEqual(function_code, FUNC_GLOWY_ULTRASONIC)
+        self.assertEqual(struct.unpack("<HBB", parsed_payload),
+                         (1234, 1, 1))
 
     def test_invalid_crc(self):
         """Test rejection of invalid CRC."""
@@ -446,6 +447,42 @@ class TestIntegration(unittest.TestCase):
         telemetry.imu_accel = (0.0, 0.0, 0.0)
         telemetry.imu_received = True
         self.assertTrue(telemetry.imu_received)
+
+    def test_imu_diagnostics_frame_has_explicit_onboard_identity(self):
+        """The host can distinguish a ready onboard IMU from zero placeholders."""
+        parser = FrameParser()
+        payload = struct.pack("<BBHIIl", 1, 0x68, 0x68, 12, 0, 0)
+        body = bytes([FUNC_IMU_DIAG, len(payload)]) + payload
+        frame = bytes([SYNC_1, SYNC_2]) + body + bytes([crc8_ccitt(body)])
+
+        result = None
+        for byte in frame:
+            result = parser.process_byte(byte)
+        self.assertEqual(result, (FUNC_IMU_DIAG, payload))
+
+        bridge = STM32HardenedBridge.__new__(STM32HardenedBridge)
+        bridge._telemetry_lock = threading.Lock()
+        bridge._telemetry = TelemetryData()
+        bridge._parse_imu_diagnostics(payload)
+        self.assertTrue(bridge._telemetry.imu_ready)
+        self.assertEqual(bridge._telemetry.imu_address, 0x68)
+        self.assertEqual(bridge._telemetry.imu_who_am_i, 0x68)
+        self.assertEqual(bridge._telemetry.imu_sample_count, 12)
+
+    def test_imu_sample_is_published_only_after_ready_diagnostics(self):
+        """A finite but placeholder telemetry frame cannot claim IMU presence."""
+        bridge = STM32HardenedBridge.__new__(STM32HardenedBridge)
+        bridge._telemetry_lock = threading.Lock()
+        bridge._telemetry = TelemetryData()
+        sample = struct.pack("<ffffff", 0.0, 0.0, 9.81, 0.0, 0.0, 0.0)
+        bridge._parse_imu_telemetry(sample)
+        self.assertTrue(bridge._telemetry.imu_sample_valid)
+        self.assertFalse(bridge._telemetry.imu_received)
+
+        bridge._parse_imu_diagnostics(
+            struct.pack("<BBHIIl", 1, 0x68, 0x68, 1, 0, 0)
+        )
+        self.assertTrue(bridge._telemetry.imu_received)
 
 
 class TestSerialFailureHandling(unittest.TestCase):

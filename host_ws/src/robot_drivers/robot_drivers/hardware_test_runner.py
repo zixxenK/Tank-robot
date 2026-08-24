@@ -71,6 +71,35 @@ def parse_ps5_connected(status_text: str) -> bool:
     return match.group(1).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def parse_onboard_imu_diagnostic(message: object) -> Tuple[bool, str]:
+    """Extract the bridge's explicit onboard-IMU readiness evidence."""
+    for status in getattr(message, "status", ()):
+        name = str(getattr(status, "name", "")).lower()
+        if "onboard mpu6050" not in name:
+            continue
+        values = {
+            str(item.key): str(item.value)
+            for item in getattr(status, "values", ())
+        }
+        ready = values.get("ready", "false").lower() in {
+            "1", "true", "yes", "on"
+        }
+        sample_valid = values.get("sample_valid", "false").lower() in {
+            "1", "true", "yes", "on"
+        }
+        detail = (
+            f"onboard={values.get('onboard', 'unknown')} "
+            f"bus={values.get('bus', 'unknown')} "
+            f"address={values.get('address', 'unknown')} "
+            f"who_am_i={values.get('who_am_i', 'unknown')} "
+            f"ready={ready} sample_valid={sample_valid} "
+            f"sample_count={values.get('sample_count', 'unknown')} "
+            f"error_count={values.get('error_count', 'unknown')}"
+        )
+        return ready and sample_valid, detail
+    return False, "no onboard MPU6050 diagnostic status received"
+
+
 def joy_has_operator_event(
     baseline_axes: Sequence[object],
     baseline_buttons: Sequence[object],
@@ -167,7 +196,7 @@ def validate_range_values(
     minimum: object,
     maximum: object,
 ) -> Tuple[bool, str]:
-    """Validate one finite HC-SR04 range observation."""
+    """Validate one finite Glowy I2C range observation."""
     try:
         value = float(distance)
         lower = max(0.02, float(minimum))
@@ -422,6 +451,11 @@ class HardwareTestRunner(Node):
         self._require_battery = self._boolean_parameter(
             "require_battery", False
         )
+        self._require_imu = self._boolean_parameter("require_imu", True)
+        self._require_ultrasonic = self._boolean_parameter(
+            "require_ultrasonic", False
+        )
+        self._require_servo = self._boolean_parameter("require_servo", False)
         self._motor_run_s = min(
             3.0,
             max(0.25, self._float_parameter("motor_run_seconds", 1.0)),
@@ -473,6 +507,7 @@ class HardwareTestRunner(Node):
         self._imu: Deque[
             Tuple[float, Tuple[Tuple[float, ...], Tuple[float, ...]]]
         ] = deque(maxlen=128)
+        self._imu_diagnostics: Deque[Tuple[float, object]] = deque(maxlen=32)
         self._ranges: Deque[Tuple[float, Tuple[float, float, float]]] = (
             deque(maxlen=256)
         )
@@ -498,6 +533,11 @@ class HardwareTestRunner(Node):
         sensor_qos = QoSProfile(
             depth=10,
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )
+        diagnostic_qos = QoSProfile(
+            depth=10,
+            reliability=QoSReliabilityPolicy.RELIABLE,
             durability=QoSDurabilityPolicy.VOLATILE,
         )
         self._result_pub = self.create_publisher(
@@ -535,6 +575,12 @@ class HardwareTestRunner(Node):
             Odometry, "/stm32/odom", self._odometry_callback, 10
         )
         self.create_subscription(Imu, "/stm32/imu", self._imu_callback, 10)
+        self.create_subscription(
+            DiagnosticArray,
+            "/stm32/diagnostics",
+            self._imu_diagnostics_callback,
+            diagnostic_qos,
+        )
         self.create_subscription(
             BatteryState,
             "/stm32/battery",
@@ -640,6 +686,9 @@ class HardwareTestRunner(Node):
         self._imu.append(
             (time.monotonic(), (acceleration, angular_velocity))
         )
+
+    def _imu_diagnostics_callback(self, message: DiagnosticArray) -> None:
+        self._imu_diagnostics.append((time.monotonic(), message))
 
     def _range_callback(self, message: Range) -> None:
         values = (
@@ -807,22 +856,36 @@ class HardwareTestRunner(Node):
             acceleration, gyro = value  # type: ignore[misc]
             return validate_imu_values(acceleration, gyro)[0]
 
+        def diagnostic() -> Tuple[bool, str]:
+            messages = self._fresh(
+                self._imu_diagnostics, since, lambda value: True
+            )
+            if not messages:
+                return False, "no onboard MPU6050 diagnostic status received"
+            return parse_onboard_imu_diagnostic(messages[-1])
+
         ready = self._spin_until(
-            lambda: len(self._fresh(self._imu, since, valid))
-            >= self._samples_required,
+            lambda: (
+                len(self._fresh(self._imu, since, valid))
+                >= self._samples_required
+                and diagnostic()[0]
+            ),
             self._timeout_s,
         )
         samples = self._fresh(self._imu, since, valid)
+        diagnostic_ready, diagnostic_detail = diagnostic()
         if not ready:
             return False, (
                 f"received {len(samples)}/{self._samples_required} fresh "
-                "finite plausible messages on /stm32/imu; verify the "
-                "MPU6050 is powered and connected to STM32 I2C2 "
-                "(PB10=SCL, PB11=SDA; address 0x68 or 0x69)"
+                "finite plausible messages on /stm32/imu; "
+                f"{diagnostic_detail}"
             )
         acceleration, gyro = samples[-1]  # type: ignore[misc]
         _, detail = validate_imu_values(acceleration, gyro)
-        return True, f"{len(samples)} fresh samples; {detail}"
+        return (
+            True,
+            f"{len(samples)} fresh samples; {detail}; {diagnostic_detail}",
+        )
 
     def _test_odometry(self) -> Tuple[bool, str]:
         """Verify the bridge's encoder-derived odometry is usable by planning."""
@@ -861,8 +924,9 @@ class HardwareTestRunner(Node):
         if not ready:
             return False, (
                 f"received {len(samples)}/{self._samples_required} fresh "
-                "valid finite messages on /ultrasonic/range; place a solid "
-                "target 0.02..4.0m in front of the HC-SR04"
+                "valid finite messages on /ultrasonic/range; connect the "
+                "Hiwonder Glowy module to the 4-pin I2C port and place a "
+                "solid target 0.02..4.0m in front of it"
             )
         distance, minimum, maximum = samples[-1]  # type: ignore[misc]
         _, detail = validate_range_values(distance, minimum, maximum)
@@ -1233,6 +1297,9 @@ class HardwareTestRunner(Node):
             "overall_status": PASS if failures == 0 else FAIL,
             "required_failures": failures,
             "tracks_raised": self._tracks_raised,
+            "require_imu": self._require_imu,
+            "require_ultrasonic": self._require_ultrasonic,
+            "require_servo": self._require_servo,
             "require_lidar": self._require_lidar,
             "report_path": report_path,
             "results": [asdict(result) for result in self._results],
@@ -1345,8 +1412,23 @@ class HardwareTestRunner(Node):
             self._run_stage("STM32 bridge alive", self._test_bridge_alive)
             self._run_stage("STM32 encoder stream", self._test_encoders)
             self._run_stage("STM32 odometry", self._test_odometry)
-            self._run_stage("STM32 IMU", self._test_imu)
-            self._run_stage("HC-SR04 ultrasonic", self._test_ultrasonic)
+            if self._require_imu:
+                self._run_stage("STM32 onboard IMU", self._test_imu)
+            else:
+                started = time.monotonic()
+                self._record(
+                    "STM32 onboard IMU", SKIP, False,
+                    "not requested; require_imu is false", started,
+                )
+            if self._require_ultrasonic:
+                self._run_stage("Hiwonder Glowy ultrasonic", self._test_ultrasonic)
+            else:
+                started = time.monotonic()
+                self._record(
+                    "Hiwonder Glowy ultrasonic", SKIP, False,
+                    "optional sensor is outside the active drive/camera gate",
+                    started,
+                )
             if self._require_battery:
                 self._run_stage("STM32 battery voltage", self._test_battery)
             else:
@@ -1385,10 +1467,18 @@ class HardwareTestRunner(Node):
                     "not requested; set require_lidar:=true to require /scan",
                     started,
                 )
-            self._run_stage(
-                "SG90 servo command-path proof",
-                self._test_servo,
-            )
+            if self._require_servo:
+                self._run_stage(
+                    "SG90 servo command-path proof",
+                    self._test_servo,
+                )
+            else:
+                started = time.monotonic()
+                self._record(
+                    "SG90 servo command-path proof", SKIP, False,
+                    "optional actuator is outside the active drive/camera gate",
+                    started,
+                )
             if self._tracks_raised:
                 print(
                     "RAISED-TRACK MOTOR PROOF: clearing ROS e-stop only for "

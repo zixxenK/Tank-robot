@@ -68,6 +68,14 @@ def generate_launch_description() -> LaunchDescription:
         ),
         description="Launch the directly connected STL-50B2 LiDAR",
     )
+    use_ultrasonic_arg = DeclareLaunchArgument(
+        "use_ultrasonic",
+        default_value=EnvironmentVariable(
+            "USE_ULTRASONIC",
+            default_value="false",
+        ),
+        description="Publish the optional Glowy ultrasonic frame",
+    )
     use_usb_camera_arg = DeclareLaunchArgument(
         "use_usb_camera",
         default_value=EnvironmentVariable(
@@ -79,7 +87,10 @@ def generate_launch_description() -> LaunchDescription:
     run_motor_bringup_test_arg = DeclareLaunchArgument(
         "run_motor_bringup_test",
         default_value="false",
-        description="Publish the low-speed motor bringup sequence",
+        description=(
+            "MAINTENANCE ONLY: raised-track low-speed motor proof; keep false "
+            "for normal operation"
+        ),
     )
     serial_port_arg = DeclareLaunchArgument(
         "serial_port",
@@ -167,6 +178,17 @@ def generate_launch_description() -> LaunchDescription:
         ),
         description="Shared hardware parameter file",
     )
+    control_map_arg = DeclareLaunchArgument(
+        "control_map",
+        default_value=PathJoinSubstitution(
+            [
+                FindPackageShare("robot_control"),
+                "config",
+                "control_map.yaml",
+            ]
+        ),
+        description="Canonical PS5 control mapping and tracked-drive math",
+    )
     safety_config_arg = DeclareLaunchArgument(
         "safety_config",
         default_value=PathJoinSubstitution(
@@ -205,7 +227,10 @@ def generate_launch_description() -> LaunchDescription:
         name="safety_gateway",
         parameters=[
             LaunchConfiguration("safety_config"),
-            {"monitor_battery": LaunchConfiguration("monitor_battery")},
+            {
+                "control_map_path": LaunchConfiguration("control_map"),
+                "monitor_battery": LaunchConfiguration("monitor_battery"),
+            },
         ],
         output="screen",
     )
@@ -214,8 +239,10 @@ def generate_launch_description() -> LaunchDescription:
         executable="ps5_ros_bridge",
         name="ps5_ros_bridge",
         parameters=[
-            LaunchConfiguration("hardware_config"),
-            {"joy_device": LaunchConfiguration("joy_device")},
+            {
+                "joy_device": LaunchConfiguration("joy_device"),
+                "control_map_path": LaunchConfiguration("control_map"),
+            },
         ],
         condition=IfCondition(LaunchConfiguration("use_teleop")),
         output="screen",
@@ -226,7 +253,10 @@ def generate_launch_description() -> LaunchDescription:
         name="stm32_hardened_bridge",
         parameters=[
             LaunchConfiguration("hardware_config"),
-            {"serial_port": LaunchConfiguration("serial_port")},
+            {
+                "serial_port": LaunchConfiguration("serial_port"),
+                "control_map_path": LaunchConfiguration("control_map"),
+            },
         ],
         condition=IfCondition(LaunchConfiguration("use_hardware_bridge")),
         output="screen",
@@ -238,7 +268,7 @@ def generate_launch_description() -> LaunchDescription:
         parameters=[
             {
                 "joy_topic": "/joy",
-                "triangle_index": 2,
+                "control_map_path": LaunchConfiguration("control_map"),
                 "frequency_topic": "/buzzer/frequency",
                 "play_sequence_topic": "/buzzer/play_sequence",
                 "status_topic": "/buzzer/status",
@@ -298,6 +328,7 @@ def generate_launch_description() -> LaunchDescription:
             "0.12", "0", "0.12", "0", "0", "0",
             "base_link", "ultrasonic_link",
         ],
+        condition=IfCondition(LaunchConfiguration("use_ultrasonic")),
         output="screen",
     )
     usb_camera = Node(
@@ -364,6 +395,7 @@ def generate_launch_description() -> LaunchDescription:
             use_teleop_arg,
             use_camera_bridge_arg,
             use_lidar_arg,
+            use_ultrasonic_arg,
             use_usb_camera_arg,
             run_motor_bringup_test_arg,
             serial_port_arg,
@@ -377,6 +409,7 @@ def generate_launch_description() -> LaunchDescription:
             use_compressed_camera_transport_arg,
             camera_jpeg_quality_arg,
             hardware_config_arg,
+            control_map_arg,
             safety_config_arg,
             monitor_battery_arg,
             use_audio_arg,

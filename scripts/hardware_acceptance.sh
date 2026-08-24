@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TRACKS_RAISED="false"
 REQUIRE_LIDAR="false"
+REQUIRE_IMU="true"
 ROBOT_SERVICE="rock64-robot.service"
 
 as_root() {
@@ -30,9 +31,13 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_LIDAR="false"
       shift
       ;;
+    --no-imu)
+      REQUIRE_IMU="false"
+      shift
+      ;;
     --help|-h)
-      echo "usage: $0 [--tracks-raised] [--with-lidar|--no-lidar]"
-      echo "Runs every hardware check in order against the active ROS 2 graph."
+      echo "usage: $0 [--tracks-raised] [--with-lidar|--no-lidar] [--no-imu]"
+      echo "Runs the drive/camera acceptance checks against the active ROS 2 graph."
       echo "Motor motion is skipped unless --tracks-raised is supplied."
       exit 0
       ;;
@@ -89,4 +94,7 @@ fi
 
 exec ros2 run robot_drivers hardware_test_runner --ros-args \
   -p tracks_raised:="${TRACKS_RAISED}" \
-  -p require_lidar:="${REQUIRE_LIDAR}"
+  -p require_lidar:="${REQUIRE_LIDAR}" \
+  -p require_imu:="${REQUIRE_IMU}" \
+  -p require_ultrasonic:=false \
+  -p require_servo:=false

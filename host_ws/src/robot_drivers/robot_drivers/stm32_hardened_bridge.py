@@ -16,11 +16,14 @@ Features:
 - Transition-gated logging to prevent spam
 """
 
+from __future__ import annotations
+
 import struct
 import time
 import threading
 import queue
 import math
+from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 from dataclasses import dataclass, replace
 
@@ -46,6 +49,12 @@ from std_srvs.srv import SetBool
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sensor_msgs.msg import BatteryState, Imu, JointState, Range
 from nav_msgs.msg import Odometry
+from robot_control.control_map import (
+    ControlMap,
+    default_control_map,
+    load_control_map,
+    twist_to_track_pair,
+)
 
 # Protocol Constants
 SYNC_1 = 0xAA
@@ -65,8 +74,9 @@ FUNC_ENCODER = 0x10
 FUNC_BATTERY = 0x11
 FUNC_IMU = 0x12
 FUNC_SELF_TEST = 0x13
-FUNC_ULTRASONIC = 0x14
-FUNC_ULTRASONIC_DIAG = 0x15
+FUNC_GLOWY_ULTRASONIC = 0x14
+FUNC_GLOWY_ULTRASONIC_DIAG = 0x15
+FUNC_IMU_DIAG = 0x16
 FUNC_HEARTBEAT = 0xF0
 FUNC_ACK = 0xF1
 FUNC_ERROR = 0xFF
@@ -79,8 +89,9 @@ VALID_FUNCTION_CODES = {
     FUNC_BATTERY,
     FUNC_IMU,
     FUNC_SELF_TEST,
-    FUNC_ULTRASONIC,
-    FUNC_ULTRASONIC_DIAG,
+    FUNC_GLOWY_ULTRASONIC,
+    FUNC_GLOWY_ULTRASONIC_DIAG,
+    FUNC_IMU_DIAG,
     FUNC_HEARTBEAT,
     FUNC_ACK,
     FUNC_ERROR,
@@ -169,15 +180,22 @@ class TelemetryData:
     # A zero acceleration vector is a legal wire value during a transient
     # sensor state; do not use it as the sentinel for "no IMU frame".
     imu_received: bool = False
+    imu_sample_valid: bool = False
+    imu_diagnostics_received: bool = False
+    imu_ready: bool = False
+    imu_address: int = 0
+    imu_who_am_i: int = 0
+    imu_sample_count: int = 0
+    imu_error_count: int = 0
+    imu_last_error: int = 0
     timestamp: float = 0.0
     battery_received: bool = False  # Track if we've ever received a battery frame
     ultrasonic_distance_m: float = float("nan")
-    ultrasonic_echo_us: int = 0
     ultrasonic_valid: bool = False
     ultrasonic_state: int = 0
-    ultrasonic_trigger_count: int = 0
-    ultrasonic_rising_edges: int = 0
-    ultrasonic_falling_edges: int = 0
+    ultrasonic_read_count: int = 0
+    ultrasonic_valid_count: int = 0
+    ultrasonic_error_count: int = 0
 
 
 class CircularBuffer:
@@ -436,9 +454,13 @@ class STM32HardenedBridge(Node):
         self.declare_parameter("reconnect_interval", 2.0)
         self.declare_parameter("linear_slew_rate", 3.0)
         self.declare_parameter("angular_slew_rate", 6.0)
+        self.declare_parameter("slew_limit_commands", False)
         self.declare_parameter("encoder_timeout", 1.0)
         self.declare_parameter("enable_telemetry", True)
-        self.declare_parameter("wheel_separation", 0.194)  # meters (track width)
+        self.declare_parameter("control_map_path", "")
+        # Legacy geometry overrides; normal operation uses control_map.yaml.
+        self.declare_parameter("wheel_separation", -1.0)  # meters (track width)
+        self.declare_parameter("max_track_speed_mps", -1.0)
         self.declare_parameter("wheel_radius", 0.065)  # meters
         self.declare_parameter(
             "encoder_ticks_per_rev", 1980  # 11 PPR * 4 edges * 45:1 gearbox
@@ -489,13 +511,53 @@ class STM32HardenedBridge(Node):
         self._angular_slew_rate = float(
             self.get_parameter("angular_slew_rate").value
         )
+        self._slew_limit_commands = bool(
+            self.get_parameter("slew_limit_commands").value
+        )
         self._encoder_timeout = float(
             self.get_parameter("encoder_timeout").value
         )
         self._enable_telemetry = self.get_parameter("enable_telemetry").value
-        self._wheel_separation = float(
-            self.get_parameter("wheel_separation").value
+        control_map_path = str(
+            self.get_parameter("control_map_path").value or ""
         )
+        self._control_map = self._load_control_map(control_map_path)
+        configured_separation = self._positive_float_parameter(
+            "wheel_separation"
+        )
+        self._wheel_separation = (
+            configured_separation
+            if configured_separation is not None
+            else self._control_map.track_width_m
+        )
+        configured_max_track_speed = self._positive_float_parameter(
+            "max_track_speed_mps"
+        )
+        self._max_track_speed_mps = (
+            configured_max_track_speed
+            if configured_max_track_speed is not None
+            else self._control_map.max_track_speed_mps
+        )
+        if configured_separation is not None and not math.isclose(
+            configured_separation,
+            self._control_map.track_width_m,
+            rel_tol=1e-6,
+            abs_tol=1e-6,
+        ):
+            self.get_logger().warn(
+                "wheel_separation is an explicit legacy override; tune the "
+                "canonical robot_control control map for normal operation"
+            )
+        if configured_max_track_speed is not None and not math.isclose(
+            configured_max_track_speed,
+            self._control_map.max_track_speed_mps,
+            rel_tol=1e-6,
+            abs_tol=1e-6,
+        ):
+            self.get_logger().warn(
+                "max_track_speed_mps is an explicit legacy override; tune "
+                "the canonical robot_control control map for normal operation"
+            )
         self._wheel_radius = float(self.get_parameter("wheel_radius").value)
         self._encoder_ticks_per_rev = int(
             self.get_parameter("encoder_ticks_per_rev").value
@@ -621,6 +683,49 @@ class STM32HardenedBridge(Node):
         self._setup_timers()
 
         self.get_logger().info("STM32 Hardened Bridge initialized")
+
+    def _load_control_map(self, configured_path: str) -> ControlMap:
+        """Load the same tracked-drive geometry used by the teleop node."""
+        candidates = []
+        if configured_path:
+            candidates.append(Path(configured_path))
+        candidates.append(
+            Path(__file__).resolve().parents[2]
+            / "robot_control"
+            / "config"
+            / "control_map.yaml"
+        )
+        try:
+            from ament_index_python.packages import get_package_share_directory
+
+            candidates.append(
+                Path(get_package_share_directory("robot_control"))
+                / "config"
+                / "control_map.yaml"
+            )
+        except (ImportError, LookupError, RuntimeError):
+            # Direct source-tree tests and non-ROS tooling do not have ament's
+            # package index; the sibling-package candidate above is enough.
+            pass
+        for candidate in candidates:
+            if not candidate.is_file():
+                continue
+            try:
+                return load_control_map(candidate)
+            except (OSError, ValueError, ImportError) as error:
+                self.get_logger().warn(
+                    f"Unable to load control map {candidate}: {error}"
+                )
+        self.get_logger().warn("Using built-in canonical tracked-drive geometry")
+        return default_control_map()
+
+    def _positive_float_parameter(self, name: str) -> float | None:
+        """Return a finite positive legacy override, if one was supplied."""
+        try:
+            value = float(self.get_parameter(name).value)
+        except (TypeError, ValueError):
+            return None
+        return value if math.isfinite(value) and value > 0.0 else None
 
     def _setup_ros_interfaces(self):
         """Set up ROS2 publishers and subscribers."""
@@ -1142,29 +1247,37 @@ class STM32HardenedBridge(Node):
                 self._send_emergency_stop()
             return
 
-        # Apply slew rate limiting
+        # Slew shaping is optional. The normal teleop path already has a
+        # command freshness timeout, finite-value checks, safety-gateway
+        # limits, and firmware watchdog/electrical protection. Keeping this
+        # limiter opt-in preserves the controller's power-pivot reversal.
         dt = now - last_send
         self._last_send_time = now
 
-        new_lin = self._slew_limit(
-            cmd_lin, target_lin, self._linear_slew_rate, dt
-        )
-        new_ang = self._slew_limit(
-            cmd_ang, target_ang, self._angular_slew_rate, dt
-        )
+        if self._slew_limit_commands:
+            new_lin = self._slew_limit(
+                cmd_lin, target_lin, self._linear_slew_rate, dt
+            )
+            new_ang = self._slew_limit(
+                cmd_ang, target_ang, self._angular_slew_rate, dt
+            )
+        else:
+            new_lin = target_lin
+            new_ang = target_ang
 
         with self._state_lock:
             self._cmd_lin = new_lin
             self._cmd_ang = new_ang
 
-        # Convert to differential drive
-        left_vel = new_lin - new_ang
-        right_vel = new_lin + new_ang
-
-        # Normalize to prevent saturation
-        max_mag = max(1.0, abs(left_vel), abs(right_vel))
-        left_vel /= max_mag
-        right_vel /= max_mag
+        # Decode a standard ROS differential-drive Twist into normalized
+        # physical track demands.  The old unitless linear +/- angular math
+        # silently made the track width meaningless and clipped drift turns.
+        left_vel, right_vel = twist_to_track_pair(
+            new_lin,
+            new_ang,
+            self._wheel_separation,
+            self._max_track_speed_mps,
+        )
 
         # Convert to motor speeds
         left_speed = int(
@@ -1315,10 +1428,13 @@ class STM32HardenedBridge(Node):
             elif function_code == FUNC_IMU:
                 self._parse_imu_telemetry(payload)
 
-            elif function_code == FUNC_ULTRASONIC:
+            elif function_code == FUNC_IMU_DIAG:
+                self._parse_imu_diagnostics(payload)
+
+            elif function_code == FUNC_GLOWY_ULTRASONIC:
                 self._parse_ultrasonic_telemetry(payload)
 
-            elif function_code == FUNC_ULTRASONIC_DIAG:
+            elif function_code == FUNC_GLOWY_ULTRASONIC_DIAG:
                 self._parse_ultrasonic_diagnostics(payload)
 
             elif function_code == FUNC_SERVO:
@@ -1407,31 +1523,59 @@ class STM32HardenedBridge(Node):
             with self._telemetry_lock:
                 self._telemetry.imu_accel = (accel_x, accel_y, accel_z)
                 self._telemetry.imu_gyro = (gyro_x, gyro_y, gyro_z)
-                self._telemetry.imu_received = True
+                self._telemetry.imu_sample_valid = True
+                self._telemetry.imu_received = (
+                    self._telemetry.imu_ready
+                    and self._telemetry.imu_diagnostics_received
+                )
                 self._telemetry.timestamp = time.monotonic()
 
         except struct.error as e:
             self.get_logger().error(f"Error parsing IMU data: {e}")
 
+    def _parse_imu_diagnostics(self, payload: bytes) -> None:
+        """Parse onboard MPU6050 readiness evidence from the STM32."""
+        if len(payload) != 16:
+            self.get_logger().warn(
+                f"Invalid IMU diagnostics payload length: {len(payload)}"
+            )
+            return
+        try:
+            state, address, who_am_i, sample_count, error_count, last_error = (
+                struct.unpack("<BBHIIl", payload)
+            )
+        except struct.error as error:
+            self.get_logger().error(f"Error parsing IMU diagnostics: {error}")
+            return
+
+        with self._telemetry_lock:
+            self._telemetry.imu_diagnostics_received = True
+            self._telemetry.imu_ready = state == 1
+            self._telemetry.imu_address = address
+            self._telemetry.imu_who_am_i = who_am_i
+            self._telemetry.imu_sample_count = sample_count
+            self._telemetry.imu_error_count = error_count
+            self._telemetry.imu_last_error = last_error
+            self._telemetry.imu_received = (
+                self._telemetry.imu_ready
+                and self._telemetry.imu_sample_valid
+            )
+
     def _parse_ultrasonic_telemetry(self, payload: bytes):
-        """Parse and publish the HC-SR04 range telemetry frame."""
-        if len(payload) < 5:
+        """Parse and publish Hiwonder Glowy I2C range telemetry."""
+        if len(payload) != 4:
             self.get_logger().warn(
                 f"Invalid ultrasonic payload length: {len(payload)}"
             )
             return
 
-        distance_mm, echo_us, valid = struct.unpack("<HHB", payload[:5])
-        # New firmware uses the reserved byte as a low-level state code;
-        # accept legacy five-byte payloads while exposing state when present.
-        state = payload[5] if len(payload) >= 6 else 0
+        distance_mm, valid, state = struct.unpack("<HBB", payload)
         distance_m = distance_mm / 1000.0
         valid_measurement = (
             bool(valid) and 0.02 <= distance_m <= 4.0
         )
         with self._telemetry_lock:
             self._telemetry.ultrasonic_distance_m = distance_mm / 1000.0
-            self._telemetry.ultrasonic_echo_us = echo_us
             self._telemetry.ultrasonic_valid = valid_measurement
             self._telemetry.ultrasonic_state = int(state)
             self._telemetry.timestamp = time.monotonic()
@@ -1451,19 +1595,19 @@ class STM32HardenedBridge(Node):
         self._ultrasonic_pub.publish(message)
 
     def _parse_ultrasonic_diagnostics(self, payload: bytes):
-        """Parse low-level HC-SR04 trigger and EXTI edge counters."""
+        """Parse Glowy I2C read, valid, and error counters."""
         if len(payload) != 12:
             self.get_logger().warn(
                 f"Invalid ultrasonic diagnostics payload length: {len(payload)}"
             )
             return
-        trigger_count, rising_edges, falling_edges = struct.unpack(
+        read_count, valid_count, error_count = struct.unpack(
             "<III", payload
         )
         with self._telemetry_lock:
-            self._telemetry.ultrasonic_trigger_count = trigger_count
-            self._telemetry.ultrasonic_rising_edges = rising_edges
-            self._telemetry.ultrasonic_falling_edges = falling_edges
+            self._telemetry.ultrasonic_read_count = read_count
+            self._telemetry.ultrasonic_valid_count = valid_count
+            self._telemetry.ultrasonic_error_count = error_count
 
     def _parse_servo_status(self, payload: bytes) -> None:
         """Publish a state only after firmware accepts the J1 servo command."""
@@ -1778,21 +1922,56 @@ class STM32HardenedBridge(Node):
 
         diag_array.status.append(status)
 
-        # Keep the low-level HC-SR04 state visible even when no echo pulse is
-        # arriving.  A NaN Range message alone cannot distinguish a wiring
-        # fault from a stale topic or a disconnected serial bridge.
+        with self._telemetry_lock:
+            imu_ready = self._telemetry.imu_ready
+            imu_diag_received = self._telemetry.imu_diagnostics_received
+            imu_sample_valid = self._telemetry.imu_sample_valid
+            imu_address = self._telemetry.imu_address
+            imu_who_am_i = self._telemetry.imu_who_am_i
+            imu_sample_count = self._telemetry.imu_sample_count
+            imu_error_count = self._telemetry.imu_error_count
+            imu_last_error = self._telemetry.imu_last_error
+        imu_status = DiagnosticStatus()
+        imu_status.name = "stm32_hardened_bridge: onboard MPU6050"
+        if imu_ready and imu_sample_valid:
+            imu_status.level = DiagnosticStatus.OK
+            imu_status.message = "Onboard IMU ready; valid samples received"
+        elif imu_diag_received:
+            imu_status.level = DiagnosticStatus.ERROR
+            imu_status.message = "Onboard IMU is not ready"
+        else:
+            imu_status.level = DiagnosticStatus.WARN
+            imu_status.message = "Waiting for onboard IMU diagnostics"
+        imu_status.values.extend(
+            [
+                KeyValue(key="onboard", value="true"),
+                KeyValue(key="bus", value="I2C2 PB10/PB11"),
+                KeyValue(key="address", value=f"0x{imu_address:02X}"),
+                KeyValue(key="who_am_i", value=f"0x{imu_who_am_i:02X}"),
+                KeyValue(key="ready", value=str(imu_ready)),
+                KeyValue(key="diagnostics_received", value=str(imu_diag_received)),
+                KeyValue(key="sample_valid", value=str(imu_sample_valid)),
+                KeyValue(key="sample_count", value=str(imu_sample_count)),
+                KeyValue(key="error_count", value=str(imu_error_count)),
+                KeyValue(key="last_error", value=str(imu_last_error)),
+            ]
+        )
+        diag_array.status.append(imu_status)
+
+        # Keep the low-level Glowy I2C state visible. A NaN Range message alone
+        # cannot distinguish an out-of-range result from a disconnected bus.
         with self._telemetry_lock:
             ultrasonic_status = DiagnosticStatus()
-            ultrasonic_status.name = "stm32_hardened_bridge: HC-SR04"
+            ultrasonic_status.name = "stm32_hardened_bridge: Hiwonder Glowy"
             ultrasonic_status.level = (
                 DiagnosticStatus.OK
                 if self._telemetry.ultrasonic_valid
                 else DiagnosticStatus.WARN
             )
             ultrasonic_status.message = (
-                "Valid echo"
+                "Valid I2C distance"
                 if self._telemetry.ultrasonic_valid
-                else "No valid echo pulse"
+                else "No valid I2C distance"
             )
             ultrasonic_status.values.extend(
                 [
@@ -1805,34 +1984,29 @@ class STM32HardenedBridge(Node):
                         value=str(self._telemetry.ultrasonic_distance_m),
                     ),
                     KeyValue(
-                        key="echo_us",
-                        value=str(self._telemetry.ultrasonic_echo_us),
-                    ),
-                    KeyValue(
                         key="state",
                         value=str(self._telemetry.ultrasonic_state),
                     ),
                     KeyValue(
                         key="state_name",
                         value={
-                            0: "idle",
-                            1: "waiting_rise",
-                            2: "waiting_fall",
-                            3: "timeout",
-                            4: "valid",
+                            0: "unavailable",
+                            1: "valid",
+                            2: "out_of_range",
+                            3: "i2c_error",
                         }.get(self._telemetry.ultrasonic_state, "unknown"),
                     ),
                     KeyValue(
-                        key="trigger_count",
-                        value=str(self._telemetry.ultrasonic_trigger_count),
+                        key="read_count",
+                        value=str(self._telemetry.ultrasonic_read_count),
                     ),
                     KeyValue(
-                        key="rising_edges",
-                        value=str(self._telemetry.ultrasonic_rising_edges),
+                        key="valid_count",
+                        value=str(self._telemetry.ultrasonic_valid_count),
                     ),
                     KeyValue(
-                        key="falling_edges",
-                        value=str(self._telemetry.ultrasonic_falling_edges),
+                        key="error_count",
+                        value=str(self._telemetry.ultrasonic_error_count),
                     ),
                 ]
             )

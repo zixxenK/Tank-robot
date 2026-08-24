@@ -6,6 +6,7 @@ SHELL := /bin/bash
 REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 FIRMWARE_DIR := $(REPO_ROOT)/firmware/stm32_chassis
 HOST_WS := $(REPO_ROOT)/host_ws
+PYTHON ?= python3
 
 .PHONY: help e2e test stm32-config stm32-build stm32-flash host-build host-launch host-print host-sim host-hardware host-motor-test host-teleop host-teleop-ps5 host-unify host-unify-hw onecmd onecmd-sim hardware-acceptance hardware-acceptance-raised robot-start motor-forward motor-back motor-stop motor-sequence rock64-update
 
@@ -46,22 +47,23 @@ e2e:
 	fi
 
 test:
-	@PYTHONPATH="$(REPO_ROOT)/stubs:$(HOST_WS)/src/agent_core:$(HOST_WS)/src/robot_drivers:$(HOST_WS)/src/robot_teleop:$(HOST_WS)/src/robot_audio:$(HOST_WS)/src/navigation:$(HOST_WS)/src/perception:$(HOST_WS)/src/telemetry_logger:$(HOST_WS)/src/terrain_adaptation" \
-		python -m pytest tests \
+	@PYTHONPATH="$(REPO_ROOT)/stubs:$(HOST_WS)/src/agent_core:$(HOST_WS)/src/robot_drivers:$(HOST_WS)/src/robot_teleop:$(HOST_WS)/src/robot_audio:$(HOST_WS)/src/robot_control:$(HOST_WS)/src/navigation:$(HOST_WS)/src/perception:$(HOST_WS)/src/telemetry_logger:$(HOST_WS)/src/terrain_adaptation" \
+		$(PYTHON) -m pytest tests \
 			"$(HOST_WS)/src/agent_core/test" \
 			"$(HOST_WS)/src/robot_drivers/test" \
 			"$(HOST_WS)/src/robot_teleop/test" \
 			"$(HOST_WS)/src/robot_audio/test" \
+			"$(HOST_WS)/src/robot_control/test" \
 			--ignore="$(HOST_WS)/src/agent_core/test/test_flake8.py" \
 			--ignore="$(HOST_WS)/src/agent_core/test/test_pep257.py" \
 			--ignore="$(HOST_WS)/src/robot_drivers/test/test_flake8.py" \
 			--ignore="$(HOST_WS)/src/robot_drivers/test/test_pep257.py" -q
 
 stm32-config:
-	@cd "$(FIRMWARE_DIR)" && cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/stm32_toolchain.cmake
+	@cd "$(FIRMWARE_DIR)" && cmake --preset Debug
 
 stm32-build: stm32-config
-	@cmake --build "$(FIRMWARE_DIR)/build" -j4
+	@cd "$(FIRMWARE_DIR)" && cmake --build --preset Debug --parallel 4
 
 stm32-flash:
 	@if [ "$$(uname -m)" = "aarch64" ]; then \
@@ -77,13 +79,17 @@ rock64-update:
 	@bash "$(REPO_ROOT)/deployment/scripts/rock64_update_and_flash.sh"
 
 host-build:
-	@cd "$(HOST_WS)" && colcon build --symlink-install
+	@set +u; \
+		source "$(REPO_ROOT)/deployment/scripts/source_host_ws.sh"; \
+		set -u; \
+		cd "$(HOST_WS)" && colcon build --symlink-install
 
 host-launch:
-	@cd "$(HOST_WS)" && \
-		source /opt/ros/$${ROS_DISTRO:-humble}/setup.bash && \
-		if [ -f install/setup.bash ]; then source install/setup.bash; fi && \
-		ros2 launch robot_bringup rock64_bringup.launch.py host_workspace:="$(HOST_WS)"
+	@set +u; \
+		source "$(REPO_ROOT)/deployment/scripts/source_host_ws.sh"; \
+		set -u; \
+		cd "$(HOST_WS)" && \
+		ros2 launch robot_bringup rock64_bringup.launch.py
 
 host-sim:
 	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode sim
@@ -92,11 +98,11 @@ host-hardware:
 	@bash "$(REPO_ROOT)/scripts/unify_host_ws.sh" --mode hardware --no-install-deps
 
 host-motor-test:
-	@cd "$(HOST_WS)" && \
-		source /opt/ros/$${ROS_DISTRO:-humble}/setup.bash && \
-		if [ -f install/setup.bash ]; then source install/setup.bash; fi && \
+	@set +u; \
+		source "$(REPO_ROOT)/deployment/scripts/source_host_ws.sh"; \
+		set -u; \
+		cd "$(HOST_WS)" && \
 		ros2 launch robot_bringup rock64_bringup.launch.py \
-			host_workspace:="$(HOST_WS)" \
 			use_teleop:=false \
 			run_motor_bringup_test:=true
 

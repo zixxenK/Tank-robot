@@ -17,8 +17,8 @@ source /etc/os-release
 [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "22.04" ]] || \
   die "This setup targets Ubuntu 22.04 in WSL2; found ${PRETTY_NAME:-unknown}. From PowerShell run: .\\deployment\\pc\\setup_dashboard.ps1"
 
-[[ -f "/opt/ros/${ROS_DISTRO}/setup.bash" ]] || \
-  die "ROS 2 ${ROS_DISTRO} is not installed in this WSL distribution"
+[[ "${ROS_DISTRO}" == "humble" ]] || \
+  die "This repository supports ROS 2 Humble; found ROS_DISTRO=${ROS_DISTRO}"
 
 echo "[pc_dashboard] Installing PC-side ROS dependencies..."
 sudo apt-get update
@@ -37,11 +37,12 @@ sudo apt-get install -y --no-install-recommends \
   python3-colcon-common-extensions \
   python3-rosdep
 
-# ROS setup scripts use optional variables without guarding them.  Source
-# them with nounset disabled, then restore the script's strict mode.
+# Use the same ROS/workspace helper as Rock64 launch and build scripts. This
+# makes the PC dashboard consume the exact same host_ws source tree and map.
+export HOST_WS_PATH="${REPO_ROOT}/host_ws"
 set +u
 # shellcheck disable=SC1091
-source "/opt/ros/${ROS_DISTRO}/setup.bash"
+source "${REPO_ROOT}/deployment/scripts/source_host_ws.sh"
 set -u
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
 export RMW_IMPLEMENTATION="${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
@@ -52,8 +53,7 @@ if command -v rosdep >/dev/null 2>&1; then
 fi
 
 echo "[pc_dashboard] Building the shared ROS workspace..."
-cd "${REPO_ROOT}/host_ws"
-colcon build --symlink-install \
-  --packages-up-to robot_bringup robot_drivers robot_audio
+cd "${HOST_WS_PATH}"
+colcon build --symlink-install
 
 echo "[pc_dashboard] Setup complete. Source deployment/pc/run_dashboard.sh to launch."
