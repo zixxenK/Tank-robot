@@ -67,12 +67,13 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(HC_SR04_TRIG_GPIO_Port, HC_SR04_TRIG_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(HC_SR04_TRIG_GPIO_Port,
+                    HC_SR04_TRIG_Pin,
+                    GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
 
   /*Configure GPIO pin Output Level */
-  /* PA12 is the HC-SR04 ECHO input; never drive it as a servo output. */
   HAL_GPIO_WritePin(GPIOA, BUZZER_Pin|PWM_SERVO_1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PE2 PE3 PE4 PE12
@@ -84,11 +85,10 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PC13 PC14 PC15 PC0
-                           PC1 PC2 PC4 PC5
-                           PC10 PC11 */
+                           PC1 PC2 PC4 PC5 */
   GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15|GPIO_PIN_0
                           |GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_4|GPIO_PIN_5
-                          |GPIO_PIN_10|GPIO_PIN_11;
+                          ;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -121,9 +121,11 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(LED_SYS_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PtPin */
+  /* PB12 shares EXTI12 with the physical HC-SR04 ECHO on PA12. The IMU
+   * integration polls I2C2, so keep its data-ready pin as an input and let
+   * PA12 own the EXTI12 route. */
   GPIO_InitStruct.Pin = IMU_ITR_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(IMU_ITR_GPIO_Port, &GPIO_InitStruct);
 
@@ -142,10 +144,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /* HC-SR04: PC8 is the trigger output and PA12 is the 5V echo input.
-   * ECHO must be level-shifted or divided if the board input is not 5V
-   * tolerant. The connector wiring is J4 signal S -> PC8 and J2 signal S
-   * -> PA12; PA12 is not available for a servo in this image. */
+  /* The populated HC-SR04 headers on this controller are J4/PC8 (TRIG) and
+   * J2/PA12 (ECHO). */
   GPIO_InitStruct.Pin = HC_SR04_TRIG_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -158,8 +158,7 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(HC_SR04_ECHO_GPIO_Port, &GPIO_InitStruct);
 
-  /* PA12 is EXTI12, so it is serviced by the shared 10..15 IRQ vector.
-   * Enabling EXTI9_5 here leaves the HC-SR04 echo callback unreachable. */
+  /* PA12 is EXTI12 and is serviced by the shared 10..15 IRQ vector. */
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 

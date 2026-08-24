@@ -56,7 +56,8 @@ From the Windows checkout, the complete build/flash/readback/launch/proof
 workflow always runs on the Rock64:
 
 ```powershell
-powershell -File scripts/reflash_rock64.ps1 -Port UART1
+From Windows, use `powershell -File scripts/reflash_rock64.ps1 -Port UART1`.
+On the Rock64 itself, use `bash deployment/scripts/rock64_update_and_flash.sh`.
 ```
 
 There is no alternate production port. The stock 7in1 `USART3/PD8-PD9`

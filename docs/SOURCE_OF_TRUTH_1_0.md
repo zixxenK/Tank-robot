@@ -18,6 +18,8 @@ Treat it as authoritative for all future firmware, Rock64, and agent work.
 | Programming/debug | ST-Link `0483:3748` over SWD only |
 | Motors | Hiwonder JGB3865-520R45-12, 12V, 45:1, 1980 ticks/output rev |
 | Host motor output cap | 60% normalized command by default; STM32 PID remains authoritative |
+| HC-SR04 trigger | Controller J4 signal (`S`) -> STM32 `PC8` |
+| HC-SR04 echo | Controller J2 signal (`S`) -> STM32 `PA12` EXTI; level-protect the 5 V echo line |
 
 `USART3` on `PD8/PD9` is the stock Hiwonder 7in1/factory reference endpoint.
 It is not the Rock64 host link for this robot and must not be selected for a
@@ -28,7 +30,9 @@ production build or deployment.
 Always build, flash, launch, and run the safe UART proof from the Rock64:
 
 ```powershell
-powershell -File scripts/reflash_rock64.ps1 -Port UART1
+From a Windows development PC, run `powershell -File scripts/reflash_rock64.ps1
+-Port UART1`; the wrapper SSHes to the Rock64. When already logged into the
+Rock64, run `bash deployment/scripts/rock64_update_and_flash.sh` instead.
 ```
 
 The workflow must verify the ST-Link readback before testing the motor link.
@@ -43,6 +47,10 @@ The Rock64 Pi-2 header bus allocation is documented in
 [ROCK64_PI2_BUS_PINOUT.md](ROCK64_PI2_BUS_PINOUT.md). Those UART/I2C/SPI pins
 are for direct Rock64 sensors; they do not replace the production WCH
 USB-UART motor link.
+
+The complete ultrasonic build, transport, and bench procedure is the
+[HC-SR04 production build path](ULTRASONIC_BUILD_PATH.md). `PC10/PC11` are not
+the production ultrasonic pins for this controller image.
 
 For a raised-track bench test, the bounded direct test is:
 

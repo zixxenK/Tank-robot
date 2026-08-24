@@ -194,14 +194,6 @@ void SysTick_Handler(void)
   }
 }
 
-/**
-  * @brief This function handles EXTI line 9 to 5 interrupts.
-  */
-void EXTI9_5_IRQHandler(void)
-{
-  /* No active EXTI lines in the 9..5 range in this image. */
-}
-
 /******************************************************************************/
 /* STM32F4xx Peripheral Interrupt Handlers                                    */
 /* Add here the Interrupt Handlers for the used peripherals.                  */
@@ -369,10 +361,8 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
 
   /* USER CODE END EXTI15_10_IRQn 0 */
-  /* PA12 (HC-SR04 ECHO) and PB12 (optional MPU6050 data-ready) share this
-   * IRQ vector.  Dispatch both pending lines so either device is serviced. */
+  /* PA12 is the board's physical HC-SR04 ECHO input and owns EXTI12. */
   HAL_GPIO_EXTI_IRQHandler(HC_SR04_ECHO_Pin);
-  HAL_GPIO_EXTI_IRQHandler(IMU_ITR_Pin);
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */

@@ -66,6 +66,7 @@ FUNC_BATTERY = 0x11
 FUNC_IMU = 0x12
 FUNC_SELF_TEST = 0x13
 FUNC_ULTRASONIC = 0x14
+FUNC_ULTRASONIC_DIAG = 0x15
 FUNC_HEARTBEAT = 0xF0
 FUNC_ACK = 0xF1
 FUNC_ERROR = 0xFF
@@ -79,6 +80,7 @@ VALID_FUNCTION_CODES = {
     FUNC_IMU,
     FUNC_SELF_TEST,
     FUNC_ULTRASONIC,
+    FUNC_ULTRASONIC_DIAG,
     FUNC_HEARTBEAT,
     FUNC_ACK,
     FUNC_ERROR,
@@ -173,6 +175,9 @@ class TelemetryData:
     ultrasonic_echo_us: int = 0
     ultrasonic_valid: bool = False
     ultrasonic_state: int = 0
+    ultrasonic_trigger_count: int = 0
+    ultrasonic_rising_edges: int = 0
+    ultrasonic_falling_edges: int = 0
 
 
 class CircularBuffer:
@@ -786,8 +791,10 @@ class STM32HardenedBridge(Node):
         """Attempt to connect to serial port."""
         try:
             with self._serial_lock:
-                if self._ser and self._ser.is_open:
-                    self._ser.close()
+                previous_serial = self._ser
+                self._ser = None
+                if previous_serial and previous_serial.is_open:
+                    previous_serial.close()
 
                 self._ser = serial.Serial(
                     self._serial_port,
@@ -857,17 +864,45 @@ class STM32HardenedBridge(Node):
                 self._connection_loss_time = time.monotonic()
             return False
 
+    def _close_serial_after_error(
+        self, serial_port: serial.Serial, operation: str, error: Exception
+    ) -> None:
+        """Drop a failed port so the command loop can reconnect.
+
+        A read thread can report an error after the command loop has already
+        replaced the port.  Check object identity before closing or changing
+        state so a stale failure cannot tear down a healthy replacement.
+        """
+        with self._serial_lock:
+            if self._ser is not serial_port:
+                return
+
+            self._ser = None
+            try:
+                serial_port.close()
+            except (serial.SerialException, OSError):
+                pass
+
+        self.get_logger().error(f"Serial {operation} failed: {error}")
+        with self._state_lock:
+            self._connection_loss_time = time.monotonic()
+            self._motion_armed = False
+
     def _serial_read_loop(self):
         """Background thread for non-blocking serial reads."""
         while self._running:
+            serial_port = None
             try:
-                if self._ser is None or not self._ser.is_open:
+                with self._serial_lock:
+                    serial_port = self._ser
+
+                if serial_port is None or not serial_port.is_open:
                     time.sleep(0.1)
                     continue
 
                 # Non-blocking read
-                if self._ser.in_waiting > 0:
-                    data = self._ser.read(self._ser.in_waiting)
+                if serial_port.in_waiting > 0:
+                    data = serial_port.read(serial_port.in_waiting)
                     if data:
                         bytes_written = self._rx_buffer.write(data)
                         if bytes_written < len(data):
@@ -880,9 +915,7 @@ class STM32HardenedBridge(Node):
                     time.sleep(0.001)  # Short sleep when no data
 
             except serial.SerialException as e:
-                self.get_logger().error(f"Serial read error: {e}")
-                with self._state_lock:
-                    self._connection_loss_time = time.monotonic()
+                self._close_serial_after_error(serial_port, "read", e)
                 time.sleep(0.1)
             except Exception as e:
                 self.get_logger().error(
@@ -1217,18 +1250,17 @@ class STM32HardenedBridge(Node):
 
     def _send_frame(self, function_code: int, payload: bytes = b""):
         """Send a complete frame with CRC."""
-        if self._ser is None or not self._ser.is_open:
-            return
-
+        serial_port = None
         try:
             frame = self._build_frame(function_code, payload)
             with self._serial_lock:
-                self._ser.write(frame)
+                serial_port = self._ser
+                if serial_port is None or not serial_port.is_open:
+                    return
+                serial_port.write(frame)
         except serial.SerialException as e:
-            self.get_logger().error(f"Serial write failed: {e}")
-            with self._state_lock:
-                self._connection_loss_time = time.monotonic()
-                self._motion_armed = False
+            if serial_port is not None:
+                self._close_serial_after_error(serial_port, "write", e)
 
     def _build_frame(self, function_code: int, payload: bytes = b"") -> bytes:
         """Build a complete frame with header, payload, and CRC."""
@@ -1285,6 +1317,9 @@ class STM32HardenedBridge(Node):
 
             elif function_code == FUNC_ULTRASONIC:
                 self._parse_ultrasonic_telemetry(payload)
+
+            elif function_code == FUNC_ULTRASONIC_DIAG:
+                self._parse_ultrasonic_diagnostics(payload)
 
             elif function_code == FUNC_SERVO:
                 self._parse_servo_status(payload)
@@ -1414,6 +1449,21 @@ class STM32HardenedBridge(Node):
             else float("nan")
         )
         self._ultrasonic_pub.publish(message)
+
+    def _parse_ultrasonic_diagnostics(self, payload: bytes):
+        """Parse low-level HC-SR04 trigger and EXTI edge counters."""
+        if len(payload) != 12:
+            self.get_logger().warn(
+                f"Invalid ultrasonic diagnostics payload length: {len(payload)}"
+            )
+            return
+        trigger_count, rising_edges, falling_edges = struct.unpack(
+            "<III", payload
+        )
+        with self._telemetry_lock:
+            self._telemetry.ultrasonic_trigger_count = trigger_count
+            self._telemetry.ultrasonic_rising_edges = rising_edges
+            self._telemetry.ultrasonic_falling_edges = falling_edges
 
     def _parse_servo_status(self, payload: bytes) -> None:
         """Publish a state only after firmware accepts the J1 servo command."""
@@ -1771,6 +1821,18 @@ class STM32HardenedBridge(Node):
                             3: "timeout",
                             4: "valid",
                         }.get(self._telemetry.ultrasonic_state, "unknown"),
+                    ),
+                    KeyValue(
+                        key="trigger_count",
+                        value=str(self._telemetry.ultrasonic_trigger_count),
+                    ),
+                    KeyValue(
+                        key="rising_edges",
+                        value=str(self._telemetry.ultrasonic_rising_edges),
+                    ),
+                    KeyValue(
+                        key="falling_edges",
+                        value=str(self._telemetry.ultrasonic_falling_edges),
                     ),
                 ]
             )

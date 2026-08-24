@@ -17,6 +17,7 @@
 #include "battery_integration.h"
 #include "sg90_servo.h"
 #include "buzzer.h"
+#include "hc_sr04.h"
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -685,6 +686,29 @@ void binary_protocol_send_telemetry_burst(BinaryProtocolContext *ctx) {
                             MAX_FRAME_SIZE);
     if (frame_len > 0) {
         binary_protocol_queue_frame(ctx, FUNC_ULTRASONIC,
+                                    frame_buffer + FRAME_HEADER_SIZE,
+                                    frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
+    }
+}
+
+void binary_protocol_send_ultrasonic_diagnostics(BinaryProtocolContext *ctx) {
+    if (!ctx->telemetry_enabled) {
+        return;
+    }
+    HcSr04Diagnostics diagnostics;
+    hc_sr04_get_diagnostics(&diagnostics);
+    UltrasonicDiagnosticsTelemetry telemetry = {
+        diagnostics.trigger_count,
+        diagnostics.rising_edge_count,
+        diagnostics.falling_edge_count,
+    };
+    uint8_t frame_buffer[MAX_FRAME_SIZE];
+    uint16_t frame_len = build_frame(FUNC_ULTRASONIC_DIAG,
+                                     (const uint8_t *)&telemetry,
+                                     sizeof(telemetry), frame_buffer,
+                                     MAX_FRAME_SIZE);
+    if (frame_len > 0) {
+        binary_protocol_queue_frame(ctx, FUNC_ULTRASONIC_DIAG,
                                     frame_buffer + FRAME_HEADER_SIZE,
                                     frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
     }

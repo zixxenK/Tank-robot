@@ -28,21 +28,20 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${DO_BUILD}" != true || "${DO_VERIFY}" == true || "${DO_ERASE}" == true ]]; then
-  if [[ "$(uname -m)" != "aarch64" ]]; then
-    echo "[flash] ERROR: direct STM32 flashing is disabled outside the Rock64." >&2
-    echo "[flash] Run from the PC: ./scripts/deploy_rock64.ps1" >&2
-    echo "[flash] Or run on the Rock64: bash deployment/scripts/rock64_update_and_flash.sh" >&2
-    exit 1
-  fi
+if [[ "$(uname -m)" != "aarch64" ]]; then
+  echo "[flash] ERROR: direct STM32 flashing is disabled outside the Rock64." >&2
+  echo "[flash] Run from the PC: ./scripts/deploy_rock64.ps1" >&2
+  echo "[flash] Or run on the Rock64: bash deployment/scripts/rock64_update_and_flash.sh" >&2
+  exit 1
 fi
 
 if [[ "${DO_BUILD}" == true ]]; then
   echo "[flash] Building firmware..."
   cd "${FIRMWARE_DIR}"
-  # CMake 3.22 (the version available on the supported Rock64 image) does
-  # not implement --fresh. Reconfigure the fixed Release build directory;
-  # CMake invalidates changed inputs while preserving toolchain compatibility.
+  # Always remove this generated Release tree before configuring. The Rock64
+  # may retain a build directory from a different checkout, generator, or
+  # compiler; reconfigure alone is not a sufficient stale-artifact guard.
+  rm -rf build/Release
   cmake -S . -B build/Release \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -G 'Unix Makefiles'

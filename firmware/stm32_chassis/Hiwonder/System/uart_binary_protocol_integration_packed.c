@@ -44,12 +44,8 @@ extern DMA_HandleTypeDef hdma_usart1_rx;
 // ============================================================================
 
 static BinaryProtocolContext protocol_ctx;
-static osThreadId_t protocol_task_handle;
-
 extern BuzzerObjectTypeDef *buzzers[1];
 extern void buzzers_init(void);
-
-#define PROTOCOL_RX_EVENT_FLAG (1U << 0)
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
     if (huart != &ROCK64_HOST_UART_HANDLE) {
@@ -57,9 +53,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
     }
 
     binary_protocol_rx_event(&protocol_ctx, size);
-    if (protocol_task_handle != NULL) {
-        (void)osThreadFlagsSet(protocol_task_handle, PROTOCOL_RX_EVENT_FLAG);
-    }
 }
 
 // ============================================================================
@@ -166,6 +159,12 @@ void binary_protocol_main_task(void) {
 
 void binary_protocol_telemetry_task(void) {
     uint32_t now = HAL_GetTick();
+
+    /* This state machine is owned by the 100 Hz protocol task, not by the
+     * rate-limited telemetry publisher.  Keep its elapsed-time accounting
+     * correct even on cycles that do not transmit telemetry. */
+    Status_Update((uint32_t)(CONTROL_PERIOD_SEC * 1000.0f));
+
     if ((now - protocol_ctx.last_telemetry_time) <
         protocol_ctx.telemetry_interval_ms) {
         return;
@@ -249,11 +248,7 @@ void binary_protocol_telemetry_task(void) {
     
     // Send telemetry burst
     binary_protocol_send_telemetry_burst(&protocol_ctx);
-    
-    /* The protocol task runs the motor loop at CONTROL_PERIOD_SEC. Give the
-     * buzzer state machine the same elapsed period instead of relying on a
-     * second application task that is not present in this image. */
-    Status_Update((uint32_t)(CONTROL_PERIOD_SEC * 1000.0f));
+    binary_protocol_send_ultrasonic_diagnostics(&protocol_ctx);
 }
 
 // ============================================================================
@@ -281,20 +276,23 @@ void binary_protocol_trigger_emergency_stop(void) {
 void binary_protocol_task(void *argument) {
     (void)argument;
 
-    protocol_task_handle = osThreadGetId();
     binary_protocol_integration_init_packed();
+
+    /* MotorControl_Update() is given CONTROL_PERIOD_SEC, so this task must
+     * execute at the same 100 Hz cadence.  An event-driven wait here would
+     * run the PID and watchdog several times per millisecond during a UART
+     * burst while still passing a 10 ms delta to the controller. */
+    const uint32_t control_period_ticks =
+        osKernelGetTickFreq() / CONTROL_UPDATE_FREQ_HZ;
+    uint32_t next_wake = osKernelGetTickCount();
 
     for (;;) {
         binary_protocol_main_task();
         binary_protocol_telemetry_task();
         Watchdog_Refresh();
 
-        /* The idle-DMA callback wakes this task immediately after a burst;
-         * the timeout keeps the motor watchdog/PID loop alive when the link
-         * is quiet. */
-        (void)osThreadFlagsWait(PROTOCOL_RX_EVENT_FLAG,
-                                osFlagsWaitAny,
-                                1U);
+        next_wake += control_period_ticks;
+        (void)osDelayUntil(next_wake);
     }
 }
 

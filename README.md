@@ -294,6 +294,11 @@ synchronization.
 
 ## Hardware Gate
 
+The single supported HC-SR04 integration is documented in
+[docs/ULTRASONIC_BUILD_PATH.md](docs/ULTRASONIC_BUILD_PATH.md): `J4/PC8` is
+TRIG and `J2/PA12` is ECHO. It uses the STM32 already in the robot; an Arduino
+shield is not part of the build.
+
 Firmware builds and host/mock tests are pre-flash checks. Before operating the
 robot, complete [docs/HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md),
 including raised-track direction tests, all encoder channels, the 250 ms

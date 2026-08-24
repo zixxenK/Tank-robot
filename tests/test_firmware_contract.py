@@ -26,6 +26,47 @@ def test_iwdg_is_enabled_built_and_serviced_by_protocol_task():
     assert "Watchdog_Refresh();" in protocol
 
 
+def test_protocol_task_keeps_pid_period_and_uart_processing_separate():
+    protocol = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_integration_packed.c"
+    )
+    task = re.search(
+        r"void binary_protocol_task\(void \*argument\)\s*\{(.*?)\n\}",
+        protocol,
+        re.DOTALL,
+    )
+    assert task is not None
+    body = task.group(1)
+    assert "osKernelGetTickFreq() / CONTROL_UPDATE_FREQ_HZ" in body
+    assert "next_wake += control_period_ticks;" in body
+    assert "osDelayUntil(next_wake);" in body
+    assert "osThreadFlagsWait" not in body
+
+
+def test_status_state_machine_runs_on_control_cadence_not_telemetry_cadence():
+    protocol = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_integration_packed.c"
+    )
+    telemetry = re.search(
+        r"void binary_protocol_telemetry_task\(void\)\s*\{(.*?)\n\}",
+        protocol,
+        re.DOTALL,
+    )
+    assert telemetry is not None
+    body = telemetry.group(1)
+    status_index = body.index("Status_Update(")
+    rate_limit_index = body.index("telemetry_interval_ms")
+    assert status_index < rate_limit_index
+
+
+def test_stm32_flash_helper_is_rock64_only_even_for_build_requests():
+    flash = _read("scripts/flash_stm32.sh")
+    assert 'if [[ "$(uname -m)" != "aarch64" ]]; then' in flash
+    assert 'if [[ "${DO_BUILD}" != true ||' not in flash
+
+
 def test_battery_priming_consumes_vrefint_without_treating_it_as_a_second_pack():
     battery = _read(
         "firmware/stm32_chassis/Hiwonder/System/battery_integration.c"
@@ -46,19 +87,20 @@ def test_uninitialized_battery_cannot_emit_a_false_low_voltage_warning():
     assert "Battery_Update() == 0 && Battery_IsReady()" in freertos
 
 
-def test_hc_sr04_echo_exti_enables_the_irq_vector_for_pa12():
+def test_hc_sr04_echo_exti_enables_the_irq_vector_for_the_real_board_pair():
     gpio = _read("firmware/stm32_chassis/Core/Src/gpio.c")
     interrupt = _read("firmware/stm32_chassis/Core/Src/stm32f4xx_it.c")
     assert "HAL_GPIO_Init(HC_SR04_ECHO_GPIO_Port" in gpio
     assert "GPIO_MODE_IT_RISING_FALLING" in gpio
     assert "HAL_NVIC_EnableIRQ(EXTI15_10_IRQn)" in gpio
-    assert "HAL_NVIC_EnableIRQ(EXTI9_5_IRQn)" not in gpio
     assert "HAL_GPIO_EXTI_IRQHandler(HC_SR04_ECHO_Pin)" in interrupt
+    assert "EXTI9_5_IRQHandler" not in interrupt
 
 
 def test_hc_sr04_rejected_echoes_cannot_exceed_ros_range_contract():
     ultrasonic = _read("firmware/stm32_chassis/Hiwonder/System/hc_sr04.c")
-    assert "#define HC_SR04_MAX_ECHO_US 23300U" in ultrasonic
+    assert "#define HC_SR04_MIN_ECHO_US 117U" in ultrasonic
+    assert "#define HC_SR04_MAX_ECHO_US 23323U" in ultrasonic
     assert "status_code = HC_SR04_STATUS_TIMEOUT" in ultrasonic
 
 
@@ -109,13 +151,17 @@ def test_hc_sr04_owns_the_legacy_servo_conflict_pins():
     )
     assert "#define HC_SR04_ECHO_Pin GPIO_PIN_12" in main_h
     assert "#define HC_SR04_TRIG_Pin GPIO_PIN_8" in main_h
+    assert "PC10/PC11" not in main_h
+    assert "PC10" not in ioc
+    assert "PC11" not in ioc
     assert "PWM_SERVO_2_Pin" not in main_h
     assert "PWM_SERVO_3_Pin" not in main_h
     assert "PA12.GPIO_ModeDefault=GPIO_MODE_IT_RISING_FALLING" in ioc
+    assert "PB12.Signal=GPIO_Input" in ioc
     assert "PC8.Signal=GPIO_Output" in ioc
-    assert "UNUSED_PC9" in ioc
+    assert "PA12.Signal=GPIO_EXTI12" in ioc
     assert '"65","PC8","Output","GPIO_Output","HC_SR04_TRIG"' in pins_csv
-    assert '"66","PC9","Analog","GPIO_Analog","UNUSED_PC9"' in pins_csv
+    assert '"71","PA12","I/O","GPIO_EXTI12","HC_SR04_ECHO"' in pins_csv
     assert "HAL_GPIO_WritePin" in servo_port  # J1 remains the live output
     for channel in (2, 3, 4):
         body = re.search(

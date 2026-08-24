@@ -81,6 +81,12 @@ python3 -c 'import serial' >/dev/null 2>&1 || die "python3-serial is not install
 command -v st-flash >/dev/null 2>&1 || command -v openocd >/dev/null 2>&1 || die "neither st-flash nor openocd is installed"
 command -v openocd >/dev/null 2>&1 || die "openocd is required to start the image with NRST disconnected"
 
+# Authenticate before changing service state.  This keeps the EXIT trap able
+# to restore an active service if the operator interrupts the build or flash.
+if [[ "$(id -u)" -ne 0 ]]; then
+  sudo -v
+fi
+
 merge_all_hardware_config
 
 echo "[rock64_update] Production host link: UART1 / USART1 / PA9-PA10"

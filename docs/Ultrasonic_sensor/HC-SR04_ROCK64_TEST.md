@@ -1,5 +1,9 @@
 # HC-SR04 test checklist
 
+> The authoritative wiring and end-to-end build path is
+> [`../ULTRASONIC_BUILD_PATH.md`](../ULTRASONIC_BUILD_PATH.md). This file is
+> only the short bench checklist.
+
 This repository contains the firmware and Rock64 transport path. Verify the
 controller image before connecting the sensor; do not assume that a previously
 flashed board has the HC-SR04 image.
@@ -16,11 +20,10 @@ This is the only supported STM32 release path. It builds on the Rock64, flashes
 through the Rock64-connected ST-Link, verifies readback, starts the image, and
 runs the safe UART proof before any sensor or motor validation.
 
-The image configures PC8 as the trigger output and PA12 as a rising/falling
-edge input. The legacy PC8/PC9 servo configuration is not safe for this test.
-HC-SR04 ECHO is a 5 V signal: use a resistor divider or level shifter unless
-the complete PA12 input path on the exact controller board has been verified as
-5 V tolerant.
+The image drives J4/PC8 as TRIG and listens for rising/falling edges on J2/PA12
+as ECHO. Split the HC-SR04 four-wire lead across those two three-pin headers;
+use the signal contact on each. Use a divider or level shifter on the 5 V ECHO
+line unless the complete input path on this exact controller is verified safe.
 
 ## ROS validation
 
@@ -48,6 +51,6 @@ Expected topics are:
   `HC-SR04`, `valid`, `echo_us`, `state`, and `state_name`.  The state names
   are `waiting_rise` (no ECHO edge seen yet), `waiting_fall` (rising edge seen),
   `timeout`, and `valid`; `waiting_rise` specifically points to the sensor
-  VCC/GND/ECHO path or the selected PA12 header rather than ROS parsing.
+  VCC/GND/ECHO path or the selected connector pair rather than ROS parsing.
 
 Keep the robot tracks raised and motion disabled during the first sensor test.

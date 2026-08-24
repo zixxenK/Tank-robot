@@ -3,6 +3,7 @@
 
 import unittest
 import struct
+import threading
 
 from robot_drivers.stm32_hardened_bridge import (
     CircularBuffer,
@@ -23,6 +24,7 @@ from robot_drivers.stm32_hardened_bridge import (
     servo_pulse_to_angle_degrees,
     signed_int32_delta,
     TelemetryData,
+    STM32HardenedBridge,
 )
 
 
@@ -444,6 +446,56 @@ class TestIntegration(unittest.TestCase):
         telemetry.imu_accel = (0.0, 0.0, 0.0)
         telemetry.imu_received = True
         self.assertTrue(telemetry.imu_received)
+
+
+class TestSerialFailureHandling(unittest.TestCase):
+    """Verify failed UART objects are made eligible for reconnection."""
+
+    class FakeSerial:
+        def __init__(self):
+            self.is_open = True
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+            self.is_open = False
+
+    class FakeLogger:
+        def error(self, message):
+            pass
+
+    def _bridge_without_ros_node(self):
+        bridge = STM32HardenedBridge.__new__(STM32HardenedBridge)
+        bridge._serial_lock = threading.Lock()
+        bridge._state_lock = threading.Lock()
+        bridge._connection_loss_time = 0.0
+        bridge._motion_armed = True
+        bridge.get_logger = lambda: self.FakeLogger()
+        return bridge
+
+    def test_failed_current_port_is_closed_and_cleared(self):
+        bridge = self._bridge_without_ros_node()
+        failed_port = self.FakeSerial()
+        bridge._ser = failed_port
+
+        bridge._close_serial_after_error(failed_port, "read", OSError("gone"))
+
+        self.assertIsNone(bridge._ser)
+        self.assertTrue(failed_port.closed)
+        self.assertFalse(bridge._motion_armed)
+        self.assertNotEqual(bridge._connection_loss_time, 0.0)
+
+    def test_stale_port_error_cannot_close_replacement(self):
+        bridge = self._bridge_without_ros_node()
+        failed_port = self.FakeSerial()
+        replacement = self.FakeSerial()
+        bridge._ser = replacement
+
+        bridge._close_serial_after_error(failed_port, "read", OSError("late"))
+
+        self.assertIs(bridge._ser, replacement)
+        self.assertFalse(failed_port.closed)
+        self.assertTrue(bridge._motion_armed)
 
 
 def run_tests():

@@ -11,9 +11,10 @@ flashed once before the servo test can pass:
 bash deployment/scripts/rock64_update_and_flash.sh
 ```
 
-The deployment keeps HC-SR04 on PC8/PA12 and enables only the SG90 connected to
-J1/PA11. It also enables the STM32 bridge, PS5 bridge, ESP32 camera bridge, USB
-camera bridge, and compressed camera transport in the Rock64 service config.
+The deployment keeps HC-SR04 on J4/PC8 (TRIG) and J2/PA12 (ECHO), and enables
+only the SG90 connected to J1/PA11. It also enables the STM32 bridge, PS5
+bridge, ESP32 camera bridge, USB camera bridge, and compressed camera transport
+in the Rock64 service config.
 
 ## Start everything
 

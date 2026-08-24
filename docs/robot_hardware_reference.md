@@ -134,18 +134,15 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Max current per motor channel | 2A |
 | Software | ROS1 and ROS2 SDKs (Python 3), full source for motor control / attitude calc / PC comms |
 
-> **Production-image pin ownership (current):** The legacy four-servo header
-> labels do not describe the active firmware assignment. J1/PA11 is the only
-> enabled SG90 output; J2/PA12 is HC-SR04 ECHO; J4/PC8 is HC-SR04 TRIG; and
-> PC9 is intentionally unused. The older four-servo/timer-remapping notes in
-> this reference document are historical and must not be used to reassign
-> PA12 or PC8.
+> **Production-image pin ownership (current):** J1/PA11 is the only enabled
+> SG90 output. The HC-SR04 uses J4/PC8 for TRIG and J2/PA12 for ECHO. PC9,
+> PC10, and PC11 are not HC-SR04 connector signals on this controller.
 
 ### Cross-reference to this project's `rock64_ranger_fw.ioc`
 | Reference board feature | Project's STM32 pin | Match |
 |---|---|---|
 | 4× encoder motor ports | TIM2/TIM3/TIM4/TIM5, CH1+CH2 encoder mode | Exact peripheral match; only 2 of 4 channels are wired to the physical chassis motors (left/right track) |
-| Reference PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | Legacy four-header layout; the production image reserves PA12/PC8 for HC-SR04, leaves PC9 unused, and enables SG90 J1/PA11 only |
+| Reference PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | J1/PA11 remains SG90; J4/PC8 is HC-SR04 TRIG and J2/PA12 is HC-SR04 ECHO |
 | Serial bus servo port | USART6 (PC6 TX / PC7 RX) + PE7/PE8 as TX/RX bus-direction-enable | Matches Hiwonder's half-duplex bus-servo driver topology exactly |
 | SBUS input | UART5 RX (PD2), 100000 baud, 9-bit, even parity, 2 stop bits | Standard SBUS framing, matches |
 | Rock64 host link | USART1 (PA9 TX / PA10 RX), 1,000,000 baud | WCH USB-UART motor link on the product connector labeled UART1 |
@@ -153,13 +150,13 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Display | SPI2 TX-only (PC3 MOSI / PB13 SCK) + PD11–14 as LCD_BLK/CS/DC/RES | Reference board uses SPI OLED; project uses a color LCD instead (ST7735-class 4-wire) |
 | Auxiliary UART | USART2 (PD5/PD6) | Bluetooth/expansion interface |
 | Battery sense | ADC1 IN8 on PB0, labeled BATTERY | Standard voltage-divider ADC monitoring |
-| Motor enable | PD3, `GPIO_Input`, labeled MOTOR_ENABLE | Matches reference board's separate motor-enable switch |
+| Motor enable input | PD3, `GPIO_Input`, labeled MOTOR_ENABLE | Pin is present, but the current production firmware does not read it or gate PWM; polarity and physical wiring still require board validation |
 
 **Production pin ownership is resolved in the current image:** PA11 is the
-single CPU-timed SG90 output, PA12 is the HC-SR04 ECHO EXTI input, PC8 is the
-HC-SR04 TRIG output, and PC9 is intentionally unused. The legacy four-servo
-object array remains only as a compatibility API; channels 2–4 are no-ops and
-must not be wired as active servo outputs.
+single CPU-timed SG90 output, PC8 is the HC-SR04 TRIG output, and PA12 is the
+HC-SR04 ECHO EXTI input. The legacy four-servo object array remains only as a
+compatibility API; channels 2–4 are no-ops and must not be wired as active
+servo outputs.
 
 ---
 
@@ -334,13 +331,13 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
 | PA11 | `PWM_SERVO_1` GPIO output | SG90 J1 | Sole production PWM servo output |
-| PA12 | `HC_SR04_ECHO` rising/falling EXTI input | HC-SR04 J2 signal | Never drive as a servo output |
-| PC8 | `HC_SR04_TRIG` GPIO output | HC-SR04 J4 signal | 10 us trigger pulse |
-| PC9 | `UNUSED_PC9` analog | None | Intentionally not assigned |
+| PA12 | `HC_SR04_ECHO` rising/falling EXTI input | J2 signal | Never drive as a servo output |
+| PC8 | `HC_SR04_TRIG` GPIO output | J4 signal | 10 us trigger pulse |
+| PC9/PC10/PC11 | Unused by HC-SR04 | None | Do not use as the sensor pair |
 
 The legacy reference-board timer-remapping suggestions are historical and do
-not apply to the production image. Changing PA12 or PC8 back to servo outputs
-would break ultrasonic capture and is not an approved firmware change.
+do not apply to the production image. Changing PC8 or PA12 back to servo
+outputs would break ultrasonic capture and is not an approved firmware change.
 
 #### Issue 2: WCH motor transport documentation
 **Resolution:** The approved custom image uses the physical UART1 connector
@@ -368,7 +365,7 @@ source-of-truth document.
 ### GPIO Inputs
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PD3 | GPIO_Input (MOTOR_ENABLE) | Motor enable switch | Safety switch to enable motor drivers |
+| PD3 | GPIO_Input (MOTOR_ENABLE) | Unconsumed motor-enable input | Current firmware does not read this pin or use it as a PWM safety interlock; do not treat it as the emergency cutoff |
 | PE0 | GPIO_Input (KEY2) | User button 2 | General-purpose user input |
 | PE1 | GPIO_Input (KEY1) | User button 1 | General-purpose user input |
 | PB12 | GPXTI12 (IMU_ITR) | MPU6050 interrupt | IMU data ready interrupt for FreeRTOS semaphore |

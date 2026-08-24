@@ -15,6 +15,12 @@ typedef struct {
     bool valid;
 } HcSr04Measurement;
 
+typedef struct {
+    uint32_t trigger_count;
+    uint32_t rising_edge_count;
+    uint32_t falling_edge_count;
+} HcSr04Diagnostics;
+
 void hc_sr04_init(void);
 void hc_sr04_service(void);
 void hc_sr04_echo_edge(void);
@@ -22,5 +28,6 @@ bool hc_sr04_get_measurement(HcSr04Measurement *measurement);
 
 /* Low-level state for ROS diagnostics. */
 uint8_t hc_sr04_get_status(void);
+void hc_sr04_get_diagnostics(HcSr04Diagnostics *diagnostics);
 
 #endif /* HC_SR04_H */

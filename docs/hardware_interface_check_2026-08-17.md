@@ -2,6 +2,10 @@
 
 ## Result
 
+> **Current production assignment:** the active firmware uses J4/PC8 for
+> HC-SR04 TRIG and J2/PA12 for HC-SR04 ECHO. The bottom expansion-header
+> `PC10/PC11` pair is not the sensor path for this controller.
+
 The Rock64 can see the Bluetooth adapter and the two USB serial devices. It does
 not currently see a Wi-Fi adapter or a Linux wireless interface. The HC-SR04
 and SG90 cannot be enumerated by USB: they are electrical GPIO/PWM devices, so
@@ -15,7 +19,7 @@ their status depends on controller firmware and wiring.
 | Espressif USB device | `303a:1001`, `/dev/ttyACM1`, CDC ACM | **Detected** |
 | Wi-Fi adapter | No `148f:7601` MT7601 device; no `148f:2878` virtual-CD device | **Not detected** |
 | Wi-Fi network interface | Only `eth0` and `lo` exist; no `/sys/class/net/*/wireless` | **Not detected** |
-| HC-SR04 | No USB identity; no ultrasonic driver yet, but two existing PWM headers can be repurposed | **Electrically supported; firmware still required** |
+| HC-SR04 | No USB identity; the STM32 driver and Rock64 transport are now present | **Path implemented; physical echo verification pending** |
 | SG90 | No device identity; factory firmware exposes four PWM-servo outputs | **Firmware path exists; physical presence cannot be auto-detected** |
 
 ## Live Rock64 evidence

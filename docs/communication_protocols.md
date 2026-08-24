@@ -43,6 +43,7 @@ the reflected CRC-8/MAXIM table (`table[1] == 0x5E`).
 | `0x12` | IMU | `<ffffff` acceleration/gyro |
 | `0x13` | Legacy self-test | Reserved; use the Rock64 hardware acceptance runner |
 | `0x14` | HC-SR04 | `<HHBB` distance mm, echo us, valid, reserved |
+| `0x15` | HC-SR04 diagnostics | `<III` trigger count, rising-edge count, falling-edge count |
 | `0xF0` | Heartbeat | Empty |
 | `0xF1` | Acknowledgement | Implementation-defined |
 | `0xFF` | Error | Error code |
@@ -92,7 +93,7 @@ physical sound.
 ## SG90 Servo Commands
 
 The production image controls one PWM servo only: channel `0`, board header
-J1, STM32 PA11. PC8/PA12 are reserved for HC-SR04 TRIG/ECHO and are never
+J1, STM32 PA11. J4/PC8 is HC-SR04 TRIG and J2/PA12 is HC-SR04 ECHO; neither is
 driven by the servo implementation.
 
 ```text

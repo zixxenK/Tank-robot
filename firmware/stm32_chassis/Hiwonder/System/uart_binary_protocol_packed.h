@@ -39,6 +39,7 @@ typedef enum {
     FUNC_IMU              = 0x12,
     FUNC_SELF_TEST        = 0x13,
     FUNC_ULTRASONIC       = 0x14,
+    FUNC_ULTRASONIC_DIAG  = 0x15,
     FUNC_HEARTBEAT        = 0xF0,
     FUNC_ACK              = 0xF1,
     FUNC_ERROR            = 0xFF
@@ -145,6 +146,12 @@ typedef struct __attribute__((packed)) {
     uint8_t valid;
     uint8_t reserved;
 } UltrasonicTelemetry;
+
+typedef struct __attribute__((packed)) {
+    uint32_t trigger_count;
+    uint32_t rising_edge_count;
+    uint32_t falling_edge_count;
+} UltrasonicDiagnosticsTelemetry;
 
 /**
  * @brief Complete telemetry struct for burst transmission
@@ -308,6 +315,7 @@ void binary_protocol_send_heartbeat(BinaryProtocolContext *ctx);
  * @param ctx Protocol context
  */
 void binary_protocol_send_telemetry_burst(BinaryProtocolContext *ctx);
+void binary_protocol_send_ultrasonic_diagnostics(BinaryProtocolContext *ctx);
 
 /**
  * @brief Advance the transmit queue after UART DMA completion.
