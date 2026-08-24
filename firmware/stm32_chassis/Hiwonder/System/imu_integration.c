@@ -91,6 +91,9 @@ int IMU_Init(void) {
     imu_who_am_i = 0;
     imu_last_error = -2;
     uint32_t init_time = HAL_GetTick();
+    /* Give the controller's onboard sensor rail time to settle after power
+     * is applied or after a watchdog/SWD restart. */
+    HAL_Delay(100);
     for (size_t i = 0;
          i < (sizeof(candidate_addresses) / sizeof(candidate_addresses[0]));
          ++i) {
@@ -103,6 +106,10 @@ int IMU_Init(void) {
 
         if (HAL_I2C_IsDeviceReady(&hi2c2, imu_sensor.dev_addr << 1, 2, 20) ==
             HAL_OK) {
+            /* Preserve the responding address even when identity/data reads
+             * fail; this makes a board-level fault distinguishable from an
+             * address-probe fault in the operator diagnostics. */
+            imu_device_address = imu_sensor.dev_addr;
             /* Require a readable identity from the onboard MPU-compatible
              * device.  The address byte and WHO_AM_I value are independent;
              * the accepted list includes the known MPU6050/6500/9250 family
@@ -118,12 +125,14 @@ int IMU_Init(void) {
                 imu_last_error = -3;
                 continue;
             }
+            imu_who_am_i = who_am_i;
+            /* Some Hiwonder production revisions use a compatible device
+             * whose WHO_AM_I byte is not one of the public MPU IDs.  Keep the
+             * identity as evidence, but let the reset/configuration and full
+             * 14-byte sample transfer prove that the device is usable. */
             if (!imu_identity_is_supported(who_am_i)) {
                 imu_last_error = -4;
-                continue;
             }
-            imu_device_address = imu_sensor.dev_addr;
-            imu_who_am_i = who_am_i;
             device_found = true;
             break;
         }

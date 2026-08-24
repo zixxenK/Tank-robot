@@ -40,7 +40,11 @@ void MX_I2C2_Init(void)
 
   /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
-  hi2c2.Init.ClockSpeed = 400000;
+  /* The controller's onboard IMU is on this short shared bus.  Standard-mode
+   * I2C is deliberately used for the basic drive/IMU profile because the
+   * board's pull-up strength and production wiring are not guaranteed to
+   * meet Fast-mode rise-time requirements. */
+  hi2c2.Init.ClockSpeed = 100000;
   hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_16_9;
   hi2c2.Init.OwnAddress1 = 0;
   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;

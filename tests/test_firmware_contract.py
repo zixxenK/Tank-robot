@@ -195,6 +195,18 @@ def test_imu_reset_and_reads_check_i2c_return_values():
     assert "imu_error_count++" in integration
 
 
+def test_basic_hardware_profile_keeps_i2c2_for_the_onboard_imu_only():
+    i2c = _read("firmware/stm32_chassis/Core/Src/i2c.c")
+    ioc = _read("firmware/stm32_chassis/RosRobotControllerM4.ioc")
+    integration = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_integration_packed.c"
+    )
+    assert "hi2c2.Init.ClockSpeed = 100000" in i2c
+    assert "I2C2.I2C_Mode=I2C_Standard" in ioc
+    assert "#define ENABLE_GLOWY_BASIC_PROFILE 0" in integration
+
+
 def test_legacy_secondary_servo_pads_are_inert_for_i2c_sensor_use():
     main_h = _read("firmware/stm32_chassis/Core/Inc/main.h")
     ioc = _read("firmware/stm32_chassis/RosRobotControllerM4.ioc")

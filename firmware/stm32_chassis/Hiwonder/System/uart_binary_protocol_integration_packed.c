@@ -27,6 +27,11 @@
 #include "watchdog.h"
 #include "buzzer.h"
 #include "main.h"
+
+/* Basic release profile: only the onboard IMU, cameras, and drive path are
+ * commissioned.  Glowy is an optional external device on the same I2C2 bus;
+ * do not probe it while bringing up the onboard IMU. */
+#define ENABLE_GLOWY_BASIC_PROFILE 0
 #include "usart.h"
 #include "dma.h"
 #include "tim.h"
@@ -82,7 +87,9 @@ void binary_protocol_integration_init_packed(void) {
     MotorControl_Init();
 
     MotorControl_EmergencyStop();
+#if ENABLE_GLOWY_BASIC_PROFILE
     glowy_ultrasonic_init();
+#endif
     SG90Servo_Init();
 
     /* Sensor bring-up is non-fatal: the protocol remains available when an
@@ -224,6 +231,7 @@ void binary_protocol_telemetry_task(void) {
                                      accel_x, accel_y, accel_z,
                                      gyro_x, gyro_y, gyro_z);
 
+#if ENABLE_GLOWY_BASIC_PROFILE
     GlowyUltrasonicMeasurement ultrasonic;
     bool ultrasonic_ready = glowy_ultrasonic_read(&ultrasonic);
     if (ultrasonic_ready) {
@@ -235,10 +243,13 @@ void binary_protocol_telemetry_task(void) {
         protocol_ctx.telemetry.ultrasonic.valid = 0U;
         protocol_ctx.telemetry.ultrasonic.status = ultrasonic.status;
     }
+#endif
     
     // Send telemetry burst
     binary_protocol_send_telemetry_burst(&protocol_ctx);
+#if ENABLE_GLOWY_BASIC_PROFILE
     binary_protocol_send_glowy_ultrasonic_diagnostics(&protocol_ctx);
+#endif
     binary_protocol_send_imu_diagnostics(&protocol_ctx);
 }
 
