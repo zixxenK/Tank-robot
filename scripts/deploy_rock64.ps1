@@ -100,7 +100,7 @@ chmod 0755 '$RemoteRoot/run_e2e.sh'
 
   $gitSync = @"
 set -e
-git -C '$RemoteRoot' fetch --quiet origin '$gitCommit'
+git -C '$RemoteRoot' fetch --quiet origin main
 git -C '$RemoteRoot' reset --hard '$gitCommit'
 test "`$(git -C '$RemoteRoot' rev-parse HEAD)" = '$gitCommit'
 echo "[deploy] Rock64 Git checkout pinned to $gitCommit"
