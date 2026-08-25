@@ -22,6 +22,7 @@ typedef struct EncoderMotorObject EncoderMotorObjectTypeDef;
 */
 struct EncoderMotorObject{
     int64_t counter;        /**< @brief 上一次硬件计数值 */
+    int64_t total_count;    /**< @brief 累计编码器计数值 */
     int64_t overflow_num;   /**< @brief 保留字段 */
     int32_t ticks_overflow; /**< @brief 硬件计数器模数 (ARR + 1) */
     float tps;              /**< @brief ticks per second 计数器频率 */
@@ -79,4 +80,3 @@ void encoder_motor_control(EncoderMotorObjectTypeDef *self, float period);
 void encoder_motor_set_speed(EncoderMotorObjectTypeDef *self, float rps);
 
 #endif
-

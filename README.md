@@ -235,8 +235,10 @@ ros2 service call /stm32/motor_2/enable std_srvs/srv/SetBool "{data: false}"
 ```
 
 The service test owns the motor pair until both are stopped, and runs at the
-guarded `motor_test_speed` (0.10 normalized by default). For a pre-ROS proof,
-use `python3 scripts/motor_start_stop_test.py --confirm`.
+guarded `motor_test_speed` (0.10 normalized by default). The direct pre-ROS
+scripts accept the full command range explicitly; for example, use
+`python3 scripts/motor_start_stop_test.py --rps 1.0 --confirm` with the tracks
+raised.
 
 ## Configuration
 

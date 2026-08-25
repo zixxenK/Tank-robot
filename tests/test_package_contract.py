@@ -122,3 +122,18 @@ def test_hardware_config_does_not_duplicate_canonical_track_geometry():
     assert "track_width_m:" not in hardware
     assert "wheel_separation:" not in hardware
     assert "max_track_speed_mps:" not in hardware
+
+
+def test_simulation_uses_the_canonical_differential_drive_geometry():
+    control_map = (
+        SOURCE_ROOT / "robot_control" / "config" / "control_map.yaml"
+    ).read_text()
+    world = (
+        SOURCE_ROOT / "robot_bringup" / "worlds" / "tank_minimal.sdf"
+    ).read_text()
+    assert "track_width_m: 0.194" in control_map
+    assert "<wheel_separation>0.194</wheel_separation>" in world
+    assert "<wheel_radius>0.065</wheel_radius>" in world
+    assert "<pose>0 0.097 0 1.57079632679 0 0</pose>" in world
+    assert "<pose>0 -0.097 0 1.57079632679 0 0</pose>" in world
+    assert world.count("<xyz>0 1 0</xyz>") == 2

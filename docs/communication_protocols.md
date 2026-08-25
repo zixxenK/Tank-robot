@@ -38,7 +38,7 @@ the reflected CRC-8/MAXIM table (`table[1] == 0x5E`).
 | `0x03` | Motor | Motor subcommand |
 | `0x04` | Buzzer | `01 FREQUENCY_UINT16_LE` (`0` = off) |
 | `0x05` | SG90 servo command/ack | `01 00 PULSE_US_UINT16_LE DURATION_MS_UINT16_LE` |
-| `0x10` | Encoder | `<ii` left/right counts |
+| `0x10` | Encoder | `<ii` cumulative signed left/right output-shaft counts |
 | `0x11` | Battery | `<ff` voltage/current |
 | `0x12` | IMU | `<ffffff` acceleration/gyro |
 | `0x13` | Legacy self-test | Reserved; use the Rock64 hardware acceptance runner |
@@ -107,6 +107,11 @@ Rock64 interface is `/stm32/servo/command_degrees` (`std_msgs/Float32`), with
 acknowledged state on `/stm32/servo/state_degrees` and
 `/stm32/servo/state_us` (`std_msgs/UInt16`). Normal host limits are 30 through
 150 degrees.
+
+Encoder telemetry is cumulative. The STM32 internally converts each modulo
+timer-counter sample into a signed delta and accumulates it before sending
+the `int32` values. This is required because the encoder timers wrap at
+`ARR + 1`; consumers must not interpret the telemetry as a raw timer register.
 
 ## Timeouts and Rearming
 

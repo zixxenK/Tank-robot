@@ -89,7 +89,7 @@ float MotorControl_GetCurrentRPS(uint8_t motor_id) {
     return motor_states[motor_id].current_rps;
 }
 
-int32_t MotorControl_GetEncoderCount(uint8_t motor_id) {
+static int32_t MotorControl_GetRawEncoderCount(uint8_t motor_id) {
     if (motor_id >= MOTOR_COUNT) {
         return 0;
     }
@@ -112,6 +112,16 @@ int32_t MotorControl_GetEncoderCount(uint8_t motor_id) {
     return 0;
 }
 
+int32_t MotorControl_GetEncoderCount(uint8_t motor_id) {
+    if (motor_id >= MOTOR_COUNT || motors[motor_id] == NULL) {
+        return 0;
+    }
+
+    /* Expose cumulative position, not the modulo value currently held in
+     * TIMx->CNT. The host uses this value for wheel-distance integration. */
+    return (int32_t)motors[motor_id]->total_count;
+}
+
 // ============================================================================
 // CONTROL LOOP UPDATE
 // ============================================================================
@@ -123,12 +133,12 @@ void MotorControl_Update(float period) {
         }
         
         // Read current encoder count
-        int32_t current_encoder = MotorControl_GetEncoderCount(i);
-        motor_states[i].encoder_count = current_encoder;
-        
+        int32_t current_encoder = MotorControl_GetRawEncoderCount(i);
+
         // Update encoder reading and calculate RPS using Hiwonder's function
         // This handles overflow, filtering, and RPS calculation
         encoder_update(motors[i], period, current_encoder);
+        motor_states[i].encoder_count = MotorControl_GetEncoderCount((uint8_t)i);
         
         // Store current RPS for telemetry
         motor_states[i].current_rps = motors[i]->rps;

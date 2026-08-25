@@ -4,7 +4,7 @@
 MAINTENANCE ONLY: run with tracks raised for commissioning; normal driving
 must use the ROS safety gateway and hardened bridge.
 
-The default command is deliberately low speed (0.15 normalized RPS). Both
+The default command uses the full normalized command range (1.0 RPS). Both
 tracked motors receive the same sign. The script always sends a final stop.
 It requires --confirm so it cannot be started accidentally.
 """
@@ -44,7 +44,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", default=DEFAULT_PORT)
     parser.add_argument("--baud", type=int, default=DEFAULT_BAUD)
-    parser.add_argument("--rps", type=float, default=0.15)
+    parser.add_argument(
+        "--rps",
+        type=float,
+        default=1.0,
+        help="normalized motor speed (default: full command range)",
+    )
     parser.add_argument(
         "--confirm",
         action="store_true",

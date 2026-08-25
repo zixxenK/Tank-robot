@@ -41,7 +41,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", default=DEFAULT_PORT)
     parser.add_argument("--baud", type=int, default=DEFAULT_BAUD)
-    parser.add_argument("--rps", type=float, default=0.10)
+    parser.add_argument(
+        "--rps",
+        type=float,
+        default=1.0,
+        help="normalized motor speed (default: full command range)",
+    )
     parser.add_argument("--duration", type=float, default=1.0)
     parser.add_argument(
         "--dry-run",

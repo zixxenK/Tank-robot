@@ -31,7 +31,12 @@ def main() -> int:
     parser.add_argument("--port", default=DEFAULT_PORT)
     parser.add_argument("--baud", type=int, default=DEFAULT_BAUD)
     parser.add_argument("--seconds", type=float, default=1.0)
-    parser.add_argument("--rps", type=float, default=0.10)
+    parser.add_argument(
+        "--rps",
+        type=float,
+        default=1.0,
+        help="normalized motor speed (default: full command range)",
+    )
     parser.add_argument("--confirm", action="store_true")
     args = parser.parse_args()
 

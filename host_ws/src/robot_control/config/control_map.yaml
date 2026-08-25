@@ -40,5 +40,9 @@ control_map:
     beta: 2.75
 
   geometry:
+    # Differential-drive B: center-to-center distance between the two drive
+    # tracks. The checked-in 0.194 m value is the available outer-bracket
+    # dimension and remains provisional until the drive-center spacing is
+    # measured on the assembled chassis.
     track_width_m: 0.194
     max_track_speed_mps: 0.8

@@ -61,7 +61,7 @@ in full since it's the closest official analog to the custom firmware.
 | Spec | Value |
 |---|---|
 | Material | Aluminum alloy, 2mm thickness |
-| Width | 194mm (194mm outer bracket; inner rail sub-assembly 143mm) |
+| Width | 194mm (outer bracket; inner rail sub-assembly 143mm) |
 | Length | 270mm |
 | Weight | Single layer: 1.4kg · Double layer: 1.6kg |
 | Package size | 320×240×150mm, 2.3kg shipping weight |
@@ -89,6 +89,13 @@ in full since it's the closest official analog to the custom firmware.
 as the base tick-to-distance conversion factor before applying wheel/sprocket circumference.
 
 There are two drive motors total (left track, right track) — this is a 2-motor tank, not 4-motor.
+
+**Kinematics measurement note:** the differential-drive equation uses \(B\),
+the center-to-center spacing of the two drive tracks. The 194 mm dimension
+above is the outer bracket width, not a verified \(B\) measurement. The
+checked-in `track_width_m` value is therefore provisional and must be
+replaced with a measurement between the drive-track centerlines before
+calibrated odometry or turn-rate accuracy is claimed.
 
 ### Battery (if using Hiwonder's stock pack)
 | Spec | Value |

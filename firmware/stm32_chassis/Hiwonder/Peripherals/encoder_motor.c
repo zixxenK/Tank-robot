@@ -9,7 +9,7 @@
  *
  */
 
-
+#include <stddef.h>
 #include "encoder_motor.h"
 
 /**
@@ -22,6 +22,10 @@
 */
 void encoder_update(EncoderMotorObjectTypeDef *self, float period, int64_t counter)
 {
+    if (self == NULL || period <= 0.0f) {
+        return;
+    }
+
     int64_t delta_count = counter - self->counter;
 
     if (self->ticks_overflow > 0) {
@@ -34,6 +38,10 @@ void encoder_update(EncoderMotorObjectTypeDef *self, float period, int64_t count
     }
 
     self->counter = counter;
+    /* Keep a cumulative position separate from the timer's modulo counter.
+     * The STM32 encoder timers wrap at ARR+1 (60001 in this image), while
+     * the wire protocol and host odometry use cumulative int32 positions. */
+    self->total_count += delta_count;
     self->tps = (float)delta_count / period * 0.9f + self->tps * 0.1f; /* 计算脉冲频率 */
     self->rps = self->tps / self->ticks_per_circle; /* 计算转速 单位rps, 转每秒 */
 }
@@ -48,6 +56,9 @@ void encoder_update(EncoderMotorObjectTypeDef *self, float period, int64_t count
 void encoder_motor_control(EncoderMotorObjectTypeDef *self, float period) 
 {
 	float pulse = 0;
+    if (self == NULL || period <= 0.0f) {
+        return;
+    }
     pid_controller_update(&self->pid_controller, self->rps, period);   /* 更新 PID控制器 */
     pulse = self->current_pulse + self->pid_controller.output; /* 计算新的 PWM 值 */
 	
@@ -81,6 +92,7 @@ void encoder_motor_set_speed(EncoderMotorObjectTypeDef *self, float rps)
 void encoder_motor_object_init(EncoderMotorObjectTypeDef *self)
 {
     self->counter = 0;
+    self->total_count = 0;
     self->overflow_num = 0;
     self->tps = 0; 
     self->rps = 0;
@@ -89,4 +101,3 @@ void encoder_motor_object_init(EncoderMotorObjectTypeDef *self)
     self->ticks_per_circle = 9999; /* 电机输出轴旋转一圈产生的计数个数, 根据电机实际情况填写 */
 	pid_controller_init(&self->pid_controller, 0, 0, 0);
 }
-

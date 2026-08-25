@@ -51,6 +51,20 @@ def test_protocol_task_keeps_pid_period_and_uart_processing_separate():
     assert "osThreadFlagsWait" not in body
 
 
+def test_encoder_telemetry_accumulates_timer_deltas_before_transmission():
+    encoder = _read(
+        "firmware/stm32_chassis/Hiwonder/Peripherals/encoder_motor.c"
+    )
+    motor_control = _read(
+        "firmware/stm32_chassis/Hiwonder/System/motor_control.c"
+    )
+    docs = _read("docs/communication_protocols.md")
+    assert "self->total_count += delta_count" in encoder
+    assert "MotorControl_GetRawEncoderCount" in motor_control
+    assert "motors[motor_id]->total_count" in motor_control
+    assert "cumulative signed left/right output-shaft counts" in docs
+
+
 def test_status_state_machine_runs_on_control_cadence_not_telemetry_cadence():
     protocol = _read(
         "firmware/stm32_chassis/Hiwonder/System/"

@@ -125,6 +125,18 @@ def test_host_motor_commands_use_full_protocol_range_without_extra_speed_cap():
     assert "full signed motor-command range" in directive
 
 
+def test_direct_motor_scripts_default_to_full_explicit_command_range():
+    command = _read("scripts/motor_command.py")
+    forward_reverse = _read("scripts/motor_forward_reverse_test.py")
+    start_stop = _read("scripts/motor_start_stop_test.py")
+
+    for script in (command, forward_reverse, start_stop):
+        assert '"--rps"' in script
+        assert "default=1.0" in script
+        assert "--confirm" in script
+        assert "0.01 <= args.rps <= 1.0" in script or "args.rps <= 1.0" in script
+
+
 def test_runner_is_stable_in_minimal_ssh_ros_environment():
     runner = _read("scripts/e2e_mission.py")
 
