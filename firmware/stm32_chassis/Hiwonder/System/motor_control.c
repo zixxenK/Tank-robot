@@ -22,10 +22,10 @@ MotorState_t motor_states[MOTOR_COUNT];
 extern EncoderMotorObjectTypeDef *motors[4];
 
 // Encoder timer handles for reading encoder counts
-extern TIM_HandleTypeDef htim2;  // Motor 2 encoder
+extern TIM_HandleTypeDef htim2;  // Motor 1 encoder
 extern TIM_HandleTypeDef htim3;  // Motor 4 encoder  
 extern TIM_HandleTypeDef htim4;  // Motor 3 encoder
-extern TIM_HandleTypeDef htim5;  // Motor 1 encoder
+extern TIM_HandleTypeDef htim5;  // Motor 2 encoder
 
 void motors_init(void);
 
@@ -98,8 +98,8 @@ static int32_t MotorControl_GetRawEncoderCount(uint8_t motor_id) {
     TIM_HandleTypeDef *encoder_timer = NULL;
     
     switch (motor_id) {
-        case 0: encoder_timer = &htim5; break;  // Motor 1
-        case 1: encoder_timer = &htim2; break;  // Motor 2
+        case 0: encoder_timer = &htim2; break;  // Motor 1
+        case 1: encoder_timer = &htim5; break;  // Motor 2
         case 2: encoder_timer = &htim4; break;  // Motor 3
         case 3: encoder_timer = &htim3; break;  // Motor 4
         default: return 0;
@@ -134,6 +134,17 @@ void MotorControl_Update(float period) {
         
         // Read current encoder count
         int32_t current_encoder = MotorControl_GetRawEncoderCount(i);
+
+        /* M1/left PWM polarity is reversed because the active M1/M2 routes
+         * were swapped. Present the encoder to the PID and host in the same
+         * logical sign convention as the command. The timer count is modulo
+         * ARR+1, so negate it in that same modulo domain before calculating
+         * the wrapped delta. */
+        if (i == 0 && motors[i]->ticks_overflow > 0) {
+            current_encoder =
+                (motors[i]->ticks_overflow - current_encoder) %
+                motors[i]->ticks_overflow;
+        }
 
         // Update encoder reading and calculate RPS using Hiwonder's function
         // This handles overflow, filtering, and RPS calculation

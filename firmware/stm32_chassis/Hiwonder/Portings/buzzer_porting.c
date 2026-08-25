@@ -26,6 +26,14 @@ static void buzzer1_set_pwm(BuzzerObjectTypeDef *self, uint32_t freq);         /
 static int put_ctrl_block(BuzzerObjectTypeDef *self, BuzzerCtrlTypeDef *p);   /* 控制入队接口 */
 static int get_ctrl_block(BuzzerObjectTypeDef *self, BuzzerCtrlTypeDef *p);   /* 控制出队接口 */
 
+static void buzzer_gpio_write(GPIO_PinState state)
+{
+    /* PA8 is the checked-in IOC route. PA4 is mirrored because the V1.2
+     * hardware references disagree about which pad carries the buzzer. */
+    HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, state);
+    HAL_GPIO_WritePin(BUZZER_ALT_GPIO_Port, BUZZER_ALT_Pin, state);
+}
+
 
 /**
   * @brief 蜂鸣器相关的初始化
@@ -34,7 +42,7 @@ static int get_ctrl_block(BuzzerObjectTypeDef *self, BuzzerCtrlTypeDef *p);   /*
 */
 void buzzers_init(void)
 {
-	HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);  /* 设置蜂鸣器引脚IO为低电平 */
+	buzzer_gpio_write(GPIO_PIN_RESET);  /* 设置蜂鸣器引脚IO为低电平 */
 	
 	/* 建立蜂鸣器控制队列 */
 	const osMessageQueueAttr_t buzzer1_ctrl_quque_attributes = { .name = "buzzer1_ctrl_quque" };
@@ -83,7 +91,7 @@ static void buzzer1_set_pwm(BuzzerObjectTypeDef *self, uint32_t freq)
     if(freq < 10) {
         __HAL_TIM_DISABLE(&htim12);
         __HAL_TIM_SET_COUNTER(&htim12, 0);
-        HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
+        buzzer_gpio_write(GPIO_PIN_RESET);
         return;
     }
 
@@ -92,7 +100,7 @@ static void buzzer1_set_pwm(BuzzerObjectTypeDef *self, uint32_t freq)
     uint32_t counter_period = period - 1;
     __HAL_TIM_SET_COUNTER(&htim12, 0);
     __HAL_TIM_CLEAR_FLAG(&htim12, TIM_FLAG_UPDATE | TIM_FLAG_CC1);
-    HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
+    buzzer_gpio_write(GPIO_PIN_RESET);
     __HAL_TIM_SET_AUTORELOAD(&htim12, counter_period);
     __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_1, pulse);
     __HAL_TIM_ENABLE(&htim12);

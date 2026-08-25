@@ -59,14 +59,16 @@ import os
 import time
 import math
 from pathlib import Path
+from typing import Optional
 
 from robot_control.control_map import (
     ControlMap,
     DEFAULT_BUTTON_INDICES,
     DEFAULT_BUTTON_NAMES,
     DEFAULT_AXIS_PROFILES,
+    TankDriveController,
+    arcade_track_pair,
     default_control_map,
-    drift_track_pair,
     load_control_map,
     shape_stick as shape_control_stick,
     track_pair_to_twist,
@@ -175,7 +177,7 @@ except ImportError:
     rclpy = _FallbackRclpy()
 
 
-def find_joystick_device(preferred_device: str = "/dev/input/js0") -> str | None:
+def find_joystick_device(preferred_device: str = "/dev/input/js0") -> Optional[str]:
     """Find an available joystick device, checking preferred path first, then symlinks, then /dev/input/js*.
 
     Returns the absolute path to the joystick device node, or None if no controller is detected.
@@ -261,7 +263,7 @@ class PS5RosBridge(Node):
     - Left stick vertical: Forward / Reverse throttle
     - Right stick horizontal: Left / Right steering
     - L2 trigger: Drift/power-pivot modifier (progressive pressure)
-    - R2 trigger: Throttle multiplier; released means zero linear throttle
+    - R2 trigger: Boost from the tuned 80% cruise to 100% top speed
     - L1 (hold): Precision mode — throttle/steer scaled by precision_mode_scale
     - R1 (hold): Boost mode — throttle/steer scaled by boost_mode_scale
     - L1/R1 + other button: reserved one-shot combo dispatch (_on_mode_combo)
@@ -320,8 +322,10 @@ class PS5RosBridge(Node):
         self.declare_parameter("steer_axis",        -1)  # -1 = use profile default
         self.declare_parameter("drift_axis",        -1)  # -1 = use profile default
         self.declare_parameter("multiplier_axis",   -1)  # -1 = use profile default
-        self.declare_parameter("invert_throttle",   False)
-        self.declare_parameter("invert_steer",      False)
+        # The installed controller is mounted/oriented 180 degrees from the
+        # original joydev sign convention; invert both stick axes by default.
+        self.declare_parameter("invert_throttle",   True)
+        self.declare_parameter("invert_steer",      True)
 
         # --- Physical-chassis parameters (docs/robot_hardware_reference.md,
         #     rock64_hardware.yaml). Informational + used only to derive the
@@ -382,6 +386,7 @@ class PS5RosBridge(Node):
         self._trigger_deadzone = self._map_float_parameter(
             "trigger_deadzone", self._control_map.trigger_deadzone
         )
+        self._trigger_neutral = self._control_map.trigger_neutral
         self._param_throttle = int(self.get_parameter("throttle_axis").value or -1)
         self._param_steer = int(self.get_parameter("steer_axis").value or -1)
         self._param_drift = int(self.get_parameter("drift_axis").value or -1)
@@ -389,6 +394,11 @@ class PS5RosBridge(Node):
 
         self._detected_profile = "ps5_bluetooth"
         self._apply_profile_axes(self._detected_profile)
+        self._drive_controller = TankDriveController(
+            self._control_map,
+            profile_name=self._detected_profile,
+            dt=1.0 / max(rate_hz, 1.0),
+        )
         self._actual_joy_dev = None
 
         self._invert_throttle = bool(self.get_parameter("invert_throttle").value)
@@ -604,7 +614,7 @@ class PS5RosBridge(Node):
         if hasattr(self, "_buttons") and len(self._buttons) < self._button_count:
             self._buttons.extend([0] * (self._button_count - len(self._buttons)))
 
-    def _positive_float_parameter(self, name: str) -> float | None:
+    def _positive_float_parameter(self, name: str) -> Optional[float]:
         """Return a finite positive legacy override, if one was supplied."""
         try:
             value = float(self.get_parameter(name).value)
@@ -635,6 +645,8 @@ class PS5RosBridge(Node):
             if self._param_multiplier >= 0
             else profile_defaults["multiplier_axis"]
         )
+        if hasattr(self, "_drive_controller"):
+            self._drive_controller.set_profile(profile_name)
 
     def _open_joystick(self, device: str):
         actual_dev = find_joystick_device(device)
@@ -647,6 +659,7 @@ class PS5RosBridge(Node):
             self._axis_ever_moved = [False] * len(self._axis_ever_moved)
             self._axis_calibrated = [not self._require_calibration] * len(self._axis_calibrated)
             self._buttons = [0] * len(self._buttons)
+            self._drive_controller.reset()
 
             # Detect profile dynamically on connection
             if self._profile_param == "auto":
@@ -787,6 +800,7 @@ class PS5RosBridge(Node):
             self._axis_ever_moved = [False] * len(self._axis_ever_moved)
             self._axis_calibrated = [not self._require_calibration] * len(self._axis_calibrated)
             self._buttons = [0] * len(self._buttons)
+            self._drive_controller.reset()
             self.get_logger().warn(
                 "PS5 controller disconnected; stopping motion and waiting for reconnection..."
             )
@@ -805,7 +819,9 @@ class PS5RosBridge(Node):
             return 0.0
 
         return control_trigger_pressure(
-            self._axes[axis_idx], self._trigger_deadzone
+            self._axes[axis_idx],
+            self._trigger_deadzone,
+            self._trigger_neutral,
         )
 
     def calculate_velocities(
@@ -816,13 +832,15 @@ class PS5RosBridge(Node):
         multiplier: float,
     ) -> tuple[float, float]:
         """Convert the canonical PS5 inputs into a standard ROS Twist."""
-        left, right = drift_track_pair(
+        left, right = arcade_track_pair(
             throttle_input,
             steer_input,
             multiplier,
             drift,
             alpha=self._drift_alpha,
             beta=self._drift_beta,
+            steering_gain=self._control_map.steering_gain,
+            cruise_gain=self._control_map.cruise_gain,
         )
         return track_pair_to_twist(
             left,
@@ -836,6 +854,7 @@ class PS5RosBridge(Node):
         self._publish_joy_state()
 
         if self._joy_fd is None:
+            self._drive_controller.reset()
             now = time.monotonic()
             if (now - self._last_missing_log) >= 10.0:
                 self._last_missing_log = now
@@ -849,7 +868,7 @@ class PS5RosBridge(Node):
             )
             return
 
-        # Left stick vertical: up is negative in joydev -> invert to make up positive
+        # Apply the configured 180-degree controller orientation correction.
         raw_throttle = -self._axes[self._throttle_axis] if self._throttle_axis < len(self._axes) else 0.0
         if self._invert_throttle:
             raw_throttle = -raw_throttle
@@ -857,10 +876,8 @@ class PS5RosBridge(Node):
         if self._require_calibration and not self._axis_calibrated[self._throttle_axis]:
             throttle_cmd = 0.0
 
-        # Right stick horizontal: joydev's positive direction is the
-        # operator's right. drift_track_pair() intentionally treats positive
-        # steering as a right turn, whose ROS angular.z is negative after the
-        # track-pair conversion.
+        # Positive steering is the operator's right after orientation correction;
+        # ROS angular.z is negative for that right turn.
         raw_steer = self._axes[self._steer_axis] if self._steer_axis < len(self._axes) else 0.0
         if self._invert_steer:
             raw_steer = -raw_steer
@@ -888,7 +905,7 @@ class PS5RosBridge(Node):
         throttle_cmd *= scale
         steer_cmd *= scale
 
-        # L2 is drift/power-pivot pressure; R2 gates linear throttle.
+        # L2 is the drift brake and R2 boosts cruise speed from 80% to 100%.
         drift = self.get_trigger_pressure(self._drift_axis)
         multiplier = self.get_trigger_pressure(self._multiplier_axis)
 
@@ -896,10 +913,28 @@ class PS5RosBridge(Node):
         if not gate_open:
             throttle_cmd = 0.0
             steer_cmd = 0.0
+            self._drive_controller.reset()
 
-        lin_x, ang_z = self.calculate_velocities(
-            throttle_cmd, steer_cmd, drift, multiplier
-        )
+        if gate_open and throttle_cmd == 0.0 and steer_cmd == 0.0:
+            # A centered controller must stop immediately; do not let the
+            # track slew limiter leave residual motion after stick release.
+            self._drive_controller.reset()
+            lin_x, ang_z = 0.0, 0.0
+        elif gate_open:
+            left, right = self._drive_controller.update_values(
+                throttle_cmd,
+                steer_cmd,
+                multiplier,
+                drift,
+            )
+            lin_x, ang_z = track_pair_to_twist(
+                left,
+                right,
+                self._track_width,
+                self._max_track_speed,
+            )
+        else:
+            lin_x, ang_z = 0.0, 0.0
 
         msg = Twist()
         msg.linear.x = float(lin_x)

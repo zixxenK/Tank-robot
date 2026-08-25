@@ -68,8 +68,8 @@ reference are:
 | IMU | QMI8658 assumption on I2C2 PB10/PB11 at 400 kHz; PB12 is retained as a normal data-ready input because PA12 owns shared EXTI12; both `0x6A` and `0x6B` are probed |
 | IMU proof | Host acceptance requires ready diagnostics, a finite sample, valid address, and `WHO_AM_I=0x05` |
 | Motors | Physical tank uses two motors; protocol commissions motor IDs 0 and 1. Four board channels remain represented in the firmware API |
-| Encoders | M1 PA0/PA1 (TIM5), M2 PA15/PB3 (TIM2), M3 PB6/PB7 (TIM4), M4 PB4/PB5 (TIM3), 1,980 ticks/output revolution for the tank motors |
-| Motor PWM | Factory topology is M1 PE13/PE14, M2 PE9/PE11, M3 PE5/PE6, M4 PB8/PB9; the project has only M1/M2 physically commissioned, and its checked-in HAL maps only M4 PB8 while PB9/TIM11 remains non-commissioned |
+| Encoders | M1 PA15/PB3 (TIM2), M2 PA0/PA1 (TIM5), M3 PB6/PB7 (TIM4), M4 PB4/PB5 (TIM3), 1,980 ticks/output revolution for the tank motors |
+| Motor PWM | Factory topology is M1 PE13/PE14, M2 PE9/PE11, M3 PE5/PE6, M4 PB8/PB9; this project intentionally swaps the active M1/M2 assignment to M1 PE9/PE11 and M2 PE13/PE14, while PB9/TIM11 remains non-commissioned |
 | PWM servo | Only SG90 J1 PA11 drives a physical output; PA12 and PC8 are assigned to the HC-SR04 path, while PC9 remains unused |
 | Bus servo | USART6 PC6/PC7 with PE7/PE8 direction enables |
 | Display | SPI2 PB13/PC3 plus PD11/PD12/PD13/PD14 for the LCD |

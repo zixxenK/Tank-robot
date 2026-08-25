@@ -72,6 +72,7 @@ firmware/esp32_sensors/include/secrets.h
 
 # Local tool binaries
 tools/*.exe
+/foxglove-latest-win.exe
 
 # CMake & IDE Metadata
 .cmake/

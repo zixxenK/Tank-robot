@@ -60,12 +60,12 @@ void motors_init(void)
     __HAL_TIM_MOE_ENABLE(&htim1);
 
     /* 编码器 */
-    __HAL_TIM_SET_COUNTER(&htim5, 0);
-    __HAL_TIM_CLEAR_IT(&htim5, TIM_IT_UPDATE);
-    __HAL_TIM_ENABLE(&htim5);
-    HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL);
+    __HAL_TIM_SET_COUNTER(&htim2, 0);
+    __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
+    __HAL_TIM_ENABLE(&htim2);
+    HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
     motors[0]->ticks_overflow =
-        (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim5) + 1;
+        (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim2) + 1;
 
 
     /* 马达 2 */
@@ -75,12 +75,12 @@ void motors_init(void)
     __HAL_TIM_MOE_ENABLE(&htim1);
 
     /* 编码器 */
-    __HAL_TIM_SET_COUNTER(&htim2, 0);
-    __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
-    __HAL_TIM_ENABLE(&htim2);
-    HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+    __HAL_TIM_SET_COUNTER(&htim5, 0);
+    __HAL_TIM_CLEAR_IT(&htim5, TIM_IT_UPDATE);
+    __HAL_TIM_ENABLE(&htim5);
+    HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL);
     motors[1]->ticks_overflow =
-        (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim2) + 1;
+        (int32_t)__HAL_TIM_GET_AUTORELOAD(&htim5) + 1;
 
     /* 马达 3 */
     motors[2]->set_pulse = motor3_set_pulse;
@@ -131,24 +131,11 @@ static void motor1_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
 {
     (void)self;
 
-    if(speed > 0) {
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, speed);
-    } else if(speed < 0) {
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, -speed);
-    } else {
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
-    }
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-}
-
-
-static void motor2_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
-{
-    (void)self;
+    /* M1 is the left track after the M1/M2 route swap. Its gearbox/motor
+     * polarity is opposite to the logical left-track convention, so invert
+     * the signed command here. MotorControl_Update applies the matching
+     * encoder sign correction before PID feedback is calculated. */
+    speed = -speed;
 
     if(speed > 0) {
         __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
@@ -162,6 +149,25 @@ static void motor2_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
     }
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+}
+
+
+static void motor2_set_pulse(EncoderMotorObjectTypeDef *self, int speed)
+{
+    (void)self;
+
+    if(speed > 0) {
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, speed);
+    } else if(speed < 0) {
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, -speed);
+    } else {
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
+    }
+    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
 }
 
 static void motor3_set_pulse(EncoderMotorObjectTypeDef *self, int speed)

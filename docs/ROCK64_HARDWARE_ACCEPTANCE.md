@@ -56,9 +56,11 @@ The runner performs and prints these basic stages one at a time:
    teleoperation node, but no controller activity is required for acceptance.
 6. ESP32 camera: requires advancing, valid `/camera/image_raw` frames.
 7. USB camera: requires advancing, valid `/camera/usb/image_raw` frames.
-8. M1/left track: at the fixed 0.10 commissioning speed, requires left
-   encoder movement and little right-encoder movement.
-9. M2/right track: performs the corresponding independent proof.
+8. M1/left track (TIM2 encoder, PE9/PE11 PWM): at the fixed 0.10
+   commissioning speed, requires left encoder movement and little
+   right-encoder movement.
+9. M2/right track (TIM5 encoder, PE13/PE14 PWM): performs the corresponding
+   independent proof.
 
 The basic runner does not launch or report the SG90, HC-SR04 ultrasonic,
 STL-50B2 LiDAR, or battery checks.

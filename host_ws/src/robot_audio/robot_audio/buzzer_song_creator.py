@@ -19,6 +19,21 @@ try:
     from std_msgs.msg import Int32, Int32MultiArray, String
 except ImportError:
     # Standalone / fallback mocks for testing outside ROS 2 environment
+    class _FallbackRclpy:
+        def init(self, args=None):
+            pass
+
+        def shutdown(self):
+            pass
+
+        def spin(self, node):
+            pass
+
+        def ok(self):
+            return False
+
+    rclpy = _FallbackRclpy()
+
     class _MockMsg:
         pass
 
@@ -234,10 +249,13 @@ class BuzzerSongCreator(Node):
         # Button and D-Pad Edge Triggers (Rising Edges Only)
         triangle_pressed = (msg.buttons[self.TRIANGLE_INDEX] == 1) and (self.prev_buttons[self.TRIANGLE_INDEX] == 0)
 
-        dpad_up = (msg.axes[self.HAT_Y_INDEX] > 0.5) and not (self.prev_axes[self.HAT_Y_INDEX] > 0.5)
-        dpad_down = (msg.axes[self.HAT_Y_INDEX] < -0.5) and not (self.prev_axes[self.HAT_Y_INDEX] < -0.5)
-        dpad_left = (msg.axes[self.HAT_X_INDEX] > 0.5) and not (self.prev_axes[self.HAT_X_INDEX] > 0.5)
-        dpad_right = (msg.axes[self.HAT_X_INDEX] < -0.5) and not (self.prev_axes[self.HAT_X_INDEX] < -0.5)
+        # Linux hid-playstation follows the input-event hat convention:
+        # up/left are negative and down/right are positive.  The old code
+        # assumed the opposite signs, so every note direction was inverted.
+        dpad_up = (msg.axes[self.HAT_Y_INDEX] < -0.5) and not (self.prev_axes[self.HAT_Y_INDEX] < -0.5)
+        dpad_down = (msg.axes[self.HAT_Y_INDEX] > 0.5) and not (self.prev_axes[self.HAT_Y_INDEX] > 0.5)
+        dpad_left = (msg.axes[self.HAT_X_INDEX] < -0.5) and not (self.prev_axes[self.HAT_X_INDEX] < -0.5)
+        dpad_right = (msg.axes[self.HAT_X_INDEX] > 0.5) and not (self.prev_axes[self.HAT_X_INDEX] > 0.5)
 
         # Update previous states
         self.prev_axes = list(msg.axes)

@@ -175,8 +175,8 @@
     },
     "active_pin_map": {
       "factory_reference_motor_pwm": {"motor_1": ["PE13", "PE14"], "motor_2": ["PE9", "PE11"], "motor_3": ["PE5", "PE6"], "motor_4": ["PB8", "PB9"]},
-      "project_configured_motor_pwm": {"motor_1": ["PE13", "PE14"], "motor_2": ["PE9", "PE11"], "motor_3": ["PE5", "PE6"], "motor_4": ["PB8"], "motor_4_missing_channel": "PB9/TIM11 is not configured in the checked-in IOC/HAL post-init and is not commissioned"},
-      "encoder_quadrature": {"motor_1": ["PA0", "PA1"], "motor_2": ["PA15", "PB3"], "motor_3": ["PB6", "PB7"], "motor_4": ["PB4", "PB5"]},
+      "project_configured_motor_pwm": {"motor_1": ["PE9", "PE11"], "motor_2": ["PE13", "PE14"], "motor_3": ["PE5", "PE6"], "motor_4": ["PB8"], "motor_4_missing_channel": "PB9/TIM11 is not configured in the checked-in IOC/HAL post-init and is not commissioned"},
+      "encoder_quadrature": {"motor_1": ["PA15", "PB3"], "motor_2": ["PA0", "PA1"], "motor_3": ["PB6", "PB7"], "motor_4": ["PB4", "PB5"]},
       "pwm_servo": {"j1_active": "PA11", "unused": ["PC9"]},
       "hc_sr04": {"trigger": "PC8", "echo": "PA12", "power": "5V", "ground": "GND", "external_level_shifter": false},
       "bus_servo": {"tx": "PC6", "rx": "PC7", "tx_enable": "PE7", "rx_enable": "PE8"},

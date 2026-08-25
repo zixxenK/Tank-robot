@@ -27,6 +27,7 @@
 #include "sg90_servo.h"
 #include "watchdog.h"
 #include "buzzer.h"
+#include "global_conf.h"
 #include "main.h"
 
 #include "usart.h"
@@ -48,6 +49,7 @@ extern DMA_HandleTypeDef hdma_usart1_rx;
 static BinaryProtocolContext protocol_ctx;
 extern BuzzerObjectTypeDef *buzzers[1];
 extern void buzzers_init(void);
+extern osTimerId_t buzzer_timerHandle;
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
     if (huart != &ROCK64_HOST_UART_HANDLE) {
@@ -71,7 +73,12 @@ void binary_protocol_integration_init_packed(void) {
     /* Initialize the real buzzer instance before protocol commands can
      * arrive. Status beeps reuse this same hardware object. */
     buzzers_init();
+    /* The legacy app task (which used to start this timer) is disabled in
+     * the production motor image.  Start it here so queued UART tone
+     * commands are actually consumed and TIM12 can drive PA8. */
+    (void)osTimerStart(buzzer_timerHandle, BUZZER_TASK_PERIOD);
     (void)Status_Init();
+    Status_PlayStartupSong();
 
     if (!Watchdog_Init() || Watchdog_WasReset()) {
         /* A previous IWDG reset is useful diagnostic information, but does

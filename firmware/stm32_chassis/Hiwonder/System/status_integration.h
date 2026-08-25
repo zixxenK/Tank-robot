@@ -93,6 +93,9 @@ void Status_SetLEDOff(void);
  */
 void Status_StartupSequence(void);
 
+/** Start the Sea Shanty 2 melody after the buzzer has been initialized. */
+void Status_PlayStartupSong(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -2,9 +2,9 @@ control_map:
   axis_profiles:
     ps5_bluetooth:
       throttle_axis: 1
-      steer_axis: 2
-      drift_axis: 3
-      multiplier_axis: 4
+      steer_axis: 3
+      drift_axis: 2
+      multiplier_axis: 5
       dpad_x_axis: 6
       dpad_y_axis: 7
     ps5_usb:
@@ -31,9 +31,21 @@ control_map:
     r3: 12
 
   shaping:
-    deadzone: 0.08
-    expo: 0.25
-    trigger_deadzone: 0.05
+    # The live DualSense js0 reports stick center cleanly and trigger release
+    # as 0.0 (not -1.0). These values make the neutral state truly neutral.
+    deadzone: 0.05
+    expo: 0.15
+    trigger_deadzone: 0.08
+    trigger_neutral: 0.0
+    steering_gain: 0.7
+
+  throttle:
+    # R2 released = controllable cruise speed; fully pressed = 100% speed.
+    cruise_gain: 0.8
+
+  smoothing:
+    # Maximum normalized track change per second.
+    track_slew_per_s: 10.0
 
   drift:
     alpha: 0.9

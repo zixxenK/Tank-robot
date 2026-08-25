@@ -32,11 +32,12 @@ Record before flashing:
    power. Heartbeat frames are not required by the canonical USART1 runtime.
 6. With tracks lifted, call `/stm32/motor_1/enable` and
    `/stm32/motor_2/enable` as `std_srvs/SetBool` (`true`, then `false`) to
-   exercise each motor independently. Motor 0 is M1/left and motor 1 is
-   M2/right.
+   exercise each motor independently. Motor 0 is M1/left on TIM2 and motor 1
+   is M2/right on TIM5; the active PWM routes are M1 PE9/PE11 and M2
+   PE13/PE14.
 7. Record expected direction, PWM channel, encoder timer, encoder sign, and
    ticks per output-shaft revolution for motors 0 through 3.
-8. Confirm Motor 2 uses TIM2 without its `ARR` or prescaler changing.
+8. Confirm Motor 1 uses TIM2 without its `ARR` or prescaler changing.
 9. Confirm the active left/right encoder pair reports movement. The spare
    encoder channels are not part of the current two-track acceptance gate.
 10. Stop host commands and verify the 250 ms firmware command timeout zeros

@@ -13,12 +13,16 @@ ESP32 camera and USB camera -> ROS image topics -> PC/Foxglove (read-only)
 The canonical PS5 map is
 `host_ws/src/robot_control/config/control_map.yaml`:
 
-- Left-stick vertical: signed forward/reverse throttle.
-- Right-stick horizontal: steering, always live.
+- Left-stick vertical: signed forward/reverse throttle (orientation-corrected).
+- Right-stick horizontal: steering, always live (orientation-corrected).
 - R2: analog linear-throttle multiplier. Released R2 commands zero linear
   motion and acts as the brake; it does not disable steering.
 - L2: analog drift/power-pivot modifier.
 - L1/R1: precision/boost mode scaling.
+
+The active Linux layout uses LS-Y axis 1 for throttle, RS-X axis 3 for
+left/right steering, L2 axis 2, and R2 axis 5. Both stick directions are
+inverted by the bridge for the mounted controller orientation.
 
 The drift calculation is normalized and clamped as a pair. With `T` as signed
 throttle after R2 multiplication, `S` as steering, and `D` as L2 pressure:

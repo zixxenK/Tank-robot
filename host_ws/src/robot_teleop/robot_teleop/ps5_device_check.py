@@ -96,13 +96,18 @@ def run_monitor(device: str, control_map_path: str = "") -> None:
                 steer_axis = profile["steer_axis"]
                 drift_axis = profile["drift_axis"]
                 multiplier_axis = profile["multiplier_axis"]
-                ls_y = -axes[throttle_axis]  # Up is positive
-                rs_x = axes[steer_axis]  # Positive is operator right
+                # Match ps5_ros_bridge's 180-degree stick orientation fix.
+                ls_y = axes[throttle_axis]  # Up is positive after correction
+                rs_x = -axes[steer_axis]  # Positive is operator right
                 l2_press = trigger_pressure(
-                    axes[drift_axis], control_map.trigger_deadzone
+                    axes[drift_axis],
+                    control_map.trigger_deadzone,
+                    control_map.trigger_neutral,
                 )
                 r2_press = trigger_pressure(
-                    axes[multiplier_axis], control_map.trigger_deadzone
+                    axes[multiplier_axis],
+                    control_map.trigger_deadzone,
+                    control_map.trigger_neutral,
                 )
 
                 active_btns = [str(i) for i, b in enumerate(buttons) if b]

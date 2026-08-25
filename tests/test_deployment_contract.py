@@ -1,5 +1,6 @@
 """Offline contracts for safe Rock64 startup and update behavior."""
 
+import json
 from pathlib import Path
 
 
@@ -15,6 +16,40 @@ def test_startup_does_not_enable_optional_lidar_without_configuration():
     config = _read("deployment/systemd/systemd_config.conf.example")
     assert 'USE_LIDAR="${USE_LIDAR:-false}"' in startup
     assert "USE_LIDAR=false" in config
+
+
+def test_foxglove_layout_has_cameras_and_explicit_imu_views():
+    layout = json.loads(_read("deployment/pc/foxglove/tank_robot_readonly_layout.json"))
+    configs = layout["configById"]
+    assert configs["Image!esp32"]["imageMode"]["imageTopic"] == "/camera/image_raw"
+    assert configs["Image!usb"]["imageMode"]["imageTopic"] == "/camera/usb/image_raw"
+    for plot_id, fields in (
+        ("Plot!imu_accel", ("linear_acceleration.x", "linear_acceleration.y", "linear_acceleration.z")),
+        ("Plot!imu_gyro", ("angular_velocity.x", "angular_velocity.y", "angular_velocity.z")),
+    ):
+        paths = [path["value"] for path in configs[plot_id]["paths"]]
+        assert paths == [f"/stm32/imu.{field}" for field in fields]
+    assert "RawMessages!health" in configs
+    assert "/stm32/diagnostics" in configs["RawMessages!health"]["topics"]
+
+
+def test_foxglove_bridge_advertises_all_topics_without_client_publish():
+    launch = _read("host_ws/src/robot_bringup/launch/pc_dashboard.launch.py")
+    assert '"topic_whitelist": [".*"]' in launch
+    assert '"capabilities": ["connectionGraph", "assets"]' in launch
+
+
+def test_split_stick_drive_contract_uses_shared_boost_and_slew_model():
+    control_map = _read("host_ws/src/robot_control/robot_control/control_map.py")
+    yaml = _read("host_ws/src/robot_control/config/control_map.yaml")
+    teleop = _read("host_ws/src/robot_teleop/robot_teleop/ps5_ros_bridge.py")
+    assert "def arcade_track_pair(" in control_map
+    assert "class TankDriveController:" in control_map
+    assert "cruise_gain: 0.8" in yaml
+    assert "track_slew_per_s: 10.0" in yaml
+    assert "trigger_neutral: 0.0" in yaml
+    assert "TankDriveController" in teleop
+    assert "cruise_gain=self._control_map.cruise_gain" in teleop
 
 
 def test_periodic_self_update_never_flashes_firmware():

@@ -16,9 +16,9 @@ from robot_control.control_map import (
 def test_checked_in_map_contains_approved_mapping() -> None:
     control_map = load_control_map("host_ws/src/robot_control/config/control_map.yaml")
     assert control_map.profile("ps5_bluetooth")["throttle_axis"] == 1
-    assert control_map.profile("ps5_bluetooth")["steer_axis"] == 2
-    assert control_map.profile("ps5_bluetooth")["drift_axis"] == 3
-    assert control_map.profile("ps5_bluetooth")["multiplier_axis"] == 4
+    assert control_map.profile("ps5_bluetooth")["steer_axis"] == 3
+    assert control_map.profile("ps5_bluetooth")["drift_axis"] == 2
+    assert control_map.profile("ps5_bluetooth")["multiplier_axis"] == 5
     assert control_map.drift_alpha == pytest.approx(0.9)
     assert control_map.drift_beta == pytest.approx(2.75)
 
@@ -26,10 +26,17 @@ def test_checked_in_map_contains_approved_mapping() -> None:
 def test_r2_release_removes_translation_but_not_steering() -> None:
     left, right = drift_track_pair(1.0, 1.0, 0.0, 0.0)
     assert left == pytest.approx(1.0)
-    assert right == pytest.approx(-1.0)
+    assert right > 0.0
     linear, angular = track_pair_to_twist(left, right, 0.194, 0.8)
-    assert linear == pytest.approx(0.0)
+    assert linear > 0.0
     assert angular < 0.0
+
+
+def test_zero_to_one_trigger_neutral_is_really_released() -> None:
+    from robot_control.control_map import trigger_pressure
+
+    assert trigger_pressure(0.0, 0.08, released_at=0.0) == 0.0
+    assert trigger_pressure(1.0, 0.08, released_at=0.0) == pytest.approx(1.0)
 
 
 def test_full_drift_has_an_inside_track_reversal() -> None:

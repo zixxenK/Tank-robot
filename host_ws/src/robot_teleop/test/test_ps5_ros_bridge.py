@@ -27,10 +27,29 @@ def bridge() -> PS5RosBridge:
 
 
 def test_r2_released_brakes_linear_motion(bridge: PS5RosBridge) -> None:
-    """R2 is the linear throttle multiplier, so release means no translation."""
+    """The low-level mixer applies the tuned 80% cruise gain."""
     linear, angular = bridge.calculate_velocities(1.0, 0.0, 0.0, 0.0)
-    assert linear == pytest.approx(0.0)
+    assert linear == pytest.approx(bridge._max_track_speed * 0.8)
     assert angular == pytest.approx(0.0)
+
+
+def test_left_stick_drives_without_r2_deadman(bridge: PS5RosBridge) -> None:
+    """Normal operation must not require holding R2 while driving."""
+    bridge._joy_fd = object()
+    bridge._axes[bridge._throttle_axis] = 1.0  # left stick up after correction
+    bridge._axes[bridge._steer_axis] = 0.0
+    bridge._axes[bridge._drift_axis] = -1.0  # L2 released
+    bridge._axes[bridge._multiplier_axis] = 0.0  # R2 released on live js0
+    bridge._axis_calibrated[bridge._throttle_axis] = True
+    bridge._axis_calibrated[bridge._steer_axis] = True
+    bridge._read_joystick = lambda: None
+
+    for _ in range(8):
+        bridge._publish_twist()
+
+    command = bridge._pub.last_msg
+    assert command.linear.x == pytest.approx(bridge._max_track_speed * 0.8, abs=0.03)
+    assert command.angular.z == pytest.approx(0.0)
 
 
 def test_source_tree_uses_canonical_control_map(bridge: PS5RosBridge) -> None:
@@ -38,6 +57,24 @@ def test_source_tree_uses_canonical_control_map(bridge: PS5RosBridge) -> None:
     control_map = bridge._load_control_map("/does/not/exist/control_map.yaml")
     assert control_map.track_width_m == pytest.approx(0.194)
     assert control_map.max_track_speed_mps == pytest.approx(0.8)
+
+
+def test_centered_sticks_stop_without_slew_residual(bridge: PS5RosBridge) -> None:
+    """Returning both sticks to center must command zero immediately."""
+    bridge._joy_fd = object()
+    bridge._axes[bridge._throttle_axis] = 1.0
+    bridge._axes[bridge._steer_axis] = 0.0
+    bridge._axis_calibrated[bridge._throttle_axis] = True
+    bridge._axis_calibrated[bridge._steer_axis] = True
+    bridge._read_joystick = lambda: None
+    bridge._publish_twist()
+
+    bridge._axes[bridge._throttle_axis] = 0.0
+    bridge._publish_twist()
+
+    command = bridge._pub.last_msg
+    assert command.linear.x == pytest.approx(0.0)
+    assert command.angular.z == pytest.approx(0.0)
 
 
 def test_loaded_button_indices_propagate_to_runtime_aliases(
@@ -51,9 +88,9 @@ control_map:
   axis_profiles:
     ps5_bluetooth:
       throttle_axis: 1
-      steer_axis: 2
-      drift_axis: 3
-      multiplier_axis: 4
+      steer_axis: 3
+      drift_axis: 2
+      multiplier_axis: 5
   button_indices:
     cross: 13
     circle: 14
@@ -93,16 +130,16 @@ control_map:
 
 
 def test_steering_remains_live_when_r2_is_released(bridge: PS5RosBridge) -> None:
-    """Steering is independent of R2 and can pivot the stopped chassis."""
+    """Steering is independent of R2 and remains responsive in motion."""
     linear, angular = bridge.calculate_velocities(1.0, 1.0, 0.0, 0.0)
-    assert linear == pytest.approx(0.0)
+    assert linear > 0.0
     assert abs(angular) > 0.0
 
 
 def test_r2_pressure_scales_forward_and_reverse(bridge: PS5RosBridge) -> None:
-    """R2 pressure progressively enables signed left-stick throttle."""
+    """R2 pressure progressively boosts signed left-stick throttle."""
     linear, angular = bridge.calculate_velocities(1.0, 0.0, 0.0, 0.5)
-    assert linear == pytest.approx(bridge._max_track_speed * 0.5)
+    assert linear == pytest.approx(bridge._max_track_speed * 0.9)
     assert angular == pytest.approx(0.0)
 
     reverse, _ = bridge.calculate_velocities(-1.0, 0.0, 0.0, 1.0)
@@ -127,10 +164,10 @@ def test_full_right_drift_reverses_inside_right_track(bridge: PS5RosBridge) -> N
 
 
 def test_live_right_stick_maps_to_a_right_turn(bridge: PS5RosBridge) -> None:
-    """A positive joydev right-stick value reverses the right inside track."""
+    """The corrected right-stick direction reverses the right inside track."""
     bridge._joy_fd = object()
-    bridge._axes[bridge._throttle_axis] = -1.0  # stick up
-    bridge._axes[bridge._steer_axis] = 1.0  # stick right
+    bridge._axes[bridge._throttle_axis] = 1.0  # stick up after correction
+    bridge._axes[bridge._steer_axis] = -1.0  # stick right after correction
     bridge._axes[bridge._drift_axis] = 1.0  # L2 fully pressed
     bridge._axes[bridge._multiplier_axis] = 1.0  # R2 fully pressed
     bridge._axis_ever_moved[bridge._multiplier_axis] = True
@@ -138,7 +175,8 @@ def test_live_right_stick_maps_to_a_right_turn(bridge: PS5RosBridge) -> None:
     bridge._axis_calibrated[bridge._steer_axis] = True
     bridge._read_joystick = lambda: None
 
-    bridge._publish_twist()
+    for _ in range(8):
+        bridge._publish_twist()
 
     command = bridge._pub.last_msg
     assert command.angular.z < 0.0
@@ -146,21 +184,22 @@ def test_live_right_stick_maps_to_a_right_turn(bridge: PS5RosBridge) -> None:
 
 
 def test_trigger_uninitialized_safety(bridge: PS5RosBridge) -> None:
-    """Uninitialized trigger axis at 0.0 raw value must not produce 50% brake."""
-    bridge._axis_ever_moved[2] = False
-    bridge._axes[2] = 0.0
-    assert bridge.get_trigger_pressure(2) == 0.0
+    """An idle live js0 trigger at 0.0 must not produce a phantom brake."""
+    trigger_axis = bridge._drift_axis
+    bridge._axis_ever_moved[trigger_axis] = False
+    bridge._axes[trigger_axis] = 0.0
+    assert bridge.get_trigger_pressure(trigger_axis) == 0.0
 
-    bridge._axis_ever_moved[2] = True
-    bridge._axes[2] = -1.0
-    assert bridge.get_trigger_pressure(2) == 0.0
+    bridge._axis_ever_moved[trigger_axis] = True
+    bridge._axes[trigger_axis] = -1.0
+    assert bridge.get_trigger_pressure(trigger_axis) == 0.0
 
-    bridge._axes[2] = 0.0
-    pressure = bridge.get_trigger_pressure(2)
-    assert 0.45 < pressure < 0.50
+    bridge._axes[trigger_axis] = 0.0
+    pressure = bridge.get_trigger_pressure(trigger_axis)
+    assert pressure == 0.0
 
-    bridge._axes[2] = 1.0
-    assert bridge.get_trigger_pressure(2) == pytest.approx(1.0)
+    bridge._axes[trigger_axis] = 1.0
+    assert bridge.get_trigger_pressure(trigger_axis) == pytest.approx(1.0)
 
 
 def test_stick_deadzone(bridge: PS5RosBridge) -> None:
@@ -246,7 +285,8 @@ def test_disconnect_and_reconnect_zeroing(bridge: PS5RosBridge) -> None:
     bridge._joy_fd = None  # Simulate disconnected state
     bridge._last_reconnect_attempt = time.monotonic()
 
-    bridge._publish_twist()
+    for _ in range(8):
+        bridge._publish_twist()
     assert bridge._joy_fd is None
 
 

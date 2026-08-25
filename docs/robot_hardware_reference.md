@@ -314,27 +314,27 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 ### Timer/Encoder Inputs (Motor Encoders)
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PA0 | TIM5_CH1 | Active left-track encoder (motor 0 / M1) | Quadrature encoder input channel 1 |
-| PA1 | TIM5_CH2 | Active left-track encoder (motor 0 / M1) | Quadrature encoder input channel 2 |
-| PA15 | TIM2_CH1_ETR | Active right-track encoder (motor 1 / M2) | Quadrature encoder input channel 1 |
-| PB3 | TIM2_CH2 | Active right-track encoder (motor 1 / M2) | Quadrature encoder input channel 2 |
+| PA0 | TIM5_CH1 | Active right-track encoder (motor 1 / M2) | Quadrature encoder input channel 1 |
+| PA1 | TIM5_CH2 | Active right-track encoder (motor 1 / M2) | Quadrature encoder input channel 2 |
+| PA15 | TIM2_CH1_ETR | Active left-track encoder (motor 0 / M1) | Quadrature encoder input channel 1 |
+| PB3 | TIM2_CH2 | Active left-track encoder (motor 0 / M1) | Quadrature encoder input channel 2 |
 | PB4 | TIM3_CH1 | Spare encoder channel (motor 2 / M3) | Quadrature encoder input channel 1 |
 | PB5 | TIM3_CH2 | Spare encoder channel (motor 2 / M3) | Quadrature encoder input channel 2 |
 | PB6 | TIM4_CH1 | Spare encoder channel (motor 3 / M4) | Quadrature encoder input channel 1 |
 | PB7 | TIM4_CH2 | Spare encoder channel (motor 3 / M4) | Quadrature encoder input channel 2 |
 
-**Active two-motor image:** motor 0 / left track uses TIM5 (PA0/PA1), and
-motor 1 / right track uses TIM2 (PA15/PB3). TIM3 and TIM4 remain configured
+**Active two-motor image:** motor 0 / left track uses TIM2 (PA15/PB3), and
+motor 1 / right track uses TIM5 (PA0/PA1). TIM3 and TIM4 remain configured
 spare channels for future expansion and are not part of the current chassis
 drive or telemetry contract.
 
 ### Timer PWM Outputs (Motor Control)
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PE9 | TIM1_CH1 | Motor PWM channel 1 | Hardware PWM for motor driver M1 |
-| PE11 | TIM1_CH2 | Motor PWM channel 2 | Hardware PWM for motor driver M2 |
-| PE13 | TIM1_CH3 | Motor PWM channel 3 | Hardware PWM for motor driver M3 (unused) |
-| PE14 | TIM1_CH4 | Motor PWM channel 4 | Hardware PWM for motor driver M4 (unused) |
+| PE9 | TIM1_CH1 | Active left-track PWM | Hardware PWM for motor driver M1 |
+| PE11 | TIM1_CH2 | Active left-track PWM | Hardware PWM for motor driver M1 |
+| PE13 | TIM1_CH3 | Active right-track PWM | Hardware PWM for motor driver M2 |
+| PE14 | TIM1_CH4 | Active right-track PWM | Hardware PWM for motor driver M2 |
 | PE5 | TIM9_CH1 | Additional PWM | Reserved for future use |
 | PE6 | TIM9_CH2 | Additional PWM | Reserved for future use |
 | PB8 | TIM10_CH1 | Additional PWM | Reserved for future use |

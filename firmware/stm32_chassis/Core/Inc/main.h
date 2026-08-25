@@ -98,6 +98,10 @@ void Error_Handler(void);
 #define HC_SR04_ECHO_GPIO_Port GPIOA
 #define BUZZER_Pin GPIO_PIN_8
 #define BUZZER_GPIO_Port GPIOA
+/* Some V1.2 board documentation labels the buzzer pad PA4. Keep PA8 as the
+ * active IOC mapping and mirror the waveform on PA4 for that board revision. */
+#define BUZZER_ALT_Pin GPIO_PIN_4
+#define BUZZER_ALT_GPIO_Port GPIOA
 #define PWM_SERVO_1_Pin GPIO_PIN_11
 #define PWM_SERVO_1_GPIO_Port GPIOA
 #define SBUS_RX_Pin GPIO_PIN_2

@@ -257,6 +257,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
    * half-period callbacks used to generate the buzzer square wave. */
   if (htim == &htim12) {
     HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(BUZZER_ALT_GPIO_Port, BUZZER_ALT_Pin, GPIO_PIN_SET);
   }
   /* USER CODE BEGIN Callback 1 */
 
@@ -278,6 +279,7 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
    * update event starts each cycle high; CC1 ends the high half-cycle. */
   if (htim == &htim12) {
     HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(BUZZER_ALT_GPIO_Port, BUZZER_ALT_Pin, GPIO_PIN_RESET);
   }
 }
 

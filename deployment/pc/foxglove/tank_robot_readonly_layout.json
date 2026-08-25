@@ -1,12 +1,88 @@
 {
   "configById": {
-    "ImageView!esp32": {
-      "topic": "/camera/image_raw/compressed",
-      "imageMode": "fit"
+    "Image!esp32": {
+      "imageMode": {
+        "imageTopic": "/camera/image_raw"
+      }
     },
-    "ImageView!usb": {
-      "topic": "/camera/usb/image_raw/compressed",
-      "imageMode": "fit"
+    "Image!usb": {
+      "imageMode": {
+        "imageTopic": "/camera/usb/image_raw"
+      }
+    },
+    "Plot!imu_accel": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/stm32/imu.linear_acceleration.x",
+          "enabled": true,
+          "label": "Accel X (m/s²)",
+          "lineSize": 2,
+          "color": "#ff6b6b"
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/stm32/imu.linear_acceleration.y",
+          "enabled": true,
+          "label": "Accel Y (m/s²)",
+          "lineSize": 2,
+          "color": "#ffd166"
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/stm32/imu.linear_acceleration.z",
+          "enabled": true,
+          "label": "Accel Z (m/s²)",
+          "lineSize": 2,
+          "color": "#06d6a0"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240,
+      "followingViewWidth": 10
+    },
+    "Plot!imu_gyro": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/stm32/imu.angular_velocity.x",
+          "enabled": true,
+          "label": "Gyro X (rad/s)",
+          "lineSize": 2,
+          "color": "#4dabf7"
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/stm32/imu.angular_velocity.y",
+          "enabled": true,
+          "label": "Gyro Y (rad/s)",
+          "lineSize": 2,
+          "color": "#9775fa"
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/stm32/imu.angular_velocity.z",
+          "enabled": true,
+          "label": "Gyro Z (rad/s)",
+          "lineSize": 2,
+          "color": "#f783ac"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240,
+      "followingViewWidth": 10
     },
     "3D!robot": {
       "cameraState": {
@@ -25,7 +101,46 @@
         "/safety/diagnostics",
         "/camera/diagnostics",
         "/camera/usb/diagnostics",
-        "/teleop/ps5_status"
+        "/camera/image_raw/compressed",
+        "/camera/usb/image_raw/compressed",
+        "/lidar/diagnostics",
+        "/teleop/ps5_status",
+        "/safety/e_stop"
+      ]
+    },
+    "RawMessages!operator": {
+      "diffEnabled": false,
+      "topics": [
+        "/joy",
+        "/cmd_vel",
+        "/ranger/cmd_vel_safe",
+        "/agent/cmd_vel_proposed",
+        "/agent/heartbeat"
+      ]
+    },
+    "RawMessages!buzzer": {
+      "diffEnabled": false,
+      "topics": [
+        "/buzzer/status",
+        "/buzzer/frequency",
+        "/buzzer/play_sequence"
+      ]
+    },
+    "RawMessages!telemetry": {
+      "diffEnabled": false,
+      "topics": [
+        "/stm32/bridge_alive",
+        "/stm32/encoder_ticks",
+        "/stm32/odom",
+        "/stm32/joint_states",
+        "/stm32/imu",
+        "/stm32/battery",
+        "/stm32/self_test",
+        "/stm32/self_test_result",
+        "/stm32/test_direction",
+        "/stm32/servo/state_degrees",
+        "/stm32/servo/state_us",
+        "/ultrasonic/range"
       ]
     }
   },
@@ -34,17 +149,42 @@
     "direction": "column",
     "first": {
       "direction": "row",
-      "first": "ImageView!esp32",
-      "second": "ImageView!usb",
+      "first": "Image!esp32",
+      "second": "Image!usb",
       "splitPercentage": 50
     },
     "second": {
-      "direction": "row",
-      "first": "3D!robot",
-      "second": "RawMessages!health",
-      "splitPercentage": 65
+      "direction": "column",
+      "first": {
+        "direction": "row",
+        "first": "Plot!imu_accel",
+        "second": "Plot!imu_gyro",
+        "splitPercentage": 50
+      },
+      "second": {
+        "direction": "column",
+        "first": {
+          "direction": "row",
+          "first": "3D!robot",
+          "second": "RawMessages!health",
+          "splitPercentage": 65
+        },
+        "second": {
+          "direction": "row",
+          "first": {
+            "direction": "column",
+            "first": "RawMessages!operator",
+            "second": "RawMessages!buzzer",
+            "splitPercentage": 50
+          },
+          "second": "RawMessages!telemetry",
+          "splitPercentage": 50
+        },
+        "splitPercentage": 58
+      },
+      "splitPercentage": 50
     },
-    "splitPercentage": 50
+    "splitPercentage": 42
   },
   "playbackConfig": {},
   "savedProps": {},

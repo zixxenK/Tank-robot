@@ -129,6 +129,23 @@ the read-only websocket through the existing SSH key:
 Connect Foxglove Desktop to `ws://127.0.0.1:18765` for that mode. Keep the
 PowerShell window open while using the dashboard.
 
+The SSH launcher keeps `ROS_LOCALHOST_ONLY=0` intentionally: the bridge must
+discover the Rock64 hardware service running in the same ROS domain. If an
+older dashboard session was started before this setting was corrected, stop
+it, run the launcher again, and reconnect Foxglove.
+
+The local SSH tunnel does not require a Foxglove device token. For cloud
+Remote Access, store `FOXGLOVE_DEVICE_TOKEN` in the Rock64-only
+`deployment/systemd/systemd_config.conf` (never in Git), then start:
+
+```powershell
+.\deployment\pc\run_dashboard_remote.ps1 -NoSlam -RemoteAccess
+```
+
+Connect from the Foxglove Devices page using the `rock64` device. The bridge
+must remain running and the Rock64 needs outbound Internet access. The token
+is read from the process environment and is not passed as a ROS parameter.
+
 The explicit canonical PC-only command is:
 
 ```bash
@@ -171,14 +188,39 @@ Use `foxglove/tank_robot_readonly_layout.json` as the authoritative panel
 preset. It covers:
 
 - `/scan` and `/map` in a 3D panel;
-- `/camera/image_raw/compressed`;
-- `/camera/usb/image_raw/compressed`;
+- `/camera/image_raw` and `/camera/usb/image_raw` in dedicated Image panels;
+- `/camera/image_raw/compressed` and `/camera/usb/image_raw/compressed` remain
+  available for bandwidth-saving panels;
+- separate accelerometer and gyroscope plots from `/stm32/imu`;
 - `/ultrasonic/range`;
 - `/stm32/odom`, `/stm32/imu`, `/stm32/diagnostics`;
 - `/lidar/diagnostics`;
 - `/camera/diagnostics` and `/camera/usb/diagnostics`;
 - `/safety/diagnostics`, `/teleop/ps5_status`, and `/tf`.
+- operator state in `/joy`, `/cmd_vel`, `/ranger/cmd_vel_safe`, and the
+  agent proposal/heartbeat topics;
+- buzzer command/status topics and low-bandwidth STM32 telemetry, including
+  encoders, odometry, IMU, battery, self-test, servo state, and range.
 
 The bridge is also configured without Foxglove's `clientPublish` capability,
 so the read-only boundary is enforced by the transport rather than only by
-the panel layout. The preset contains no command or motor-service panel.
+the panel layout. The preset contains no command or motor-service panel. The
+raw-message inspectors are read-only views; they do not grant Foxglove
+permission to publish commands. All hardware topics remain advertised by the
+bridge, so additional panels can be added from Foxglove's topic picker.
+The bridge uses an explicit `topic_whitelist` of `.*`; Foxglove subscriptions
+are lazy, so a topic is transported when a panel selects it rather than
+creating unnecessary subscriptions for every high-rate camera stream.
+
+If the current Foxglove layout has been customized and no camera panels are
+visible, import the preset again as a fresh layout. The two Image panels must
+be configured as:
+
+```text
+ESP32: /camera/image_raw
+USB:   /camera/usb/image_raw
+```
+
+The IMU plots show all three acceleration axes in m/s² and all three angular
+velocity axes in rad/s. The diagnostics view shows whether the onboard sensor
+is ready, its bus/address/WHO_AM_I identity, sample count, and error count.

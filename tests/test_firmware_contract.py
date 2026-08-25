@@ -82,6 +82,23 @@ def test_status_state_machine_runs_on_control_cadence_not_telemetry_cadence():
     assert status_index < rate_limit_index
 
 
+def test_startup_sea_shanty_is_started_after_buzzer_initialization():
+    protocol = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_integration_packed.c"
+    )
+    status = _read(
+        "firmware/stm32_chassis/Hiwonder/System/status_integration.c"
+    )
+    assert protocol.index("buzzers_init();") < protocol.index(
+        "Status_PlayStartupSong();"
+    )
+    assert "startup_song[]" in status
+    assert "440, 554, 659, 740" in status
+    assert "startup_song_start_note();" in status
+    assert "buzzer_off(buzzers[0])" in status
+
+
 def test_stm32_flash_helper_is_rock64_only_even_for_build_requests():
     flash = _read("scripts/flash_stm32.sh")
     assert 'if [[ "$(uname -m)" != "aarch64" ]]; then' in flash
@@ -463,15 +480,18 @@ def test_hiwonder_board_profile_covers_the_complete_active_io_surface():
     assert "HAL_GPIO_Init(GPIOB" in gpio
 
     expected_motor_timers = {
-        0: "encoder_timer = &htim5",
-        1: "encoder_timer = &htim2",
+        0: "encoder_timer = &htim2",
+        1: "encoder_timer = &htim5",
         2: "encoder_timer = &htim4",
         3: "encoder_timer = &htim3",
     }
     for motor_id, route in expected_motor_timers.items():
         assert f"case {motor_id}: {route}" in motor_control
-    assert "motor1_set_pulse" in motor and "TIM_CHANNEL_3" in motor
-    assert "motor2_set_pulse" in motor and "TIM_CHANNEL_1" in motor
+    assert "motor1_set_pulse" in motor and "TIM_CHANNEL_1" in motor
+    assert "motor2_set_pulse" in motor and "TIM_CHANNEL_3" in motor
+    assert "speed = -speed" in motor
+    assert "current_encoder =" in motor_control
+    assert "motors[i]->ticks_overflow - current_encoder" in motor_control
 
     active_pwm = profile["active_pin_map"]["project_configured_motor_pwm"]
     assert active_pwm["motor_4"] == ["PB8"]

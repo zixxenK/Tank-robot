@@ -21,6 +21,33 @@ static LEDObjectTypeDef status_led;
 
 static bool status_initialized = false;
 
+/* Sea Shanty 2 (OSRS) startup hook. Keep this in the firmware image so the
+ * melody plays even when the Rock64 host stack has not started yet. */
+static const uint16_t startup_song[] = {
+    440, 554, 659, 740, 659, 554, 440, 554,
+    659, 740, 440, 494, 440, 740, 659, 740,
+    440, 494, 554, 587, 554, 494, 440, 740,
+    659, 554, 494, 440, 740, 659, 554, 440,
+};
+
+#define STARTUP_SONG_NOTE_ON_MS  180U
+#define STARTUP_SONG_NOTE_GAP_MS  40U
+
+static bool startup_song_active = false;
+static uint32_t startup_song_elapsed_ms = 0U;
+static uint32_t startup_song_index = 0U;
+
+static void startup_song_start_note(void) {
+    if (buzzers[0] == NULL || startup_song_index >=
+            (sizeof(startup_song) / sizeof(startup_song[0]))) {
+        return;
+    }
+
+    /* Queue one note at a time; the buzzer queue has depth five. */
+    (void)buzzer_didi(buzzers[0], startup_song[startup_song_index],
+                      STARTUP_SONG_NOTE_ON_MS, STARTUP_SONG_NOTE_GAP_MS, 1U);
+}
+
 // ============================================================================
 // LED HARDWARE ABSTRACTION
 // ============================================================================
@@ -76,6 +103,24 @@ void Status_Update(uint32_t period_ms) {
     // Update buzzer state machine
     if (buzzers[0] != NULL) {
         buzzer_task_handler(buzzers[0], period_ms);
+    }
+
+    if (startup_song_active) {
+        startup_song_elapsed_ms += period_ms;
+        if (startup_song_elapsed_ms >=
+                (STARTUP_SONG_NOTE_ON_MS + STARTUP_SONG_NOTE_GAP_MS)) {
+            startup_song_elapsed_ms -=
+                (STARTUP_SONG_NOTE_ON_MS + STARTUP_SONG_NOTE_GAP_MS);
+            startup_song_index++;
+            if (startup_song_index >=
+                    (sizeof(startup_song) / sizeof(startup_song[0]))) {
+                startup_song_active = false;
+                startup_song_elapsed_ms = 0U;
+                (void)buzzer_off(buzzers[0]);
+            } else {
+                startup_song_start_note();
+            }
+        }
     }
     
     // Update LED state machine
@@ -185,4 +230,15 @@ void Status_StartupSequence(void) {
     
     // Audible startup acknowledgment
     Status_OKBeep();
+}
+
+void Status_PlayStartupSong(void) {
+    if (!status_initialized || buzzers[0] == NULL) {
+        return;
+    }
+
+    startup_song_index = 0U;
+    startup_song_elapsed_ms = 0U;
+    startup_song_active = true;
+    startup_song_start_note();
 }

@@ -11,6 +11,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
+    EnvironmentVariable,
     LaunchConfiguration,
     PathJoinSubstitution,
     PythonExpression,
@@ -57,6 +58,16 @@ def generate_launch_description() -> LaunchDescription:
         "foxglove_address",
         default_value="127.0.0.1",
         description="Bind Foxglove Bridge locally unless LAN viewing is explicitly needed",
+    )
+    remote_access = DeclareLaunchArgument(
+        "remote_access",
+        default_value=EnvironmentVariable(
+            "FOXGLOVE_REMOTE_ACCESS", default_value="false"
+        ),
+        description=(
+            "Enable Foxglove cloud Remote Access; requires "
+            "FOXGLOVE_DEVICE_TOKEN in the bridge environment"
+        ),
     )
     use_odom_tf = DeclareLaunchArgument("use_odom_tf", default_value="true")
     use_slam = DeclareLaunchArgument("use_slam", default_value="true")
@@ -109,6 +120,10 @@ def generate_launch_description() -> LaunchDescription:
             {
                 "port": LaunchConfiguration("foxglove_port"),
                 "address": LaunchConfiguration("foxglove_address"),
+                "remote_access": LaunchConfiguration("remote_access"),
+                # Advertise every ROS topic to Foxglove. The bridge remains
+                # read-only because clientPublish is intentionally absent.
+                "topic_whitelist": [".*"],
                 "send_buffer_limit": 10000000,
                 # Do not expose Foxglove's clientPublish or service/parameter
                 # mutation capabilities in the commissioning dashboard.
@@ -151,6 +166,7 @@ def generate_launch_description() -> LaunchDescription:
         use_foxglove,
         foxglove_port,
         foxglove_address,
+        remote_access,
         use_odom_tf,
         use_slam,
         slam_mode,
