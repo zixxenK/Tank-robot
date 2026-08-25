@@ -33,6 +33,27 @@ acceptance when the robot service is present, and cleanup. Build and test logs
 are captured under `log/e2e/`; the console shows only the Tank-Robot System
 Report with overall status, subsystem status, anomalies, and next steps.
 
+## Clean-PC Docker startup
+
+For a new Windows PC, the Docker operator can install its prerequisites,
+clone the latest `main` branch, start headless Gazebo, and open the local
+operator page with one PowerShell command:
+
+```powershell
+irm https://raw.githubusercontent.com/zixxenK/Tank-robot/main/scripts/bootstrap_tankrobot.ps1 | iex
+```
+
+Simulation starts even when the physical Rock64 is unavailable. Use the local
+operator page for status, Start robot, Stop robot, Foxglove, and the separate
+confirmed firmware-flashing action. See
+[docs/DOCKER_OPERATOR.md](docs/DOCKER_OPERATOR.md) for hardware setup and
+Linux/macOS Compose usage.
+
+For a hotspot, leave the Rock64 address as `auto` in the page and use
+**Set up + start robot**. The operator discovers the board and provisions its
+SSH key automatically with the one-time Rock64 login password; no manual
+`authorized_keys` edit is required.
+
 ## Control Architecture
 
 ```text

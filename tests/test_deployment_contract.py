@@ -230,3 +230,62 @@ def test_runtime_templates_use_the_supported_explicit_ros_distro():
     assert "ROS_DISTRO=humble" in config
     assert "ROS_DISTRO=auto" not in config
     assert "ROS_DISTRO=humble" in guide
+
+
+def test_docker_operator_has_safe_default_simulation_and_local_ports():
+    compose = _read("compose.yaml")
+    dockerfile = _read("docker/ros.Dockerfile")
+    bootstrap = _read("scripts/bootstrap_tankrobot.ps1")
+    docs = _read("docs/DOCKER_OPERATOR.md")
+    assert "target: operator" in compose
+    assert "target: sim" in compose
+    assert "TANKROBOT_OPERATOR_HOST_PORT:-28787" in compose
+    assert "TANKROBOT_SIM_FOXGLOVE_PORT:-28766" in compose
+    assert 'TANKROBOT_SIM_FOXGLOVE_PORT: "${TANKROBOT_SIM_FOXGLOVE_PORT:-28766}"' in compose
+    assert 'TANKROBOT_SSH_FOXGLOVE_PORT: "${TANKROBOT_SSH_FOXGLOVE_PORT:-28765}"' in compose
+    assert "/var/run/docker.sock" in compose
+    assert "ROS_LOCALHOST_ONLY: \"1\"" in compose
+    assert "ros-humble-foxglove-bridge" in dockerfile
+    assert "wsl.exe --install --no-distribution" in bootstrap
+    assert "Docker.DockerDesktop" in bootstrap
+    assert "Find-FreePort" in bootstrap
+    assert "Tank Robot is ready" in bootstrap
+    assert "Start robot" in docs
+
+
+def test_docker_operator_keeps_flash_separate_and_confirmed():
+    operator = _read("operator/app.py")
+    assert '"/api/robot/flash"' in operator
+    assert '!= "FLASH"' in operator
+    assert "rock64_update_and_flash.sh" in operator
+    assert "sync_and_build(config, password)" in operator
+    assert "never written" in operator
+
+
+def test_docker_operator_exposes_simulation_fallback_and_robot_modes():
+    operator = _read("operator/app.py")
+    assert '"/api/simulation/start"' in operator
+    assert '"/api/robot/start"' in operator
+    assert '"/api/logs"' in operator
+    assert '"connection_mode": "ssh"' in operator
+    assert 'config["connection_mode"] == "direct"' in operator
+    assert "SSH Foxglove tunnel" in operator
+    assert "Direct DDS dashboard" in operator
+
+
+def test_docker_operator_automates_first_time_ssh_enrollment():
+    operator = _read("operator/app.py")
+    dockerfile = _read("docker/ros.Dockerfile")
+    docs = _read("docs/DOCKER_OPERATOR.md")
+    assert '"robot_host": "auto"' in operator
+    assert '"/api/robot/setup"' in operator
+    assert '"/api/robot/discover"' in operator
+    assert '"sshpass", "-e", "ssh"' in operator
+    assert 'environment["SSHPASS"] = password' in operator
+    assert "sshpass" in dockerfile
+    assert 'remote_archive = "/tmp/.tankrobot-sync.tgz"' in operator
+    assert "chown -R" in operator
+    assert "Set up + start robot" in operator
+    assert "authorized_keys" in docs
+    assert "No key copying" in docs
+    assert "PASTE_THE_DISPLAYED_PUBLIC_KEY_HERE" not in docs

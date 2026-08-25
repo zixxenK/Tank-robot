@@ -48,7 +48,16 @@ def generate_launch_description():
     )
 
     gz_sim = ExecuteProcess(
-        cmd=[gz_exec, gz_subcommand, "-r", LaunchConfiguration("world")],
+        cmd=[
+            gz_exec,
+            gz_subcommand,
+            "-r",
+            "-s",
+            LaunchConfiguration("world"),
+        ]
+        if os.environ.get("GZ_SIM_HEADLESS", "0").lower()
+        in {"1", "true", "yes"}
+        else [gz_exec, gz_subcommand, "-r", LaunchConfiguration("world")],
         output="screen",
     )
 

@@ -1,0 +1,46 @@
+name: tankrobot
+
+services:
+  operator:
+    container_name: tankrobot-operator
+    build:
+      context: .
+      dockerfile: docker/ros.Dockerfile
+      target: operator
+    image: tankrobot-operator:latest
+    restart: unless-stopped
+    environment:
+      ROS_DOMAIN_ID: "${ROS_DOMAIN_ID:-42}"
+      RMW_IMPLEMENTATION: "${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
+      ROS_LOCALHOST_ONLY: "0"
+      TANKROBOT_SOURCE_ROOT: /opt/tankrobot
+      TANKROBOT_SIM_SERVICE: tankrobot-sim
+      TANKROBOT_SIM_FOXGLOVE_PORT: "${TANKROBOT_SIM_FOXGLOVE_PORT:-28766}"
+      TANKROBOT_DIRECT_FOXGLOVE_PORT: "${TANKROBOT_DIRECT_FOXGLOVE_PORT:-28767}"
+      TANKROBOT_SSH_FOXGLOVE_PORT: "${TANKROBOT_SSH_FOXGLOVE_PORT:-28765}"
+    ports:
+      - "127.0.0.1:${TANKROBOT_OPERATOR_HOST_PORT:-28787}:8787"
+      - "127.0.0.1:${TANKROBOT_DIRECT_FOXGLOVE_PORT:-28767}:8765"
+      - "127.0.0.1:${TANKROBOT_SSH_FOXGLOVE_PORT:-28765}:18765"
+    volumes:
+      - tankrobot_operator_data:/var/lib/tankrobot
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  sim:
+    container_name: tankrobot-sim
+    build:
+      context: .
+      dockerfile: docker/ros.Dockerfile
+      target: sim
+    image: tankrobot-sim:latest
+    restart: unless-stopped
+    environment:
+      ROS_DOMAIN_ID: "${ROS_DOMAIN_ID:-42}"
+      RMW_IMPLEMENTATION: "${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
+      ROS_LOCALHOST_ONLY: "1"
+      GZ_SIM_HEADLESS: "1"
+    ports:
+      - "127.0.0.1:${TANKROBOT_SIM_FOXGLOVE_PORT:-28766}:8765"
+
+volumes:
+  tankrobot_operator_data:
