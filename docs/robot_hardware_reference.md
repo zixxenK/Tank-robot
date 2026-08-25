@@ -1,5 +1,16 @@
 # Robot Hardware Reference — Rock64 Tracked Robot
 
+## Hiwonder board authority and conflicts
+
+The complete Hiwonder-board audit is maintained in
+[`HIWONDER_ROS_ROBOT_CONTROLLER_V1_2.md`](HIWONDER_ROS_ROBOT_CONTROLLER_V1_2.md)
+and its machine-readable profile. Hiwonder's current online sources are not
+internally consistent: the product page/hardware schematic say MPU6050 while
+program-analysis section 3.5 says QMI8658; the schematic says buzzer PA4 while
+the program example says PA8; and the documented power-input ranges differ.
+The project therefore records QMI8658, PA8, and UART1/USART1 as project
+assumptions/physical mappings, not as unqualified official V1.2 facts.
+
 ## Canonical transport authority
 
 The validated production wiring is defined by
@@ -106,26 +117,26 @@ like the one above. It is **not necessarily the exact board in this project** (t
 custom `RosRobotControllerM4` build) — but the pin topology is close enough that this is the best
 official reference for cross-checking pin assignments, protocol choices, and default peripheral use.
 
-### Full official spec table
+### Online product summary (cross-checked against the audit profile)
 | Parameter | Value |
 |---|---|
 | MCU | STM32F407VET6, Cortex-M4, 168MHz, hardware FPU, Murata crystal oscillator |
 | USB serial ports | 2 |
 | Max encoder motors driven | 4 (PID speed control; supports 2WD, 4WD differential, mecanum, omni, steering, Ackermann) |
 | Robot arm support | PWM-servo arm or serial-bus-servo arm |
-| PWM servo channels | 4, drive voltage 5V |
+| PWM servo channels | 4; two ports on 5V and two ports on VIN/battery voltage |
 | Serial bus servo ports | 2, drive voltage = board supply voltage |
 | CAN | Integrated CAN chip |
 | Expansion port | 26-pin |
 | SBUS | 1 port, standard SBUS protocol, for RC receiver input |
 | I2C | 1 port; supports 4-channel or 6-channel line-follower modules |
-| IMU | Onboard **MPU6050** (6-axis: 3-axis accel + 3-axis gyro) |
+| IMU | Source conflict: product page/hardware text says MPU6050; program-analysis section 3.5 says QMI8658 |
 | Display | OLED port via SPI |
 | Bluetooth | 1 UART-connected module |
 | USB HOST | 1 port, for game-controller/receiver dongles |
 | Download/debug | One-click serial download; SWD header compatible with J-Link/ST-Link |
 | External power out | 1× USB-C, independent 5V/5A rail — can power a Raspberry Pi/Jetson directly |
-| Power input | DC 7–14V (12V LiPo confirmed safe to connect directly) |
+| Power input | Hiwonder sources conflict: hardware course says DC 5-12.6V; product page says DC 7-14V. Verify the physical board before selecting a battery |
 | Protection | Reverse-polarity, overcurrent, overheat, backflow protection |
 | Switches | Separate main power switch and motor-enable switch |
 | Buttons/LEDs | Reset button ×1, user buttons ×2, user LED ×1, buzzer ×1 |
@@ -146,7 +157,7 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Serial bus servo port | USART6 (PC6 TX / PC7 RX) + PE7/PE8 as TX/RX bus-direction-enable | Matches Hiwonder's half-duplex bus-servo driver topology exactly |
 | SBUS input | UART5 RX (PD2), 100000 baud, 9-bit, even parity, 2 stop bits | Standard SBUS framing, matches |
 | Rock64 host link | USART1 (PA9 TX / PA10 RX), 1,000,000 baud | WCH USB-UART motor link on the product connector labeled UART1 |
-| Onboard IMU | I2C2 (PB10 SCL / PB11 SDA) + EXTI on PB12 (`IMU_ITR`) | FreeRTOS config has an `mpu6050_data_ready` semaphore — confirms MPU6050, matching the reference board exactly |
+| Onboard IMU | Project assumes QMI8658 on I2C2 (PB10 SCL / PB11 SDA), 400 kHz, address `0x6A`/`0x6B`, WHO_AM_I `0x05`; EXTI on PB12 (`IMU_ITR`) | Project runtime gate, not an unambiguous official V1.2 claim; physical identity must pass diagnostics |
 | Display | SPI2 TX-only (PC3 MOSI / PB13 SCK) + PD11–14 as LCD_BLK/CS/DC/RES | Reference board uses SPI OLED; project uses a color LCD instead (ST7735-class 4-wire) |
 | Auxiliary UART | USART2 (PD5/PD6) | Bluetooth/expansion interface |
 | Battery sense | ADC1 IN8 on PB0, labeled BATTERY | Standard voltage-divider ADC monitoring |
@@ -177,7 +188,7 @@ active servo outputs.
 | OS support | Debian, Android 7/7.1, Yocto, Manjaro, DietPi, LibreELEC, and other community Linux builds |
 | Supply commitment | 4GB variant designated Long-Term-Supply, Pine64 committed through ~2022+ |
 
-Given the project's `mpu6050_data_ready`/FreeRTOS naming and "master" UART link at 1Mbaud, the Rock64
+Given the project's `imu_data_ready`/FreeRTOS naming and "master" UART link at 1Mbaud, the Rock64
 is talking to the STM32 over the custom USART1 PA9/PA10 pair (not native USB), which is a
 deliberate design choice worth keeping documented — it bypasses the reference board's USB-CDC approach.
 
@@ -232,8 +243,8 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 ### Power & Clock
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PH0-OSC_IN | RCC_OSC_IN | External 25MHz crystal | System clock source (HSE) |
-| PH1-OSC_OUT | RCC_OSC_OUT | External 25MHz crystal | System clock source (HSE) |
+| PH0-OSC_IN | RCC_OSC_IN | External 8MHz crystal | System clock source (HSE), matching `RCC.HSE_VALUE=8000000` in the IOC |
+| PH1-OSC_OUT | RCC_OSC_OUT | External 8MHz crystal | System clock source (HSE), matching `RCC.HSE_VALUE=8000000` in the IOC |
 
 ### JTAG/SWD Debug
 | Pin | Signal | Component | Rationale |
@@ -255,8 +266,8 @@ Complete pin-by-pin mapping of the custom firmware configuration, cross-referenc
 ### I2C
 | Pin | Signal | Component | Rationale |
 |---|---|---|---|
-| PB10 | I2C2_SCL | MPU6050 IMU | I2C clock for IMU sensor |
-| PB11 | I2C2_SDA | MPU6050 IMU | I2C data for IMU sensor |
+| PB10 | I2C2_SCL | QMI8658 IMU | I2C clock for IMU sensor |
+| PB11 | I2C2_SDA | QMI8658 IMU | I2C data for IMU sensor |
 
 ### SPI (LCD Display)
 | Pin | Signal | Component | Rationale |
@@ -319,7 +330,7 @@ drive or telemetry contract.
 | PE5 | TIM9_CH1 | Additional PWM | Reserved for future use |
 | PE6 | TIM9_CH2 | Additional PWM | Reserved for future use |
 | PB8 | TIM10_CH1 | Additional PWM | Reserved for future use |
-| PB9 | TIM11_CH1 | Additional PWM | Reserved for future use |
+| PB9 | TIM11_CH1 (factory topology only) | No active output route | Analog/non-commissioned in the production image; do not treat as a fourth PWM leg |
 
 ### GPIO Outputs (LCD Control)
 | Pin | Signal | Component | Rationale |
@@ -371,6 +382,6 @@ source-of-truth document.
 | PD3 | GPIO_Input (MOTOR_ENABLE) | Unconsumed motor-enable input | Current firmware does not read this pin or use it as a PWM safety interlock; do not treat it as the emergency cutoff |
 | PE0 | GPIO_Input (KEY2) | User button 2 | General-purpose user input |
 | PE1 | GPIO_Input (KEY1) | User button 1 | General-purpose user input |
-| PB12 | GPXTI12 (IMU_ITR) | MPU6050 interrupt | IMU data ready interrupt for FreeRTOS semaphore |
+| PB12 | GPXTI12 (IMU_ITR) | QMI8658 interrupt | Board IMU data-ready input; production wrapper currently uses status polling |
 
 ---

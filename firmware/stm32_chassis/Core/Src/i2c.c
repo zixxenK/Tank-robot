@@ -40,8 +40,9 @@ void MX_I2C2_Init(void)
 
   /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
-  /* Hiwonder's official V1.2 QMI8658 source uses I2C2 Fast mode on the
-   * onboard PB10/PB11 bus. */
+  /* The project uses I2C2 Fast mode for the shared onboard-sensor/expansion
+   * bus. Hiwonder's live pages disagree on the sensor identity, so the
+   * QMI8658 choice is validated separately by WHO_AM_I at runtime. */
   hi2c2.Init.ClockSpeed = 400000;
   hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c2.Init.OwnAddress1 = 0;

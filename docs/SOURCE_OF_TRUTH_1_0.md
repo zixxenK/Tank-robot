@@ -1,7 +1,11 @@
 # Tank Robot 1.0 Source of Truth
 
-This is the hardware/software state that was physically validated on 2026-08-16.
-Treat it as authoritative for all future firmware, Rock64, and agent work.
+This is the project hardware/software state that was physically validated on
+2026-08-16. For the complete Hiwonder-board inventory and official-source
+conflicts, see [the V1.2 audit profile](HIWONDER_ROS_ROBOT_CONTROLLER_V1_2.md).
+Treat project assignments below as authoritative only where they are marked
+production; do not promote a conflicting Hiwonder reference claim into project
+hardware fact.
 
 ## Production wiring
 
@@ -16,6 +20,7 @@ Treat it as authoritative for all future firmware, Rock64, and agent work.
 | Motor protocol TX | USART1 bounded blocking writes |
 | Serial-servo bus | `USART6` |
 | Programming/debug | ST-Link `0483:3748` over SWD only |
+| Onboard IMU | Project QMI8658 runtime assumption on I2C2 PB10/PB11, 400 kHz; 7-bit address `0x6A` or `0x6B`; `WHO_AM_I` register `0x00` = `0x05`; board interrupt input PB12. Physical identity is accepted only by this runtime proof. |
 | Motors | Hiwonder JGB3865-520R45-12, 12V, 45:1, 1980 ticks/output rev |
 | Host motor output cap | Full signed normalized range; STM32 PID, watchdog, and current protection remain authoritative |
 | Distance sensor | Optional Hiwonder Glowy 4-pin module -> controller `5V/GND/SDA/SCL` I2C connector, address `0x77` |

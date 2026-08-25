@@ -31,6 +31,9 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 # Production host link is fixed: physical UART1 -> USART1 on PA9/PA10.
 # The stock USART3/PD8-PD9 endpoint is reference material only and is not a
 # selectable production build profile.
+# The project IMU path is QMI8658, but Hiwonder's live product/hardware pages
+# still say MPU6050. Keep the identity gate in imu_integration.c and do not
+# re-add the retired imu_mpu6050.c/Fusion path or legacy DMA adapter here.
 
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)

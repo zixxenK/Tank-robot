@@ -6,7 +6,7 @@ the drive safety boundary.
 | Subsystem | Status | Upgrade direction |
 | --- | --- | --- |
 | PS5 tracked drive and drift | Active | Tune alpha/beta from measured track grip and current/temperature logs. |
-| STM32 onboard MPU6050 | Active gate | Add calibrated orientation covariance and IMU-based slip/turn diagnostics. |
+| STM32 onboard QMI8658 | Active gate | Add calibrated orientation covariance and IMU-based slip/turn diagnostics. |
 | ESP32 and USB cameras | Active gate | Add timestamp/health monitoring, stereo or paired-camera calibration, and perception consumers. |
 | LM Studio assistant | In progress | Keep PC/WSL-hosted, review-only codegen, bounded commands, explicit tools, and safety-gateway mediation. |
 | Diagnostics aggregation | In progress | Add a shared health model and historical fault events for the lab assistant. |

@@ -75,7 +75,7 @@ def parse_onboard_imu_diagnostic(message: object) -> Tuple[bool, str]:
     """Extract the bridge's explicit onboard-IMU readiness evidence."""
     for status in getattr(message, "status", ()):
         name = str(getattr(status, "name", "")).lower()
-        if "onboard qmi8658" not in name and "onboard mpu6050" not in name:
+        if "onboard qmi8658" not in name:
             continue
         values = {
             str(item.key): str(item.value)
@@ -84,6 +84,8 @@ def parse_onboard_imu_diagnostic(message: object) -> Tuple[bool, str]:
         ready = values.get("ready", "false").lower() in {
             "1", "true", "yes", "on"
         }
+        address_valid = values.get("address", "").lower() in {"0x6a", "0x6b"}
+        identity_valid = values.get("who_am_i", "").lower() == "0x05"
         sample_valid = values.get("sample_valid", "false").lower() in {
             "1", "true", "yes", "on"
         }
@@ -96,7 +98,7 @@ def parse_onboard_imu_diagnostic(message: object) -> Tuple[bool, str]:
             f"sample_count={values.get('sample_count', 'unknown')} "
             f"error_count={values.get('error_count', 'unknown')}"
         )
-        return ready and sample_valid, detail
+        return ready and sample_valid and address_valid and identity_valid, detail
     return False, "no onboard QMI8658 diagnostic status received"
 
 
@@ -754,7 +756,7 @@ class HardwareTestRunner(Node):
                 self._imu_diagnostics, since, lambda value: True
             )
             if not messages:
-                return False, "no onboard MPU6050 diagnostic status received"
+                return False, "no onboard QMI8658 diagnostic status received"
             return parse_onboard_imu_diagnostic(messages[-1])
 
         ready = self._spin_until(

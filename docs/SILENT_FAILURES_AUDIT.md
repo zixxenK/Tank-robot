@@ -7,6 +7,9 @@ records failure boundaries and the historical issues that must not be
 reintroduced. The production wiring remains defined by
 [SOURCE_OF_TRUTH_1_0.md](SOURCE_OF_TRUTH_1_0.md).
 
+The complete board inventory and Hiwonder-source conflict record is
+[HIWONDER_ROS_ROBOT_CONTROLLER_V1_2.md](HIWONDER_ROS_ROBOT_CONTROLLER_V1_2.md).
+
 ## Current failure boundaries
 
 | Boundary | Fail-closed behavior | Evidence/check |
@@ -16,7 +19,7 @@ reintroduced. The production wiring remains defined by
 | Safety gateway | E-stop, command timeout, finite checks, limits, and optional battery gate stop output | `/ranger/cmd_vel_safe`, `/safety/diagnostics` |
 | STM32 serial bridge | Reconnect and command timeout issue a stop; only this node writes motor frames | `/stm32/diagnostics`, `/stm32/bridge_alive` |
 | STM32 firmware | CRC/protocol validation, watchdog, PID, PWM, and motor protection remain authoritative | Firmware build plus raised-track proof |
-| Onboard MPU6050 | I2C2 probe/WHO_AM_I/read errors are reported instead of publishing a false-ready stream | `/stm32/imu`, onboard IMU diagnostic status |
+| Onboard IMU identity | I2C2 probe/WHO_AM_I/read errors are reported instead of publishing a false-ready stream; QMI is not accepted from a label alone | `/stm32/imu`, onboard IMU diagnostic status |
 | Cameras | Each bridge reports stale/unreachable input; camera data has no motor authority | `/camera/diagnostics`, `/camera/usb/diagnostics` |
 | PC/WSL loss | The Rock64 safety and STM32 stop paths remain local | Stop test with the PC disconnected |
 
@@ -57,12 +60,16 @@ enough evidence.
 
 ### IMU ownership
 
-The MPU6050 is built into the Hiwonder ROS Robot Controller V1.2. It is not an
-external Rock64 sensor and must not be debugged as if it were one. The active
-firmware path is I2C2 on PB10/SCL and PB11/SDA, with address probing at `0x68`
-and `0x69`, WHO_AM_I evidence, and one serialized telemetry owner to avoid
-FreeRTOS/I2C races. A failed IMU stage means inspect controller power,
-I2C2 wiring, probe/address, and firmware diagnostics before changing ROS topic
+The project uses a QMI8658 runtime assumption for the onboard sensor. Hiwonder's
+current product/hardware text says MPU6050 while its program-analysis section
+3.5 says QMI8658, so the part identity is not established by documentation
+alone. The active firmware path is I2C2 on PB10/SCL and PB11/SDA at 400 kHz,
+with address probing at `0x6A` and `0x6B`, `WHO_AM_I` register `0x00` expected
+to return `0x05`, and one serialized telemetry owner to avoid FreeRTOS/I2C
+races. PB12 remains the board's IMU interrupt input; the active wrapper uses
+status polling so the UART protocol task remains the sole sample owner. A
+failed IMU stage means inspect controller power, I2C2 wiring, probe/address,
+the physical sensor marking, and firmware diagnostics before changing ROS topic
 names.
 
 ## Deferred hardware

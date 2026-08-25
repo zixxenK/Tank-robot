@@ -4,7 +4,7 @@ Run these commands on the Ubuntu Rock64 from the repository root.
 
 ## One-time firmware and ROS deployment
 
-The current release owns the drive, camera, and onboard MPU6050 acceptance
+The current release owns the drive, camera, and project QMI8658 runtime-path acceptance
 path. Servo, Glowy ultrasonic, LiDAR, and battery are accessory/future-upgrade
 hardware and are outside this basic acceptance workflow.
 
@@ -49,8 +49,9 @@ The runner performs and prints these basic stages one at a time:
 3. Odometry: requires fresh finite pose/twist messages with a unit quaternion;
    this proves the derived navigation input, not only the raw encoder topic.
 4. Onboard IMU: requires finite, physically plausible acceleration and gyro
-   samples plus a ready diagnostic from the MPU6050 integrated into the
-   Hiwonder controller on I2C2 PB10/PB11.
+   samples plus a ready diagnostic from the project QMI8658 path on I2C2
+   PB10/PB11. The live Hiwonder product/hardware pages label the part MPU6050,
+   so the runner also requires the QMI WHO_AM_I proof.
 5. PS5: reported as informational `SKIP`; the service still launches the
    teleoperation node, but no controller activity is required for acceptance.
 6. ESP32 camera: requires advancing, valid `/camera/image_raw` frames.

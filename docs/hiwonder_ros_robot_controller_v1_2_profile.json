@@ -1,0 +1,207 @@
+{
+  "schema": "hiwonder.ros_robot_controller.board_profile",
+  "schema_version": 1,
+  "audit_date": "2026-08-24",
+  "scope": "Hiwonder ROS Robot Control Board as used by this project; factory claims and project wiring are intentionally separate.",
+  "identity": {
+    "product_name": "ROS Robot Control Board",
+    "project_board_revision": "V1.2",
+    "official_documentation_revision_claim": null,
+    "mcu": "STM32F407VET6",
+    "mcu_clock_hz": 168000000,
+    "official_revision_note": "The current Hiwonder product page and documentation repository do not unambiguously publish a V1.2 hardware revision. The hardware-course FAQ explicitly discusses V1.0 and V1.1 only. Treat the project V1.2 label as physical/project evidence, not as an official online revision declaration."
+  },
+  "official_sources": [
+    {
+      "id": "product_page",
+      "url": "https://www.hiwonder.com/products/ros-robot-control",
+      "retrieved": "2026-08-24",
+      "evidence": "Current product specification identifies STM32F407VET6, two USB serial ports, four encoder-motor channels, mixed-voltage PWM servo ports, 7-14 V input, and onboard MPU6050."
+    },
+    {
+      "id": "hardware_course",
+      "url": "https://wiki.hiwonder.com/projects/ROS-Robot-Control-Board/en/latest/docs/1_Controller_Hardware_Course.html",
+      "raw_url": "https://raw.githubusercontent.com/Hiwonder-docs/ROS-Robot-Control-Board/main/source/docs/1_Controller_Hardware_Course.md",
+      "source_revision": "07746775ee68faa63a97fc4e079e9842481743c9",
+      "retrieved": "2026-08-24",
+      "evidence": "Board diagram, schematic explanations, named MCU pins, power rails, motor/servo/USB/SBUS/CAN/I2C/display interfaces."
+    },
+    {
+      "id": "program_analysis",
+      "url": "https://wiki.hiwonder.com/projects/ROS-Robot-Control-Board/en/latest/docs/3_RosRobot_Controller_Program_Analysis.html",
+      "raw_url": "https://raw.githubusercontent.com/Hiwonder-docs/ROS-Robot-Control-Board/main/source/docs/3_RosRobot_Controller_Program_Analysis.md",
+      "source_revision": "07746775ee68faa63a97fc4e079e9842481743c9",
+      "retrieved": "2026-08-24",
+      "evidence": "Factory example pin configurations, 1 Mbps host protocol examples, QMI8658 chapter, motor/encoder/SBUS/Bluetooth/display software paths."
+    },
+    {
+      "id": "documentation_repository",
+      "url": "https://github.com/Hiwonder-docs/ROS-Robot-Control-Board",
+      "revision": "07746775ee68faa63a97fc4e079e9842481743c9",
+      "retrieved": "2026-08-24",
+      "evidence": "Official documentation source repository used to avoid relying on rendered-page text alone."
+    }
+  ],
+  "official_reference": {
+    "board": {
+      "dimensions_mm": [85, 60],
+      "mass_g": 39.5,
+      "expansion_header": "26-pin",
+      "max_motor_channels": 4,
+      "max_motor_current_a": 2,
+      "protection": [
+        "reverse polarity",
+        "overcurrent",
+        "overtemperature",
+        "backflow"
+      ],
+      "source_note": "Current product-page specifications describe the product family; they are not an independent physical inspection of this board."
+    },
+    "power": {
+      "input": [
+        "DC 5 V to 12.6 V (hardware-course board diagram)",
+        "DC 7 V to 14 V (current product page)"
+      ],
+      "external_sbc_output": "5 V / 5 A",
+      "main_power_switch": true,
+      "motor_enable_switch": true,
+      "source_conflict": "The online sources disagree on the input range; do not use either range to approve a battery without checking the board marking and measured hardware."
+    },
+    "interfaces": {
+      "encoder_motor": {
+        "channels": 4,
+        "factory_motor_driver_pins": ["PE9", "PE11", "PE5", "PE6", "PE13", "PE14", "PB8", "PB9"],
+        "factory_example_motor_1_drive": ["PE13", "PE14"],
+        "factory_example_motor_1_encoder": ["PA0", "PA1"],
+        "note": "The eight driver pins are listed by the hardware schematic; the program chapter gives a concrete Motor 1 example."
+      },
+      "pwm_servo": {
+        "channels": 4,
+        "power_rails": "2 channels on VIN/battery voltage and 2 channels on 5 V",
+        "factory_software_example": "Four PWM servo objects are described; exact factory channel-to-pin mapping is not stated in the text source."
+      },
+      "serial_bus_servo": {
+        "ports": 2,
+        "schematic_signals": ["PE7", "PG6_TX", "PC7_RX"]
+      },
+      "host_serial": {
+        "physical_ports": 2,
+        "recommended_factory_use": "Serial port 2 for Raspberry Pi/Jetson communication; serial port 1 remains available for serial download/burning.",
+        "factory_program_example": {
+          "peripheral": "USART3",
+          "pins": {"tx": "PD8", "rx": "PD9"},
+          "baud": 1000000,
+          "format": "8N1"
+        }
+      },
+      "bluetooth": {
+        "peripheral": "USART2",
+        "pins": {"tx": "PD5", "rx": "PD6"}
+      },
+      "imu": {
+        "factory_hardware_label": "MPU6050",
+        "factory_program_chapter": "QMI8658",
+        "pins": {"i2c_scl": "PB10", "i2c_sda": "PB11", "interrupt": "PB12"},
+        "official_qmi_identity": null,
+        "conflict": "The product page and hardware schematic call the device MPU6050, while program-analysis section 3.5 is titled QMI8658. The Hiwonder text does not provide a revision-specific, unambiguous WHO_AM_I value."
+      },
+      "i2c_expansion": {
+        "pins": {"scl": "PB10", "sda": "PB11"},
+        "pullups": "Hardware-course text says the I2C bus is pulled up on the onboard IMU.",
+        "sharing": "The expansion connector and onboard IMU share the same I2C bus."
+      },
+      "display": {
+        "kind": "0.96-inch SPI LCD/ST7735S example",
+        "pins": {"sck": "PB13", "mosi": "PC3", "blk": "PD11", "cs": "PD12", "dc": "PD13", "res": "PD14"},
+        "electrical": "3.3 V module in the program-analysis specification; the module pin description also mentions 3.3-5 V VCC."
+      },
+      "sbus": {
+        "peripheral": "UART5 receive-only",
+        "pin": "PD2",
+        "format": "100000 baud, 9 data bits, even parity, 2 stop bits"
+      },
+      "usb_host": {
+        "pins": {"dm": "PB15", "dp": "PB14"},
+        "purpose": "USB HID receivers such as game controllers"
+      },
+      "swd": {"swdio": "PA13", "swclk": "PA14"},
+      "buttons": {"count": 2, "pins": ["PE0", "PE1"], "active_level": "low"},
+      "status_led": {"pin": "PE10", "active_level": "low"},
+      "buzzer": {
+        "schematic_pin": "PA4",
+        "program_example_pin": "PA8",
+        "conflict": "The hardware-course schematic text says PA4; the program-analysis button chapter says PA8. Verify the board revision physically before treating either as universal."
+      },
+      "can": {
+        "available": true,
+        "termination": "120 ohm resistor stated by the hardware-course schematic explanation",
+        "mcu_pins_in_text": null
+      },
+      "gpio_expansion": "Reserved GPIO/SWD header; exact availability depends on the selected MCU peripherals and board routing."
+    },
+    "protocol": {
+      "frame_header": ["0xAA", "0x55"],
+      "checksum": "low 8 bits of CRC over function, length, and data",
+      "factory_host_protocol_functions": ["LED", "buzzer", "motor", "PWM servo", "bus servo", "button/IMU/gamepad/SBUS telemetry"]
+    }
+  },
+  "project_implementation": {
+    "status": "active checked-in RosRobotControllerM4 image",
+    "config_source": "firmware/stm32_chassis/RosRobotControllerM4.ioc",
+    "clock": {
+      "hse_hz": 8000000,
+      "system_clock_hz": 168000000,
+      "source": "IOC RCC.HSE_VALUE and generated SystemClock_Config"
+    },
+    "host_link": {
+      "physical_connector": "project-specific product-labeled UART1 WCH USB-UART",
+      "peripheral": "USART1",
+      "pins": {"tx": "PA9", "rx": "PA10"},
+      "baud": 1000000,
+      "format": "8N1",
+      "not_factory_default": "This deliberately differs from Hiwonder's documented USART3/PD8-PD9 factory example and serial-port-2 recommendation."
+    },
+    "imu": {
+      "driver_assumption": "QMI8658",
+      "peripheral": "I2C2",
+      "pins": {"scl": "PB10", "sda": "PB11", "interrupt_input": "PB12"},
+      "clock_hz": 400000,
+      "candidate_addresses_7bit": ["0x6A", "0x6B"],
+      "who_am_i_register": "0x00",
+      "who_am_i_expected": "0x05",
+      "physical_proof_required": true,
+      "proof_path": "host acceptance requires ready diagnostics, a valid sample, one of the two addresses, and WHO_AM_I 0x05"
+    },
+    "active_pin_map": {
+      "factory_reference_motor_pwm": {"motor_1": ["PE13", "PE14"], "motor_2": ["PE9", "PE11"], "motor_3": ["PE5", "PE6"], "motor_4": ["PB8", "PB9"]},
+      "project_configured_motor_pwm": {"motor_1": ["PE13", "PE14"], "motor_2": ["PE9", "PE11"], "motor_3": ["PE5", "PE6"], "motor_4": ["PB8"], "motor_4_missing_channel": "PB9/TIM11 is not configured in the checked-in IOC/HAL post-init and is not commissioned"},
+      "encoder_quadrature": {"motor_1": ["PA0", "PA1"], "motor_2": ["PA15", "PB3"], "motor_3": ["PB6", "PB7"], "motor_4": ["PB4", "PB5"]},
+      "pwm_servo": {"j1_active": "PA11", "unused": ["PA12", "PC8", "PC9"]},
+      "bus_servo": {"tx": "PC6", "rx": "PC7", "tx_enable": "PE7", "rx_enable": "PE8"},
+      "display": {"sck": "PB13", "mosi": "PC3", "blk": "PD11", "cs": "PD12", "dc": "PD13", "res": "PD14"},
+      "battery_adc": "PB0",
+      "buzzer": "PA8",
+      "buttons": {"key_1": "PE1", "key_2": "PE0"},
+      "status_led": "PE10",
+      "sbus": {"rx": "PD2", "unused_tx": "PC12"},
+      "usb_host": {"dm": "PB14", "dp": "PB15"},
+      "auxiliary_uart": {"peripheral": "USART2", "tx": "PD5", "rx": "PD6"},
+      "factory_reference_uart": {"peripheral": "USART3", "tx": "PD8", "rx": "PD9", "project_role": "not production host transport"},
+      "debug": {"swdio": "PA13", "swclk": "PA14"}
+    },
+    "commissioned_scope": {
+      "physical_drive_motors": 2,
+      "active_protocol_motors": [0, 1],
+      "encoder_ticks_per_output_revolution": 1980,
+      "optional_glowy_i2c_sensor": {"address_7bit": "0x77", "enabled_in_basic_profile": false},
+      "orientation_fusion": "not published; raw SI acceleration and angular velocity are published",
+      "legacy_mpu_sources": "retained for reference only and excluded from the production CMake target"
+    }
+  },
+  "verification_gates": [
+    "Never infer the physical IMU from a stale MPU/QMI label; accept QMI only after WHO_AM_I 0x05 is read at 0x6A or 0x6B.",
+    "Never replace the project host UART with the factory USART3 mapping without an explicit physical wiring decision.",
+    "Treat official power, buzzer, IMU, and revision conflicts as unresolved until the board marking/schematic or measurement resolves them.",
+    "Any profile change must update the IOC/build/host contracts and this file in the same change."
+  ]
+}

@@ -172,6 +172,14 @@ USB-camera data before any optional raised-track motor stage, prints a numbered 
 always stops both motors, and writes a JSON report. See
 [the exact Rock64 procedure](docs/ROCK64_HARDWARE_ACCEPTANCE.md).
 
+The project runtime assumes the onboard IMU is a QMI8658, but Hiwonder's
+current product/hardware text says MPU6050 while its program-analysis chapter
+3.5 says QMI8658. See the [complete board audit](docs/HIWONDER_ROS_ROBOT_CONTROLLER_V1_2.md).
+The production STM32 path uses I2C2 at 400 kHz on PB10/PB11, probes 7-bit
+address `0x6A` or `0x6B`, and requires register `0x00` (`WHO_AM_I`) to return
+`0x05`; that runtime result is the physical identity proof. The retired MPU
+driver and FIFO path are not part of the build.
+
 The older individual commissioning commands remain available only as guarded
 maintenance exceptions for raised-track bench work. They are not a normal
 operator motion path; normal driving is always PS5/agent -> safety gateway ->

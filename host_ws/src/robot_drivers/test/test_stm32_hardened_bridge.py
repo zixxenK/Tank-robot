@@ -451,7 +451,7 @@ class TestIntegration(unittest.TestCase):
     def test_imu_diagnostics_frame_has_explicit_onboard_identity(self):
         """The host can distinguish a ready onboard IMU from zero placeholders."""
         parser = FrameParser()
-        payload = struct.pack("<BBHIIl", 1, 0x68, 0x68, 12, 0, 0)
+        payload = struct.pack("<BBHIIl", 1, 0x6A, 0x05, 12, 0, 0)
         body = bytes([FUNC_IMU_DIAG, len(payload)]) + payload
         frame = bytes([SYNC_1, SYNC_2]) + body + bytes([crc8_ccitt(body)])
 
@@ -465,8 +465,8 @@ class TestIntegration(unittest.TestCase):
         bridge._telemetry = TelemetryData()
         bridge._parse_imu_diagnostics(payload)
         self.assertTrue(bridge._telemetry.imu_ready)
-        self.assertEqual(bridge._telemetry.imu_address, 0x68)
-        self.assertEqual(bridge._telemetry.imu_who_am_i, 0x68)
+        self.assertEqual(bridge._telemetry.imu_address, 0x6A)
+        self.assertEqual(bridge._telemetry.imu_who_am_i, 0x05)
         self.assertEqual(bridge._telemetry.imu_sample_count, 12)
 
     def test_imu_sample_is_published_only_after_ready_diagnostics(self):
@@ -480,7 +480,7 @@ class TestIntegration(unittest.TestCase):
         self.assertFalse(bridge._telemetry.imu_received)
 
         bridge._parse_imu_diagnostics(
-            struct.pack("<BBHIIl", 1, 0x68, 0x68, 1, 0, 0)
+            struct.pack("<BBHIIl", 1, 0x6A, 0x05, 1, 0, 0)
         )
         self.assertTrue(bridge._telemetry.imu_received)
 

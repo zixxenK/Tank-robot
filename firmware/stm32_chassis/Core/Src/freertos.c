@@ -252,10 +252,10 @@ osSemaphoreId_t packet_rx_not_emptyHandle;
 const osSemaphoreAttr_t packet_rx_not_empty_attributes = {
   .name = "packet_rx_not_empty"
 };
-/* Definitions for mpu6050_data_ready */
-osSemaphoreId_t mpu6050_data_readyHandle;
-const osSemaphoreAttr_t mpu6050_data_ready_attributes = {
-  .name = "mpu6050_data_ready"
+/* Definitions for imu_data_ready (reserved for the QMI8658 EXTI line). */
+osSemaphoreId_t imu_data_readyHandle;
+const osSemaphoreAttr_t imu_data_ready_attributes = {
+  .name = "imu_data_ready"
 };
 /* Definitions for sbus_data_ready_01_ */
 osSemaphoreId_t sbus_data_ready_01_Handle;
@@ -355,8 +355,8 @@ void MX_FREERTOS_Init(void) {
   /* creation of packet_rx_not_empty */
   packet_rx_not_emptyHandle = osSemaphoreNew(1, 1, &packet_rx_not_empty_attributes);
 
-  /* creation of mpu6050_data_ready */
-  mpu6050_data_readyHandle = osSemaphoreNew(1, 1, &mpu6050_data_ready_attributes);
+  /* creation of imu_data_ready */
+  imu_data_readyHandle = osSemaphoreNew(1, 1, &imu_data_ready_attributes);
 
   /* creation of sbus_data_ready_01_ */
   sbus_data_ready_01_Handle = osSemaphoreNew(1, 1, &sbus_data_ready_01__attributes);

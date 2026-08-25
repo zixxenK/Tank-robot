@@ -2,7 +2,9 @@
 
 The current operator workflow is [OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 This appendix contains the deeper evidence and fault-injection checks. The
-active milestone is drive, camera, and the onboard MPU6050; servo, battery,
+active milestone is drive, camera, and the project's QMI8658 runtime path;
+Hiwonder's live product/hardware pages still label the IMU MPU6050, so the
+acceptance gate requires WHO_AM_I evidence. Servo, battery,
 Glowy ultrasonic, and LiDAR checks remain optional future-upgrade gates.
 
 Do not place the robot on the floor until every raised-track check passes.

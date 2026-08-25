@@ -16,7 +16,8 @@ Use the controller's blue four-position peripheral connector labeled:
 | SCL | SCL |
 
 Do not connect this module to the legacy PWM pads or to Rock64 GPIO. The
-controller firmware shares I2C2 between the onboard MPU6050 and this module:
+controller firmware shares I2C2 between the project's QMI8658 runtime path and
+this module (Hiwonder's live hardware pages call the onboard part MPU6050):
 PB10 is SCL and PB11 is SDA. The module uses 7-bit I2C address `0x77`.
 
 The official module specification is 5 V, 2–400 cm, 40 kHz, 15° field of

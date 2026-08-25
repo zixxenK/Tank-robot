@@ -1,6 +1,6 @@
 /**
  * @file imu_integration.h
- * @brief IMU integration wrapper with fixed delta time for Madgwick filter
+ * @brief QMI8658 integration wrapper with a fixed 50 Hz acquisition period
  */
 
 #ifndef IMU_INTEGRATION_H
@@ -31,10 +31,12 @@ typedef struct {
 // ============================================================================
 
 /**
- * @brief Initialize IMU sensor with fixed delta time configuration
+ * @brief Initialize the project's QMI8658 runtime path
  * @return 0 on success, negative on error
  * 
- * Initializes the Hiwonder V1.2 onboard QMI8658 with its official:
+ * Initializes the project's QMI8658 runtime path with the program-example
+ * configuration. Hiwonder's live product/hardware pages still label the
+ * physical sensor MPU6050, so readiness requires the runtime identity gate:
  * - 250Hz sensor output (read by the bridge at 50Hz)
  * - ±8g accelerometer range
  * - ±1024°/s gyroscope range
@@ -42,7 +44,7 @@ typedef struct {
 int IMU_Init(void);
 
 /**
- * @brief Update IMU sensor reading with fixed delta time
+ * @brief Update the QMI8658 reading at the fixed acquisition cadence
  * @param accel Output array for accelerometer [x, y, z] in m/s²
  * @param gyro Output array for gyroscope [x, y, z] in rad/s
  * @return 0 on success, negative on error
@@ -54,10 +56,11 @@ int IMU_Init(void);
 int IMU_Update(float *accel, float *gyro);
 
 /**
- * @brief Get orientation data (Euler angles and quaternion)
+ * @brief Get orientation data (currently unsupported by the raw QMI path)
  * @param rpy Output array for roll-pitch-yaw [roll, pitch, yaw] in radians
  * @param quat Output array for quaternion [w, x, y, z]
- * @return 0 on success, negative on error
+ * @return -1 if the sensor is unavailable; -2 because the raw-sensor-only
+ *         production path has no fusion state
  */
 int IMU_GetOrientation(float *rpy, float *quat);
 
@@ -67,7 +70,7 @@ int IMU_GetOrientation(float *rpy, float *quat);
  */
 bool IMU_IsReady(void);
 
-/** @brief Copy explicit onboard QMI8658 readiness and bus diagnostics. */
+/** @brief Copy explicit IMU-path readiness and bus diagnostics. */
 void IMU_GetDiagnostics(IMUDiagnostics *diagnostics);
 
 /**

@@ -44,8 +44,9 @@ bash scripts/hardware_acceptance.sh
 The basic required gate is bridge, encoders, odometry, onboard controller IMU,
 ESP32 camera, and USB camera. PS5 teleoperation is still started and remains
 service-owned, but controller connection or operator input is not an
-acceptance failure. The onboard IMU is the MPU6050 integrated
-into the Hiwonder ROS Robot Controller V1.2. Its firmware evidence reports
+acceptance failure. The project runtime expects QMI8658 on the Hiwonder
+controller, while Hiwonder's live product/hardware pages still say MPU6050.
+Its firmware evidence reports
 I2C2 (`PB10=SCL`, `PB11=SDA`), address, WHO_AM_I, sample count, and errors.
 
 Securely raise both tracks before the independent motor proof:

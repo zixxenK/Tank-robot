@@ -20,7 +20,9 @@ STM32 odom   -> /stm32/odom             /ranger/cmd_vel_safe
 ```
 
 The active acceptance gate covers the STM32 bridge, left/right encoder
-telemetry, derived odometry, the onboard MPU6050, PS5 input, and both cameras.
+telemetry, derived odometry, the project's QMI8658 runtime path, PS5 input,
+and both cameras. The board's published IMU identity is contradictory; the
+runtime diagnostic is the acceptance authority.
 Servo, battery, Glowy ultrasonic, and LiDAR checks are optional until their
 hardware is commissioned.
 
@@ -57,7 +59,7 @@ node may write to the STM32 serial link directly.
 | `/agent/heartbeat` | Authorized agent supervisor | Autonomous motion authority |
 | `/ranger/cmd_vel_safe` | Safety gateway | Final host-safe command |
 | `/stm32/odom` | Hardened STM32 bridge | Canonical hardware odometry |
-| `/stm32/imu` | Hardened STM32 bridge | Onboard MPU6050 telemetry |
+| `/stm32/imu` | Hardened STM32 bridge | Onboard QMI8658 telemetry |
 | `/camera/image_raw` | ESP32 camera bridge | Primary camera image |
 | `/camera/usb/image_raw` | USB camera bridge | Secondary camera image |
 

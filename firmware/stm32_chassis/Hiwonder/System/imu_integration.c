@@ -1,11 +1,14 @@
 /**
  * @file imu_integration.c
- * @brief IMU integration wrapper with fixed delta time for Madgwick filter
+ * @brief QMI8658 integration wrapper with a fixed 50 Hz acquisition period
  * 
  * CRITICAL IMPLEMENTATION NOTES:
- * 1. Fixed delta time (dt) = 0.02f (50Hz) - prevents integration drift from loop jitter
+ * 1. Fixed acquisition period = 0.02f (50Hz) - prevents loop jitter from
+ *    changing the telemetry sampling cadence
  * 2. I2C reads in 50Hz telemetry burst - NOT in 100Hz motor control loop
- * 3. Uses Hiwonder's V1.2 onboard QMI8658 driver path.
+ * 3. Uses the project's QMI8658 path. Hiwonder's live product and hardware
+ *    pages still label the sensor MPU6050; the program-analysis chapter says
+ *    QMI8658, so the physical identity is accepted only by WHO_AM_I proof.
  */
 
 #include "imu_integration.h"
@@ -15,14 +18,14 @@
 #include <stddef.h>
 
 // ============================================================================
-// FIXED DELTA TIME CONFIGURATION
+// FIXED ACQUISITION PERIOD CONFIGURATION
 // ============================================================================
 
 #define IMU_UPDATE_PERIOD_MS  20     // 20ms period
 #define IMU_RETRY_PERIOD_MS   1000   // Retry a late/unplugged sensor once/sec
 
 // ============================================================================
-// QMI8658 V1.2 SENSOR
+// Project QMI8658 runtime profile (physical identity is proven at startup)
 // ============================================================================
 
 static bool imu_initialized = false;
@@ -35,8 +38,9 @@ static uint8_t imu_who_am_i = 0;
 static uint32_t imu_sample_count = 0;
 static uint32_t imu_error_count = 0;
 
-/* Hiwonder's official V1.2 source identifies the onboard device as QMI8658.
- * It is not MPU6050-compatible: the identity and data register maps differ. */
+/* Project runtime profile. Hiwonder's published hardware identity is
+ * contradictory (MPU6050 on the product/hardware pages, QMI8658 in the
+ * program-analysis chapter), so never remove the WHO_AM_I gate below. */
 #define QMI8658_ADDR_LOW          0x6AU
 #define QMI8658_ADDR_HIGH         0x6BU
 #define QMI8658_WHO_AM_I_REG      0x00U
@@ -53,7 +57,8 @@ static uint32_t imu_error_count = 0;
 #define QMI8658_ACCEL_X_L         0x35U
 #define QMI8658_RESET             0x60U
 
-/* Official V1.2 configuration: +/-8g, +/-1024 dps, 250 Hz. */
+/* Configuration selected from the QMI8658 program example/datasheet profile:
+ * +/-8g, +/-1024 dps, 250 Hz. It is not proof of the fitted board revision. */
 #define QMI8658_ACCEL_SENSITIVITY 4096.0f
 #define QMI8658_GYRO_SENSITIVITY  32.0f
 
@@ -141,7 +146,7 @@ int IMU_Init(void) {
         }
     }
 
-    /* Probe both official QMI8658 address straps before configuration. */
+    /* Probe both standard QMI8658 address straps before configuration. */
     if (!device_found) {
         imu_failure(
             imu_last_error == -2 ? IMU_STATUS_UNAVAILABLE : IMU_STATUS_ERROR,
@@ -150,7 +155,9 @@ int IMU_Init(void) {
         return imu_last_error;
     }
     
-    /* This is the initialization sequence used by Hiwonder's V1.2 source. */
+    /* This follows the QMI8658 sequence in Hiwonder's program-analysis
+     * example; the live hardware pages do not publish a revision-specific
+     * register dump. */
     if (qmi8658_write_checked(QMI8658_CTRL7, 0x00) != 0 ||
         qmi8658_write_checked(QMI8658_RESET, 0xB0) != 0) {
         imu_failure(IMU_STATUS_ERROR, -5, init_time);
@@ -204,7 +211,7 @@ int IMU_Init(void) {
 }
 
 // ============================================================================
-// IMU UPDATE WITH FIXED DELTA TIME
+// IMU UPDATE WITH FIXED ACQUISITION PERIOD
 // ============================================================================
 
 int IMU_Update(float *accel, float *gyro) {
@@ -306,7 +313,7 @@ void IMU_GetDiagnostics(IMUDiagnostics *diagnostics) {
 }
 
 int IMU_GetTemperature(float *temp) {
-    if (!imu_initialized) {
+    if (!imu_initialized || temp == NULL) {
         return -1;
     }
     
