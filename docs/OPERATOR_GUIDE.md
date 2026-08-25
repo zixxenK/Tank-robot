@@ -15,14 +15,19 @@ The canonical PS5 map is
 
 - Left-stick vertical: signed forward/reverse throttle (orientation-corrected).
 - Right-stick horizontal: steering, always live (orientation-corrected).
-- R2: analog linear-throttle multiplier. Released R2 commands zero linear
-  motion and acts as the brake; it does not disable steering.
+- R2: analog linear-throttle boost. Released R2 gives 80% cruise speed;
+  pressing it progressively raises throttle to 100% top speed.
 - L2: analog drift/power-pivot modifier.
 - L1/R1: precision/boost mode scaling.
 
 The active Linux layout uses LS-Y axis 1 for throttle, RS-X axis 3 for
 left/right steering, L2 axis 2, and R2 axis 5. Both stick directions are
 inverted by the bridge for the mounted controller orientation.
+
+This is arcade-style tracked drive, not a latched command and not independent
+left/right-stick throttle: LS-Y supplies the signed forward component and RS-X
+supplies the signed turn component. Releasing both sticks produces zero left
+and right track demand and resets the motor PID outputs.
 
 The drift calculation is normalized and clamped as a pair. With `T` as signed
 throttle after R2 multiplication, `S` as steering, and `D` as L2 pressure:
@@ -35,7 +40,8 @@ right = V' - W'
 ```
 
 The right track intentionally reverses during a full right power pivot. This
-is a tracked-chassis pivot effect, not wheel-style slip simulation.
+is a tracked-chassis pivot effect, not wheel-style slip simulation. R2 changes
+the forward component only; it does not reverse the stick or steering signs.
 
 ## Bring-up and acceptance
 
@@ -82,7 +88,7 @@ inside track; this does not bypass the timeout or e-stop chain.
 
 ## Cameras and Foxglove
 
-The PC dashboard is read-only. Use
+The PC dashboard is read-only by default. Use
 `deployment/pc/foxglove/tank_robot_readonly_layout.json` as a native Foxglove
 layout import. It places the ESP32 and USB compressed image topics side by
 side:
@@ -94,6 +100,13 @@ side:
 Connect to the endpoint printed by `deployment/pc/run_dashboard.ps1` or
 `deployment/pc/run_dashboard.sh`. The dashboard does not publish movement
 commands.
+
+For local audio control, start the dashboard with
+`allow_foxglove_audio_control:=true`, then publish a `std_msgs/String` on
+`/buzzer/command`. Supported commands include `play:happy_birthday`,
+`play:imperial_march`, `play:sea_shanty_2`, `next`, `previous`, `octave_up`,
+`octave_down`, and `stop`. D-Pad left cycles melodies; up/down shifts the
+active melody or changes the idle synth octave; right is reserved.
 
 ## LM Studio
 

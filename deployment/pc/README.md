@@ -212,6 +212,16 @@ The bridge uses an explicit `topic_whitelist` of `.*`; Foxglove subscriptions
 are lazy, so a topic is transported when a panel selects it rather than
 creating unnecessary subscriptions for every high-rate camera stream.
 
+### Foxglove melody control
+
+The audio node accepts these strings on `/buzzer/command`:
+`play:happy_birthday`, `play:imperial_march`, `play:sea_shanty_2`, `next`,
+`previous`, `octave_up`, `octave_down`, and `stop`. To enable Foxglove's
+Publish panel for this audio control during a local session, launch the
+dashboard with `allow_foxglove_audio_control:=true`. This switches the bridge
+to its client-publish capability, so keep the dashboard bound to localhost and
+leave the option disabled for read-only operation.
+
 If the current Foxglove layout has been customized and no camera panels are
 visible, import the preset again as a fresh layout. The two Image panels must
 be configured as:

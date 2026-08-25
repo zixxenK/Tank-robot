@@ -77,6 +77,13 @@ def test_centered_sticks_stop_without_slew_residual(bridge: PS5RosBridge) -> Non
     assert command.angular.z == pytest.approx(0.0)
 
 
+def test_centered_sticks_produce_zero_track_demand(bridge: PS5RosBridge) -> None:
+    """The canonical arcade map has no retained stick command at center."""
+    from robot_control.control_map import arcade_track_pair
+
+    assert arcade_track_pair(0.0, 0.0, 0.0, 0.0) == (0.0, 0.0)
+
+
 def test_loaded_button_indices_propagate_to_runtime_aliases(
     bridge: PS5RosBridge, tmp_path
 ) -> None:
@@ -144,6 +151,34 @@ def test_r2_pressure_scales_forward_and_reverse(bridge: PS5RosBridge) -> None:
 
     reverse, _ = bridge.calculate_velocities(-1.0, 0.0, 0.0, 1.0)
     assert reverse == pytest.approx(-bridge._max_track_speed)
+
+
+def test_r2_raw_axis_direction_increases_speed(bridge: PS5RosBridge) -> None:
+    """On the live js0 map, pushing R2 must increase signed speed magnitude."""
+    axis = bridge._multiplier_axis
+    bridge._axis_ever_moved[axis] = True
+
+    bridge._axes[axis] = 0.0
+    released_pressure = bridge.get_trigger_pressure(axis)
+    released_speed, _ = bridge.calculate_velocities(
+        1.0, 0.0, 0.0, released_pressure
+    )
+
+    bridge._axes[axis] = 0.5
+    half_pressure = bridge.get_trigger_pressure(axis)
+    half_speed, _ = bridge.calculate_velocities(1.0, 0.0, 0.0, half_pressure)
+
+    bridge._axes[axis] = 1.0
+    pressed_pressure = bridge.get_trigger_pressure(axis)
+    pressed_speed, _ = bridge.calculate_velocities(
+        1.0, 0.0, 0.0, pressed_pressure
+    )
+
+    assert released_pressure == pytest.approx(0.0)
+    assert 0.0 < half_pressure < pressed_pressure
+    assert pressed_pressure == pytest.approx(1.0)
+    assert 0.0 < released_speed < half_speed < pressed_speed
+    assert pressed_speed == pytest.approx(bridge._max_track_speed)
 
 
 def test_l2_applies_progressive_drift_modifier(bridge: PS5RosBridge) -> None:

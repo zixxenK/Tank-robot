@@ -46,7 +46,10 @@ DEFAULT_BUTTON_INDICES = {
     "touchpad_click": 13,
 }
 
-REQUIRED_BUTTON_KEYS = frozenset(DEFAULT_BUTTON_INDICES)
+# The touchpad click is a layout-dependent optional joydev button.  The drive
+# controls must be present, but rejecting an otherwise valid map because that
+# optional slot is absent makes commissioning unnecessarily brittle.
+REQUIRED_BUTTON_KEYS = frozenset(DEFAULT_BUTTON_INDICES) - frozenset(("touchpad_click",))
 REQUIRED_AXIS_KEYS = frozenset(
     ("throttle_axis", "steer_axis", "drift_axis", "multiplier_axis")
 )

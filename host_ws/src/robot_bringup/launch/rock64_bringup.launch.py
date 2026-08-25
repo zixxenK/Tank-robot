@@ -272,6 +272,7 @@ def generate_launch_description() -> LaunchDescription:
                 "frequency_topic": "/buzzer/frequency",
                 "play_sequence_topic": "/buzzer/play_sequence",
                 "status_topic": "/buzzer/status",
+                "command_topic": "/buzzer/command",
             }
         ],
         condition=IfCondition(LaunchConfiguration("use_audio")),

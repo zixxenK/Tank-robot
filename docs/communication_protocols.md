@@ -143,6 +143,7 @@ the `int32` values. This is required because the encoder timers wrap at
 | `/joy` | `sensor_msgs/Joy` | PS5 bridge | Buzzer/song controls |
 | `/buzzer/frequency` | `std_msgs/Int32` | Song creator | Hardened STM32 bridge |
 | `/buzzer/status` | `std_msgs/String` | Song creator | Operator/diagnostics |
+| `/buzzer/command` | `std_msgs/String` | Foxglove/operator | Song creator |
 
 Autonomous planners and terrain adaptation must use the `/agent/*` proposal
 topics above. They must not publish autonomous commands to `/cmd_vel`, and

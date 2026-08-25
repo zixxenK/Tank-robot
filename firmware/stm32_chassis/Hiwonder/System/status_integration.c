@@ -21,68 +21,44 @@ static LEDObjectTypeDef status_led;
 
 static bool status_initialized = false;
 
-/* Sea Shanty 2 (OSRS) startup hook. This is the complete A-D transcription:
- * main theme, high synth, accordion breakdown, and flute climax. Duration
- * values follow the supplied Arduino convention: 2=half, 4=quarter,
- * 8=eighth, 16=sixteenth, and negative values are dotted. */
+/* Sea Shanty 2 (OSRS) startup hook. Duration values are counts of 16th-note
+ * grid cells. Active notes use a 90/10 on/off split so the firmware matches
+ * the host's chiptune articulation. */
 typedef struct {
     uint16_t frequency;
-    int8_t duration_value;
+    uint8_t duration16ths;
 } StartupSongNote;
 
 static const StartupSongNote startup_song[] = {
-    /* Section A: main theme */
-    {880, 8}, {659, 8}, {587, 8}, {554, -4},
-    {554, 8}, {587, 8}, {659, 8}, {740, 8}, {831, 8}, {659, -4},
+    /* Pickup and measures 1-8 */
+    {880, 2}, {659, 2}, {587, 2}, {554, 6},
+    {554, 2}, {587, 2}, {659, 2}, {740, 2}, {831, 2}, {659, 6},
     {0, 4},
-    {740, 8}, {659, 8}, {587, 8}, {554, -4},
-    {554, 8}, {494, 8}, {554, 8}, {587, 2}, {0, 4},
-    {880, 8}, {659, 8}, {587, 8}, {554, -4},
-    {554, 8}, {587, 8}, {659, 8}, {740, 4}, {587, 4}, {0, 4},
-    {740, 8}, {659, 8}, {587, 8}, {554, 4}, {494, 8},
-    {554, 8}, {587, 4}, {740, 8}, {659, 8}, {554, 8}, {494, 8},
-    {440, 2}, {0, 4},
+    {740, 2}, {659, 2}, {587, 2}, {554, 6},
+    {554, 2}, {494, 2}, {554, 2}, {587, 8}, {0, 4},
+    {880, 2}, {659, 2}, {587, 2}, {554, 6},
+    {554, 2}, {587, 2}, {659, 2}, {740, 4}, {587, 4}, {0, 4},
+    {740, 2}, {659, 2}, {587, 2}, {554, 4}, {494, 2},
+    {554, 2}, {587, 4}, {740, 2}, {659, 2}, {554, 2}, {494, 2},
+    {440, 8}, {0, 8},
 
-    /* Section B: high synth lead counter-melody */
-    {880, 8}, {988, 8}, {1109, 4}, {1109, 8}, {988, 8}, {880, 8}, {831, 4},
-    {659, 8}, {740, 8}, {831, 4}, {831, 8}, {740, 8}, {659, 8}, {587, 4},
-    {554, 8}, {587, 8}, {659, 4}, {554, 8}, {587, 8}, {659, 8}, {740, 8},
-    {659, 8}, {587, 8}, {554, 8}, {494, 4}, {440, 2}, {0, 4},
-    {880, 8}, {988, 8}, {1109, 4}, {1109, 8}, {988, 8}, {880, 8}, {831, 4},
-    {659, 8}, {740, 8}, {831, 4}, {831, 8}, {740, 8}, {659, 8}, {587, 4},
-    {554, 8}, {587, 8}, {659, 8}, {740, 8}, {831, 8}, {880, 8}, {988, 8}, {1109, 8},
-    {1175, 4}, {1109, 4}, {880, 2}, {0, 4},
-
-    /* Section C: accordion solo and breakdown */
-    {740, 16}, {831, 16}, {880, 8}, {880, 8}, {831, 8}, {740, 8}, {659, 8},
-    {554, 8}, {587, 8}, {659, 8}, {659, 8}, {587, 8}, {554, 8}, {494, 8},
-    {587, 8}, {587, 8}, {554, 8}, {494, 8}, {440, 8}, {494, 8},
-    {554, 8}, {587, 8}, {659, 8}, {740, 8}, {831, 8}, {880, 4},
-    {740, 16}, {831, 16}, {880, 8}, {880, 8}, {831, 8}, {740, 8}, {659, 8},
-    {554, 8}, {587, 8}, {659, 8}, {659, 8}, {587, 8}, {554, 8}, {494, 8},
-    {554, 8}, {587, 8}, {659, 8}, {740, 8}, {831, 8}, {880, 8},
-    {988, 8}, {1109, 8}, {1175, 4}, {1109, 4}, {880, 2}, {0, 4},
-
-    /* Section D: high flute climax run */
-    {1109, 8}, {1175, 8}, {1319, 4}, {1319, 8}, {1175, 8}, {1109, 8}, {988, 4},
-    {831, 8}, {880, 8}, {988, 4}, {988, 8}, {880, 8}, {831, 8}, {740, 4},
-    {659, 8}, {740, 8}, {831, 8}, {880, 8}, {988, 8}, {1109, 8}, {1175, 8}, {1319, 8},
-    {1480, 4}, {1319, 4}, {1109, 4}, {988, 4}, {880, 2}, {0, 2},
+    /* Measures 9-12: high section */
+    {880, 2}, {988, 2}, {1109, 4}, {1109, 2}, {988, 2}, {880, 2}, {831, 4},
+    {659, 2}, {740, 2}, {831, 4}, {831, 2}, {740, 2}, {659, 2}, {587, 4},
+    {554, 2}, {587, 2}, {659, 4}, {554, 2}, {587, 2}, {659, 2}, {740, 2},
+    {659, 2}, {587, 2}, {554, 2}, {494, 4}, {440, 8},
 };
 
-#define STARTUP_SONG_BPM 102U
-#define STARTUP_SONG_WHOLE_NOTE_MS ((60000UL * 4UL) / STARTUP_SONG_BPM)
-#define STARTUP_SONG_ARTICULATION_MS 12U
+#define STARTUP_SONG_BPM 105U
+#define STARTUP_SONG_SIXTEENTH_NOTE_MS ((60000UL / STARTUP_SONG_BPM) / 4UL)
+#define STARTUP_SONG_ARTICULATION_PERCENT 90U
 
 static bool startup_song_active = false;
 static uint32_t startup_song_elapsed_ms = 0U;
 static uint32_t startup_song_index = 0U;
 
-static uint32_t startup_song_duration_ms(int8_t duration_value) {
-    uint32_t denominator = (uint32_t)(duration_value < 0 ?
-                                      -duration_value : duration_value);
-    uint32_t duration_ms = STARTUP_SONG_WHOLE_NOTE_MS / denominator;
-    return duration_value < 0 ? (duration_ms * 3U) / 2U : duration_ms;
+static uint32_t startup_song_duration_ms(uint8_t duration16ths) {
+    return (uint32_t)duration16ths * STARTUP_SONG_SIXTEENTH_NOTE_MS;
 }
 
 static void startup_song_start_note(void) {
@@ -92,16 +68,10 @@ static void startup_song_start_note(void) {
     }
 
     const StartupSongNote *note = &startup_song[startup_song_index];
-    uint32_t total_ms = startup_song_duration_ms(note->duration_value);
-    uint16_t next_frequency = 0U;
-    if (startup_song_index + 1U <
-            (sizeof(startup_song) / sizeof(startup_song[0]))) {
-        next_frequency = startup_song[startup_song_index + 1U].frequency;
-    }
-    uint32_t gap_ms = (note->frequency > 0U &&
-                       note->frequency == next_frequency) ?
-                      STARTUP_SONG_ARTICULATION_MS : 0U;
-    uint32_t on_ms = total_ms > gap_ms ? total_ms - gap_ms : total_ms;
+    uint32_t total_ms = startup_song_duration_ms(note->duration16ths);
+    uint32_t on_ms = note->frequency > 0U ?
+                     (total_ms * STARTUP_SONG_ARTICULATION_PERCENT) / 100U : 0U;
+    uint32_t gap_ms = note->frequency > 0U ? total_ms - on_ms : 0U;
 
     /* Queue one note/rest at a time; the buzzer queue has depth five. */
     (void)buzzer_didi(buzzers[0], note->frequency, on_ms, gap_ms, 1U);
@@ -164,7 +134,7 @@ void Status_Update(uint32_t period_ms) {
     if (startup_song_active) {
         startup_song_elapsed_ms += period_ms;
         uint32_t note_duration_ms = startup_song_duration_ms(
-            startup_song[startup_song_index].duration_value);
+            startup_song[startup_song_index].duration16ths);
         if (startup_song_elapsed_ms >= note_duration_ms) {
             startup_song_elapsed_ms -= note_duration_ms;
             startup_song_index++;

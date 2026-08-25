@@ -94,9 +94,9 @@ def test_startup_sea_shanty_is_started_after_buzzer_initialization():
         "Status_PlayStartupSong();"
     )
     assert "startup_song[]" in status
-    assert "{880, 8}, {659, 8}, {587, 8}, {554, -4}" in status
-    assert "#define STARTUP_SONG_BPM 102U" in status
-    assert "STARTUP_SONG_ARTICULATION_MS 12U" in status
+    assert "{880, 2}, {659, 2}, {587, 2}, {554, 6}" in status
+    assert "#define STARTUP_SONG_BPM 105U" in status
+    assert "STARTUP_SONG_ARTICULATION_PERCENT 90U" in status
     assert "startup_song_start_note();" in status
     assert "buzzer_off(buzzers[0])" in status
 

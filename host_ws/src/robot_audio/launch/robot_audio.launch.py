@@ -56,6 +56,7 @@ def generate_launch_description():
                 'frequency_topic': '/buzzer/frequency',
                 'play_sequence_topic': '/buzzer/play_sequence',
                 'status_topic': '/buzzer/status',
+                'command_topic': '/buzzer/command',
                 'control_map_path': LaunchConfiguration('control_map_path'),
                 'triangle_index': LaunchConfiguration('triangle_index'),
             }]

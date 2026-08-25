@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PC-side read-only Foxglove and SLAM launch profile.
+"""PC-side Foxglove and SLAM launch profile.
 
 The Rock64 acquisition graph remains a separate process.  This launch file
 contains only nodes that belong on the PC ROS 2 environment: TF completion,
@@ -51,7 +51,7 @@ def _include(package: str, launch_file: str, arguments: dict, condition=None):
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Generate the PC-only read-only visualization graph."""
+    """Generate the PC-only visualization graph."""
     use_foxglove = DeclareLaunchArgument("use_foxglove", default_value="true")
     foxglove_port = DeclareLaunchArgument("foxglove_port", default_value="8765")
     foxglove_address = DeclareLaunchArgument(
@@ -67,6 +67,14 @@ def generate_launch_description() -> LaunchDescription:
         description=(
             "Enable Foxglove cloud Remote Access; requires "
             "FOXGLOVE_DEVICE_TOKEN in the bridge environment"
+        ),
+    )
+    allow_audio_control = DeclareLaunchArgument(
+        "allow_foxglove_audio_control",
+        default_value="false",
+        description=(
+            "Enable Foxglove client publishing for the audio command topic. "
+            "Keep disabled when the dashboard must remain read-only."
         ),
     )
     use_odom_tf = DeclareLaunchArgument("use_odom_tf", default_value="true")
@@ -130,7 +138,40 @@ def generate_launch_description() -> LaunchDescription:
                 "capabilities": ["connectionGraph", "assets"],
             }
         ],
-        condition=IfCondition(LaunchConfiguration("use_foxglove")),
+        condition=IfCondition(
+            PythonExpression([
+                "'",
+                LaunchConfiguration("use_foxglove"),
+                "' == 'true' and '",
+                LaunchConfiguration("allow_foxglove_audio_control"),
+                "' != 'true'",
+            ])
+        ),
+        output="screen",
+    )
+    foxglove_audio_control = Node(
+        package="foxglove_bridge",
+        executable="foxglove_bridge",
+        name="foxglove_bridge",
+        parameters=[
+            {
+                "port": LaunchConfiguration("foxglove_port"),
+                "address": LaunchConfiguration("foxglove_address"),
+                "remote_access": LaunchConfiguration("remote_access"),
+                "topic_whitelist": [".*"],
+                "send_buffer_limit": 10000000,
+                "capabilities": ["connectionGraph", "assets", "clientPublish"],
+            }
+        ],
+        condition=IfCondition(
+            PythonExpression([
+                "'",
+                LaunchConfiguration("use_foxglove"),
+                "' == 'true' and '",
+                LaunchConfiguration("allow_foxglove_audio_control"),
+                "' == 'true'",
+            ])
+        ),
         output="screen",
     )
     slam_mapping = _include(
@@ -167,6 +208,7 @@ def generate_launch_description() -> LaunchDescription:
         foxglove_port,
         foxglove_address,
         remote_access,
+        allow_audio_control,
         use_odom_tf,
         use_slam,
         slam_mode,
@@ -175,6 +217,7 @@ def generate_launch_description() -> LaunchDescription:
         use_nav2,
         odom_tf,
         foxglove,
+        foxglove_audio_control,
         slam_mapping,
         slam_localization,
         nav2,

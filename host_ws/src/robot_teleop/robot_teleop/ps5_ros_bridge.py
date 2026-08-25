@@ -868,7 +868,11 @@ class PS5RosBridge(Node):
             )
             return
 
-        # Apply the configured 180-degree controller orientation correction.
+        # Arcade tank mapping (the operator's view):
+        #   LS-Y -> signed forward/reverse throttle
+        #   RS-X -> signed left/right steering
+        # The mounted controller's axes are orientation-corrected here.  L2
+        # and R2 are modifiers only; neither stick is latched between frames.
         raw_throttle = -self._axes[self._throttle_axis] if self._throttle_axis < len(self._axes) else 0.0
         if self._invert_throttle:
             raw_throttle = -raw_throttle

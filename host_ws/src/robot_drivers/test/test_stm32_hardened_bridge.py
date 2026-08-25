@@ -4,6 +4,7 @@
 import unittest
 import struct
 import threading
+import time
 
 from robot_drivers.stm32_hardened_bridge import (
     CircularBuffer,
@@ -559,6 +560,45 @@ class TestSerialFailureHandling(unittest.TestCase):
         self.assertIs(bridge._ser, replacement)
         self.assertFalse(failed_port.closed)
         self.assertTrue(bridge._motion_armed)
+
+
+class TestNeutralCommandHandling(unittest.TestCase):
+    """Verify that neutral operator input reaches the firmware hard-stop path."""
+
+    class FakeSerial:
+        is_open = True
+
+    def test_zero_safe_command_resets_motor_output(self):
+        bridge = STM32HardenedBridge.__new__(STM32HardenedBridge)
+        bridge._ser = self.FakeSerial()
+        bridge._state_lock = threading.Lock()
+        bridge._serial_lock = threading.Lock()
+        bridge._cmd_timeout = 0.25
+        bridge._wheel_separation = 0.194
+        bridge._max_track_speed_mps = 0.8
+        bridge._command_speed_limit = 255
+        bridge._slew_limit_commands = False
+        bridge._linear_slew_rate = 3.0
+        bridge._angular_slew_rate = 6.0
+        bridge._last_send_time = 0.0
+        bridge._last_cmd_vel_time = time.monotonic()
+        bridge._target_lin = 0.0
+        bridge._target_ang = 0.0
+        bridge._cmd_lin = 0.0
+        bridge._cmd_ang = 0.0
+        bridge._motion_armed = True
+        bridge._estop_active = False
+        bridge._operator_estop = False
+        bridge._stop_command_sent = False
+        bridge._motor_test_targets = None
+        bridge._motor_test_deadline = 0.0
+        bridge._process_received_frames = lambda: None
+        stops = []
+        bridge._send_emergency_stop = lambda: stops.append(True)
+
+        bridge._command_loop()
+
+        self.assertEqual(stops, [True])
 
 
 def run_tests():

@@ -98,10 +98,13 @@ except ImportError:
 
 from robot_audio.songs import (
     NOTE_FREQ,
-    SEA_SHANTY_2_ARTICULATION_MS,
-    SEA_SHANTY_2_DURATIONS_MS,
+    PRESET_MELODIES,
+    PRESET_MELODY_NAMES,
+    SEA_SHANTY_2_ARTICULATION_PERCENT,
     SEA_SHANTY_2_MELODY,
+    SEA_SHANTY_2_LOOP_DELAY_MS,
     SEA_SHANTY_2_SEQ,
+    SEA_SHANTY_2_SIXTEENTH_NOTE_MS,
 )
 from robot_control.control_map import (
     ControlMap,
@@ -121,6 +124,7 @@ class BuzzerSongCreator(Node):
         self.declare_parameter('frequency_topic', '/buzzer/frequency')
         self.declare_parameter('play_sequence_topic', '/buzzer/play_sequence')
         self.declare_parameter('status_topic', '/buzzer/status')
+        self.declare_parameter('command_topic', '/buzzer/command')
         self.declare_parameter('control_map_path', '')
         # Negative values use the canonical robot_control map. These remain
         # parameters so a lab-specific accessory layout can be commissioned
@@ -145,6 +149,7 @@ class BuzzerSongCreator(Node):
         freq_topic = self._get_param_val('frequency_topic', '/buzzer/frequency')
         seq_topic = self._get_param_val('play_sequence_topic', '/buzzer/play_sequence')
         status_topic = self._get_param_val('status_topic', '/buzzer/status')
+        command_topic = self._get_param_val('command_topic', '/buzzer/command')
 
         control_map_path = str(
             self._get_param_val('control_map_path', '') or ''
@@ -185,6 +190,9 @@ class BuzzerSongCreator(Node):
         self.freq_pub = self.create_publisher(Int32, freq_topic, 10)
         self.sequence_pub = self.create_publisher(Int32MultiArray, seq_topic, 10)
         self.status_pub = self.create_publisher(String, status_topic, 10)
+        self.command_sub = self.create_subscription(
+            String, command_topic, self.command_callback, 10
+        )
 
         # Internal State
         self.song_sequence: List[int] = []
@@ -196,11 +204,16 @@ class BuzzerSongCreator(Node):
         self._touchpad_pressed_at: Optional[float] = None
         self._touchpad_loop_active = False
         self._last_touchpad_note: Optional[int] = None
+        self.selected_melody_index = 0
+        self.active_melody_name: Optional[str] = None
+        self.melody_octave_shift = 0
+        self._active_base_frequency = 0
+        self._active_note_lock = threading.Lock()
 
         self.get_logger().info("Buzzer Modular Song Creator Initialized.")
         self.get_logger().info(
-            "Synth: D-Pad plays notes in the selected octave; touchpad click "
-            "cycles octave; hold touchpad for Sea Shanty 2 loop."
+            "Audio: D-Pad left cycles melodies; D-Pad up/down shifts an active "
+            "melody or changes the idle synth octave; right is reserved."
         )
         if self.TOUCHPAD_X_AXIS < 0:
             self.get_logger().warn(
@@ -329,25 +342,109 @@ class BuzzerSongCreator(Node):
             elif dpad_down:
                 self.clear_sequence()
             elif dpad_left:
-                self.undo_last_note()
-            elif dpad_right:
-                self.add_note('REST')
+                self.cycle_melody()
+            # D-Pad right is intentionally unassigned for a future utility.
         else:
-            # === NOTE PLAYING & RECORDING MODE ===
-            octave = str(self.current_octave)
-            if l1_held:
-                octave = str(max(self.octave_min, self.current_octave - 1))
-            elif r1_held:
-                octave = str(min(self.octave_max, self.current_octave + 1))
-
+            # === MELODY / SYNTH MODE ===
             if dpad_up:
-                self.add_note(f'C{octave}')
-            elif dpad_right:
-                self.add_note(f'D{octave}')
+                self.change_octave(1)
             elif dpad_down:
-                self.add_note(f'E{octave}')
+                self.change_octave(-1)
             elif dpad_left:
-                self.add_note(f'F{octave}')
+                self.cycle_melody()
+            # D-Pad right is intentionally reserved for future utility.
+
+    def command_callback(self, msg: String):
+        """Handle safe, audio-only commands sent by Foxglove.
+
+        Commands are plain strings so they can be sent from Foxglove's topic
+        publisher without a custom message package. Supported values are
+        ``play``, ``play:<name>``, ``next``/``previous``, ``octave_up``,
+        ``octave_down``, and ``stop``.
+        """
+        command = str(getattr(msg, 'data', '')).strip().lower()
+        if command in ('play', 'start'):
+            self.play_selected_melody()
+        elif command.startswith('play:'):
+            self.play_named_melody(command.split(':', 1)[1])
+        elif command in ('next', 'cycle', 'cycle_next'):
+            self.cycle_melody(1)
+        elif command in ('previous', 'prev', 'cycle_previous'):
+            self.cycle_melody(-1)
+        elif command in ('octave_up', 'up'):
+            self.change_octave(1)
+        elif command in ('octave_down', 'down'):
+            self.change_octave(-1)
+        elif command in ('stop', 'silence'):
+            self._stop_playback()
+            self.publish_tone(0)
+            self.publish_status('Melody stopped.')
+        else:
+            self.get_logger().warn(f'Unknown buzzer command: {command!r}')
+
+    def change_octave(self, direction: int):
+        """Shift the active melody, or change the idle synth octave."""
+        direction = 1 if int(direction) >= 0 else -1
+        if self.active_melody_name is not None:
+            self.melody_octave_shift = max(-2, min(2, self.melody_octave_shift + direction))
+            with self._active_note_lock:
+                base_frequency = self._active_base_frequency
+            self.publish_tone(self._shift_frequency(base_frequency, self.melody_octave_shift))
+            self.publish_status(
+                f'Melody {self.active_melody_name}: octave shift '
+                f'{self.melody_octave_shift:+d}'
+            )
+            return
+
+        self.current_octave = max(
+            self.octave_min,
+            min(self.octave_max, self.current_octave + direction),
+        )
+        self.publish_status(f'Synth octave: {self.current_octave}')
+
+    def cycle_melody(self, direction: int = 1):
+        """Select the next/previous preset without interrupting playback."""
+        if not PRESET_MELODY_NAMES:
+            return
+        self.selected_melody_index = (
+            self.selected_melody_index + (1 if direction >= 0 else -1)
+        ) % len(PRESET_MELODY_NAMES)
+        name = PRESET_MELODY_NAMES[self.selected_melody_index]
+        self.publish_status(f'Selected melody: {name}')
+
+    def play_selected_melody(self):
+        """Play the preset currently selected by the cycle control."""
+        self.play_named_melody(PRESET_MELODY_NAMES[self.selected_melody_index])
+
+    def play_named_melody(self, name: str):
+        """Play a named preset and reset its relative octave shift."""
+        normalized = str(name).strip().lower().replace(' ', '_')
+        preset = PRESET_MELODIES.get(normalized)
+        if preset is None:
+            self.get_logger().warn(f'Unknown melody: {name!r}')
+            self.publish_status(
+                'Unknown melody. Available: ' + ', '.join(PRESET_MELODY_NAMES)
+            )
+            return
+        self.selected_melody_index = PRESET_MELODY_NAMES.index(normalized)
+        if normalized == 'sea_shanty_2':
+            self.play_sea_shanty()
+            return
+
+        melody, bpm = preset
+        self._stop_playback()
+        self.active_melody_name = normalized
+        self.melody_octave_shift = 0
+        self.publish_status(f'Playing melody: {normalized}')
+        seq_msg = Int32MultiArray()
+        seq_msg.data = [frequency for frequency, _ in melody]
+        self.sequence_pub.publish(seq_msg)
+        self._execute_timed_playback(
+            list(melody),
+            loop=False,
+            unit_ms=60000.0 / float(bpm),
+            denominator_timing=True,
+        )
 
     def add_note(self, note_name: str):
         """Append a note to the song sequence and trigger immediate acoustic feedback."""
@@ -403,6 +500,8 @@ class BuzzerSongCreator(Node):
     def play_sea_shanty(self, loop: bool = False):
         """Play the supplied Sea Shanty 2 transcription with exact timing."""
         self._stop_playback()
+        self.active_melody_name = 'sea_shanty_2'
+        self.melody_octave_shift = 0
         log_msg = "Easter Egg Triggered: Playing Sea Shanty 2!"
         self.get_logger().info(log_msg)
         self.publish_status(log_msg)
@@ -448,10 +547,9 @@ class BuzzerSongCreator(Node):
                 self._stop_playback()
                 self.publish_tone(0)
             else:
-                self.current_octave += 1
-                if self.current_octave > self.octave_max:
-                    self.current_octave = self.octave_min
-                self.publish_status(f"Synth octave: {self.current_octave}")
+                self.publish_status(
+                    'Touchpad click has no action; use D-Pad left to cycle melodies.'
+                )
 
     def _play_touchpad_axis_note(self, axes: List[float]) -> None:
         """Play the chromatic note under a touchpad X coordinate, if present."""
@@ -474,10 +572,15 @@ class BuzzerSongCreator(Node):
             thread.join(timeout=0.2)
         self._playback_thread = None
         self._playback_stop.clear()
+        self.active_melody_name = None
+        with self._active_note_lock:
+            self._active_base_frequency = 0
 
     def _execute_playback(self, sequence: List[int]):
         """Execute playback either asynchronously or synchronously based on config."""
         self._stop_playback()
+        self.active_melody_name = 'recorded_sequence'
+        self.melody_octave_shift = 0
         if self.async_playback:
             self._playback_thread = threading.Thread(
                 target=self._play_tones_worker,
@@ -490,54 +593,100 @@ class BuzzerSongCreator(Node):
 
     def _play_tones_worker(self, sequence: List[int], step_dur: float, gap_dur: float):
         """Iterate through frequencies and publish tone and silence intervals."""
-        for freq in sequence:
-            if self._playback_stop.is_set():
-                return
-            self.publish_tone(freq)
-            if self._playback_stop.wait(step_dur):
-                return
-            self.publish_tone(0)
-            if self._playback_stop.wait(gap_dur):
-                return
+        try:
+            for freq in sequence:
+                if self._playback_stop.is_set():
+                    return
+                with self._active_note_lock:
+                    self._active_base_frequency = int(freq)
+                    shifted_frequency = self._shift_frequency(
+                        freq, self.melody_octave_shift
+                    )
+                self.publish_tone(shifted_frequency)
+                if self._playback_stop.wait(step_dur):
+                    return
+                self.publish_tone(0)
+                if self._playback_stop.wait(gap_dur):
+                    return
+        finally:
+            self.active_melody_name = None
+            with self._active_note_lock:
+                self._active_base_frequency = 0
 
-    def _execute_timed_playback(self, melody, loop: bool = False):
-        """Play note/duration pairs using the supplied 102 BPM timing."""
+    def _execute_timed_playback(
+        self,
+        melody,
+        loop: bool = False,
+        unit_ms: float = SEA_SHANTY_2_SIXTEENTH_NOTE_MS,
+        denominator_timing: bool = False,
+    ):
+        """Play note/duration pairs on the 105 BPM 16th-note grid."""
         # A loop must never run inside the ROS subscription callback, even in
         # a synchronous test/lab configuration.
         if self.async_playback or loop:
             self._playback_thread = threading.Thread(
                 target=self._play_timed_worker,
-                args=(melody, loop),
+                args=(melody, loop, unit_ms, denominator_timing),
                 daemon=True,
             )
             self._playback_thread.start()
         else:
-            self._play_timed_worker(melody, loop)
+            self._play_timed_worker(melody, loop, unit_ms, denominator_timing)
 
-    def _play_timed_worker(self, melody, loop: bool):
+    def _play_timed_worker(
+        self,
+        melody,
+        loop: bool,
+        unit_ms: float = SEA_SHANTY_2_SIXTEENTH_NOTE_MS,
+        denominator_timing: bool = False,
+    ):
         while True:
-            for index, (frequency, _duration_value) in enumerate(melody):
+            for frequency, duration_value in melody:
                 if self._playback_stop.is_set():
                     return
-                total_s = SEA_SHANTY_2_DURATIONS_MS[index] / 1000.0
-                next_frequency = (
-                    melody[index + 1][0] if index + 1 < len(melody) else 0
-                )
-                articulation_s = (
-                    SEA_SHANTY_2_ARTICULATION_MS / 1000.0
-                    if frequency == next_frequency and frequency != 0
-                    else 0.0
-                )
-                play_s = max(0.0, total_s - articulation_s)
-                self.publish_tone(frequency)
-                if self._playback_stop.wait(play_s):
-                    return
-                if articulation_s:
+                if denominator_timing:
+                    total_ms = unit_ms / max(1, abs(int(duration_value)))
+                else:
+                    total_ms = int(duration_value) * unit_ms
+                if frequency == 0:
+                    with self._active_note_lock:
+                        self._active_base_frequency = 0
                     self.publish_tone(0)
-                if self._playback_stop.wait(articulation_s):
+                    if self._playback_stop.wait(total_ms / 1000.0):
+                        return
+                    continue
+
+                with self._active_note_lock:
+                    self._active_base_frequency = int(frequency)
+                    shifted_frequency = self._shift_frequency(
+                        frequency, self.melody_octave_shift
+                    )
+                # The 90/10 split applies to every active event. Keep the
+                # integer millisecond behavior used by the original Arduino
+                # sketch for the grid-based Sea Shanty transcription.
+                play_ms = total_ms * SEA_SHANTY_2_ARTICULATION_PERCENT // 100
+                gap_ms = total_ms - play_ms
+                self.publish_tone(shifted_frequency)
+                if self._playback_stop.wait(play_ms / 1000.0):
+                    return
+                self.publish_tone(0)
+                if self._playback_stop.wait(gap_ms / 1000.0):
                     return
             if not loop:
+                self.active_melody_name = None
+                with self._active_note_lock:
+                    self._active_base_frequency = 0
                 return
+            if self._playback_stop.wait(SEA_SHANTY_2_LOOP_DELAY_MS / 1000.0):
+                return
+
+    @staticmethod
+    def _shift_frequency(frequency: int, octave_shift: int) -> int:
+        """Apply a relative octave shift while retaining rests as silence."""
+        frequency = int(frequency)
+        if frequency <= 0:
+            return 0
+        return max(0, min(20000, int(round(frequency * (2 ** octave_shift)))))
 
     def publish_tone(self, frequency: int):
         """Publish a single frequency tone (in Hz) to /buzzer/frequency."""

@@ -2,7 +2,13 @@
 
 import pytest
 from robot_audio.buzzer_song_creator import BuzzerSongCreator, Joy
-from robot_audio.songs import NOTE_FREQ, SEA_SHANTY_2_MELODY, SEA_SHANTY_2_SEQ
+from robot_audio.songs import (
+    NOTE_FREQ,
+    PRESET_MELODY_NAMES,
+    SEA_SHANTY_2_MELODY,
+    SEA_SHANTY_2_SEQ,
+    SEA_SHANTY_2_SIXTEENTH_NOTE_MS,
+)
 
 
 @pytest.fixture
@@ -47,78 +53,68 @@ def make_joy_msg(l1=0, r1=0, triangle=0, touchpad=0,
     return Joy(axes=axes, buttons=buttons)
 
 
-def test_base_octave_note_playing(song_creator: BuzzerSongCreator):
-    """Base mode (L1=0, R1=0) plays Octave 4 notes (C4, D4, E4, F4)."""
+def test_idle_dpad_changes_synth_octave_and_reserves_right(
+    song_creator: BuzzerSongCreator,
+):
+    """Idle D-Pad up/down changes octave; right does not add a note."""
     # Prime initial state
     song_creator.joy_callback(make_joy_msg())
 
-    # D-Pad Up -> C4 (262 Hz)
+    # D-Pad Up -> octave 5
     song_creator.joy_callback(make_joy_msg(hat_y=-1.0))
-    assert song_creator.song_sequence == [262]
+    assert song_creator.current_octave == 5
     song_creator.joy_callback(make_joy_msg(hat_y=0.0))  # release
 
-    # D-Pad Right -> D4 (294 Hz)
+    # D-Pad Right is reserved for future utility.
     song_creator.joy_callback(make_joy_msg(hat_x=1.0))
-    assert song_creator.song_sequence == [262, 294]
+    assert song_creator.song_sequence == []
     song_creator.joy_callback(make_joy_msg(hat_x=0.0))  # release
 
-    # D-Pad Down -> E4 (330 Hz)
+    # D-Pad Down -> octave 4
     song_creator.joy_callback(make_joy_msg(hat_y=1.0))
-    assert song_creator.song_sequence == [262, 294, 330]
+    assert song_creator.current_octave == 4
     song_creator.joy_callback(make_joy_y_neutral := make_joy_msg(hat_y=0.0))
 
-    # D-Pad Left -> F4 (349 Hz)
+    # D-Pad Left cycles the selected preset.
     song_creator.joy_callback(make_joy_msg(hat_x=-1.0))
-    assert song_creator.song_sequence == [262, 294, 330, 349]
+    assert song_creator.selected_melody_index == 1
 
 
-def test_low_octave_note_playing_l1_held(song_creator: BuzzerSongCreator):
-    """Low Octave mode (L1=1, R1=0) plays Octave 3 notes (C3, D3, E3, F3)."""
+def test_idle_dpad_octave_is_clamped_low(song_creator: BuzzerSongCreator):
+    """D-Pad down stops at the configured minimum octave."""
     song_creator.joy_callback(make_joy_msg())
-
-    # D-Pad Up with L1 held -> C3 (131 Hz)
-    song_creator.joy_callback(make_joy_msg(l1=1, hat_y=-1.0))
-    assert song_creator.song_sequence == [131]
-    song_creator.joy_callback(make_joy_msg(l1=1, hat_y=0.0))
-
-    # D-Pad Right with L1 held -> D3 (147 Hz)
-    song_creator.joy_callback(make_joy_msg(l1=1, hat_x=1.0))
-    assert song_creator.song_sequence == [131, 147]
+    for _ in range(5):
+        song_creator.joy_callback(make_joy_msg(hat_y=1.0))
+        song_creator.joy_callback(make_joy_msg())
+    assert song_creator.current_octave == song_creator.octave_min
 
 
-def test_high_octave_note_playing_r1_held(song_creator: BuzzerSongCreator):
-    """High Octave mode (L1=0, R1=1) plays Octave 5 notes (C5, D5, E5, F5)."""
+def test_idle_dpad_octave_is_clamped_high(song_creator: BuzzerSongCreator):
+    """D-Pad up stops at the configured maximum octave."""
     song_creator.joy_callback(make_joy_msg())
-
-    # D-Pad Up with R1 held -> C5 (523 Hz)
-    song_creator.joy_callback(make_joy_msg(r1=1, hat_y=-1.0))
-    assert song_creator.song_sequence == [523]
-    song_creator.joy_callback(make_joy_msg(r1=1, hat_y=0.0))
-
-    # D-Pad Down with R1 held -> E5 (659 Hz)
-    song_creator.joy_callback(make_joy_msg(r1=1, hat_y=1.0))
-    assert song_creator.song_sequence == [523, 659]
+    for _ in range(5):
+        song_creator.joy_callback(make_joy_msg(hat_y=-1.0))
+        song_creator.joy_callback(make_joy_msg())
+    assert song_creator.current_octave == song_creator.octave_max
 
 
 def test_command_mode_actions(song_creator: BuzzerSongCreator):
     """Command mode (L1=1, R1=1) handles REST, Undo, Clear, and Play Sequence."""
     song_creator.joy_callback(make_joy_msg())
 
-    # Add 2 notes first
-    song_creator.joy_callback(make_joy_msg(hat_y=-1.0))  # C4
-    song_creator.joy_callback(make_joy_msg())
-    song_creator.joy_callback(make_joy_msg(hat_x=1.0))  # D4
-    song_creator.joy_callback(make_joy_msg())
+    # Add 2 notes through the retained sequence API.
+    song_creator.add_note('C4')
+    song_creator.add_note('D4')
     assert song_creator.song_sequence == [262, 294]
 
-    # Command Mode: D-Pad Right -> Add REST (0 Hz)
+    # Command Mode: D-Pad Right is reserved.
     song_creator.joy_callback(make_joy_msg(l1=1, r1=1, hat_x=1.0))
-    assert song_creator.song_sequence == [262, 294, 0]
+    assert song_creator.song_sequence == [262, 294]
     song_creator.joy_callback(make_joy_msg(l1=1, r1=1, hat_x=0.0))
 
-    # Command Mode: D-Pad Left -> Undo Last Note
+    # Command Mode: D-Pad Left cycles the preset.
     song_creator.joy_callback(make_joy_msg(l1=1, r1=1, hat_x=-1.0))
-    assert song_creator.song_sequence == [262, 294]
+    assert song_creator.selected_melody_index == 1
     song_creator.joy_callback(make_joy_msg(l1=1, r1=1, hat_x=0.0))
 
     # Command Mode: D-Pad Up -> Play Full Sequence
@@ -148,38 +144,70 @@ def test_sea_shanty_2_easter_egg(song_creator: BuzzerSongCreator):
     assert last_pub['msg'].data == list(SEA_SHANTY_2_SEQ)
 
 
+def test_sea_shanty_timing_uses_grid_and_90_percent_articulation(
+    song_creator: BuzzerSongCreator,
+):
+    """Every active event gets a 90/10 split on its 16th-note duration."""
+    waits = []
+    tones = []
+
+    class FakeStop:
+        def is_set(self):
+            return False
+
+        def wait(self, seconds):
+            waits.append(seconds)
+            return False
+
+    song_creator._playback_stop = FakeStop()
+    song_creator.publish_tone = lambda frequency: tones.append(frequency)
+    song_creator._play_timed_worker(
+        [(880, 2), (0, 4), (659, 4)], loop=False
+    )
+
+    assert tones == [880, 0, 0, 659, 0]
+    assert waits == pytest.approx([
+        (2 * SEA_SHANTY_2_SIXTEENTH_NOTE_MS * 90 // 100) / 1000.0,
+        (2 * SEA_SHANTY_2_SIXTEENTH_NOTE_MS
+         - 2 * SEA_SHANTY_2_SIXTEENTH_NOTE_MS * 90 // 100) / 1000.0,
+        (4 * SEA_SHANTY_2_SIXTEENTH_NOTE_MS) / 1000.0,
+        (4 * SEA_SHANTY_2_SIXTEENTH_NOTE_MS * 90 // 100) / 1000.0,
+        (4 * SEA_SHANTY_2_SIXTEENTH_NOTE_MS
+         - 4 * SEA_SHANTY_2_SIXTEENTH_NOTE_MS * 90 // 100) / 1000.0,
+    ])
+
+
 def test_edge_triggering_no_duplicate_on_hold(song_creator: BuzzerSongCreator):
-    """Holding down D-Pad button across multiple frames triggers exactly once."""
+    """Holding a D-Pad direction applies its action exactly once."""
     song_creator.joy_callback(make_joy_msg())
 
     # Frame 1: D-Pad pressed
     song_creator.joy_callback(make_joy_msg(hat_y=-1.0))
-    assert len(song_creator.song_sequence) == 1
+    assert song_creator.current_octave == 5
 
     # Frame 2: D-Pad still pressed (held)
     song_creator.joy_callback(make_joy_msg(hat_y=-1.0))
-    assert len(song_creator.song_sequence) == 1
+    assert song_creator.current_octave == 5
 
     # Frame 3: Released
     song_creator.joy_callback(make_joy_msg(hat_y=0.0))
-    assert len(song_creator.song_sequence) == 1
+    assert song_creator.current_octave == 5
 
     # Frame 4: Pressed again
     song_creator.joy_callback(make_joy_msg(hat_y=1.0))
-    assert len(song_creator.song_sequence) == 2
+    assert song_creator.current_octave == 4
 
 
-def test_touchpad_click_cycles_octave(song_creator: BuzzerSongCreator):
-    """A short touchpad click advances the synth octave and wraps."""
+def test_touchpad_click_does_not_cycle_octave(song_creator: BuzzerSongCreator):
+    """Touchpad click is no longer the melody cycle control."""
     song_creator.joy_callback(make_joy_msg())
     assert song_creator.current_octave == 4
 
     song_creator.joy_callback(make_joy_msg(touchpad=1))
     song_creator.joy_callback(make_joy_msg())
-    assert song_creator.current_octave == 5
+    assert song_creator.current_octave == 4
 
-    # Four more clicks: 6, then wrap to 3, 4, and 5.
-    for expected in (6, 3, 4, 5):
+    for expected in (4, 4, 4, 4):
         song_creator.joy_callback(make_joy_msg(touchpad=1))
         song_creator.joy_callback(make_joy_msg())
         assert song_creator.current_octave == expected
@@ -210,3 +238,56 @@ def test_touchpad_x_maps_to_chromatic_note(song_creator: BuzzerSongCreator):
     song_creator._handle_touchpad(True, True, 10.01,
                                   [0.0] * 8 + [1.0])
     assert song_creator._last_touchpad_note == NOTE_FREQ['B4']
+
+
+def test_melody_presets_are_available_and_publish_timed_sequence(
+    song_creator: BuzzerSongCreator,
+):
+    """Named melodies can be selected and sent to the normal sequence topic."""
+    published = {}
+
+    class MockPub:
+        def publish(self, msg):
+            published['msg'] = msg
+
+    song_creator.sequence_pub = MockPub()
+    song_creator.play_named_melody('happy birthday')
+
+    assert song_creator.selected_melody_index == PRESET_MELODY_NAMES.index(
+        'happy_birthday'
+    )
+    assert published['msg'].data[:3] == [262, 262, 294]
+
+
+def test_active_melody_octave_shift_changes_frequency_without_changing_timing(
+    song_creator: BuzzerSongCreator,
+):
+    """D-Pad octave changes rescale the active note in place."""
+    tones = []
+    song_creator.publish_tone = lambda frequency: tones.append(frequency)
+    song_creator.active_melody_name = 'happy_birthday'
+    song_creator._active_base_frequency = NOTE_FREQ['C4']
+
+    song_creator.change_octave(1)
+    assert song_creator.melody_octave_shift == 1
+    assert tones[-1] == NOTE_FREQ['C4'] * 2
+
+    song_creator.change_octave(-1)
+    assert song_creator.melody_octave_shift == 0
+    assert tones[-1] == NOTE_FREQ['C4']
+
+
+def test_foxglove_command_topic_controls_preset(song_creator: BuzzerSongCreator):
+    """The plain String command interface supports Foxglove publishing."""
+    published = {}
+
+    class MockPub:
+        def publish(self, msg):
+            published['msg'] = msg
+
+    song_creator.sequence_pub = MockPub()
+    song_creator.command_callback(type('Command', (), {'data': 'play:imperial_march'})())
+    assert song_creator.selected_melody_index == PRESET_MELODY_NAMES.index(
+        'imperial_march'
+    )
+    assert published['msg'].data[0] == NOTE_FREQ['A3']

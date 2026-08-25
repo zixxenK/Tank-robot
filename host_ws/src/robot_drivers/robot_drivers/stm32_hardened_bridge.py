@@ -104,6 +104,9 @@ VALID_FUNCTION_CODES = {
 # Motor Sub-commands
 MOTOR_SUBCMD_SET_SPEED = 0x01
 MOTOR_SUBCMD_EMERGENCY_STOP = 0x02
+# Commands below this normalized track magnitude are indistinguishable from
+# neutral at the joystick and should not be handed to the PID controller.
+TRACK_STOP_EPSILON = 1.0e-3
 BUZZER_SUBCMD_SET_TONE = 0x01
 BUZZER_MAX_FREQUENCY_HZ = 20000
 SERVO_SUBCMD_SET_POSITION = 0x01
@@ -1282,6 +1285,16 @@ class STM32HardenedBridge(Node):
             self._wheel_separation,
             self._max_track_speed_mps,
         )
+
+        # A centered operator command is a stop, not merely a new PID target
+        # of zero.  The firmware's emergency-stop command also clears its
+        # accumulated PID/output state and both PWM outputs.  Without this
+        # edge, a released joystick could leave a residual pulse (especially
+        # after a differential turn) and the chassis could continue to pivot.
+        if max(abs(left_vel), abs(right_vel)) <= TRACK_STOP_EPSILON:
+            if not stop_command_sent:
+                self._send_emergency_stop()
+            return
 
         # Convert to motor speeds
         left_speed = int(

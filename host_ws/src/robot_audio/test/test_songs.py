@@ -2,6 +2,10 @@
 
 import pytest
 from robot_audio.songs import (
+    HAPPY_BIRTHDAY_DURATIONS,
+    HAPPY_BIRTHDAY_FREQUENCIES,
+    IMPERIAL_MARCH_DURATIONS,
+    IMPERIAL_MARCH_FREQUENCIES,
     NOTE_FREQ,
     SEA_SHANTY_2_FULL_MELODY,
     SEA_SHANTY_2_MELODY,
@@ -9,6 +13,7 @@ from robot_audio.songs import (
     SEA_SHANTY_2_SEQ,
     SEA_SHANTY_2_BPM,
     SEA_SHANTY_2_DURATIONS_MS,
+    SEA_SHANTY_2_SIXTEENTH_NOTE_MS,
     notes_to_frequencies,
 )
 
@@ -34,16 +39,22 @@ def test_note_frequencies_octaves():
 
 def test_sea_shanty_2_sequence():
     """Verify the supplied Sea Shanty transcription, including rests."""
-    assert SEA_SHANTY_2_BPM == 102
+    assert SEA_SHANTY_2_BPM == 105
+    assert SEA_SHANTY_2_SIXTEENTH_NOTE_MS == 142
     assert SEA_SHANTY_2_SEQ == [frequency for frequency, _ in SEA_SHANTY_2_MELODY]
     assert SEA_SHANTY_2_NOTE_MELODY[:5] == [
-        ('A5', 8), ('E5', 8), ('D5', 8), ('C#5', -4), ('C#5', 8)
+        ('A5', 2), ('E5', 2), ('D5', 2), ('C#5', 6), ('C#5', 2)
     ]
     assert SEA_SHANTY_2_MELODY[:5] == [
-        (880, 8), (659, 8), (587, 8), (554, -4), (554, 8)
+        (880, 2), (659, 2), (587, 2), (554, 6), (554, 2)
     ]
-    assert SEA_SHANTY_2_DURATIONS_MS[:4] == [294, 294, 294, 882]
+    assert SEA_SHANTY_2_DURATIONS_MS[:4] == [284, 284, 284, 852]
     assert (0, 4) in SEA_SHANTY_2_MELODY
+    assert all(duration in (2, 4, 6, 8)
+               for _, duration in SEA_SHANTY_2_NOTE_MELODY)
+    assert all(duration == grid * SEA_SHANTY_2_SIXTEENTH_NOTE_MS
+               for duration, (_, grid) in zip(
+                   SEA_SHANTY_2_DURATIONS_MS, SEA_SHANTY_2_NOTE_MELODY))
     assert SEA_SHANTY_2_FULL_MELODY == SEA_SHANTY_2_SEQ
 
 
@@ -52,3 +63,13 @@ def test_notes_to_frequencies_conversion():
     notes = ['C4', 'E4', 'G4', 'REST', 'A4']
     freqs = notes_to_frequencies(notes)
     assert freqs == [262, 330, 392, 0, 440]
+
+
+def test_preset_melodies_keep_parallel_frequency_and_duration_arrays():
+    """The Arduino-style presets preserve one duration per frequency."""
+    assert len(HAPPY_BIRTHDAY_FREQUENCIES) == len(HAPPY_BIRTHDAY_DURATIONS)
+    assert HAPPY_BIRTHDAY_FREQUENCIES[:3] == [262, 262, 294]
+    assert HAPPY_BIRTHDAY_DURATIONS[:3] == [4, 8, 4]
+    assert len(IMPERIAL_MARCH_FREQUENCIES) == len(IMPERIAL_MARCH_DURATIONS)
+    assert IMPERIAL_MARCH_FREQUENCIES[:3] == [220, 220, 220]
+    assert IMPERIAL_MARCH_DURATIONS[:5] == [4, 4, 4, 8, 32]

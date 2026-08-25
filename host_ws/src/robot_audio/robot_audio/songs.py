@@ -33,71 +33,113 @@ NOTE_FREQ: Dict[str, int] = {
     'F6': 1397, 'F#6': 1480, 'G6': 1568, 'A6': 1760, 'B6': 1976,
 }
 
-# OSRS Sea Shanty 2 (Port Sarim theme), full A-D transcription supplied for
-# this robot. Duration values use the Arduino convention: 2=half, 4=quarter,
-# 8=eighth, 16=sixteenth, and a negative denominator is dotted.
-SEA_SHANTY_2_BPM = 102
-SEA_SHANTY_2_WHOLE_NOTE_MS = (60000 * 4) // SEA_SHANTY_2_BPM
-SEA_SHANTY_2_ARTICULATION_MS = 12
-SEA_SHANTY_2_NOTE_MELODY: List[Tuple[str, int]] = [
-    # Section A: main theme
-    ('A5', 8), ('E5', 8), ('D5', 8), ('C#5', -4),
-    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8), ('G#5', 8), ('E5', -4),
-    ('REST', 4),
-    ('F#5', 8), ('E5', 8), ('D5', 8), ('C#5', -4),
-    ('C#5', 8), ('B4', 8), ('C#5', 8), ('D5', 2), ('REST', 4),
-    ('A5', 8), ('E5', 8), ('D5', 8), ('C#5', -4),
-    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 4), ('D5', 4), ('REST', 4),
-    ('F#5', 8), ('E5', 8), ('D5', 8), ('C#5', 4), ('B4', 8),
-    ('C#5', 8), ('D5', 4), ('F#5', 8), ('E5', 8), ('C#5', 8), ('B4', 8),
-    ('A4', 2), ('REST', 4),
+# Short, named melodies used by the Foxglove command topic and the controller
+# cycle button. Durations use the Arduino convention from the supplied
+# examples: 4 is a quarter note, 8 is an eighth note, and the base tempo is
+# 60 BPM (1000 / denominator milliseconds).
+HAPPY_BIRTHDAY_BPM = 60
+HAPPY_BIRTHDAY_NOTE_MELODY: List[Tuple[str, int]] = [
+    ('C4', 4), ('C4', 8), ('D4', 4), ('C4', 4), ('F4', 4), ('E4', 2),
+    ('C4', 4), ('C4', 8), ('D4', 4), ('C4', 4), ('G4', 4), ('F4', 2),
+    ('C4', 4), ('C4', 8), ('C5', 4), ('A4', 4), ('F4', 4), ('E4', 4),
+    ('D4', 4), ('A#4', 4), ('A#4', 8), ('A4', 4), ('F4', 4), ('G4', 4),
+    ('F4', 2),
+]
 
-    # Section B: high synth lead counter-melody
-    ('A5', 8), ('B5', 8), ('C#6', 4), ('C#6', 8), ('B5', 8), ('A5', 8), ('G#5', 4),
-    ('E5', 8), ('F#5', 8), ('G#5', 4), ('G#5', 8), ('F#5', 8), ('E5', 8), ('D5', 4),
-    ('C#5', 8), ('D5', 8), ('E5', 4), ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8),
-    ('E5', 8), ('D5', 8), ('C#5', 8), ('B4', 4), ('A4', 2), ('REST', 4),
-    ('A5', 8), ('B5', 8), ('C#6', 4), ('C#6', 8), ('B5', 8), ('A5', 8), ('G#5', 4),
-    ('E5', 8), ('F#5', 8), ('G#5', 4), ('G#5', 8), ('F#5', 8), ('E5', 8), ('D5', 4),
-    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8), ('G#5', 8), ('A5', 8), ('B5', 8), ('C#6', 8),
-    ('D6', 4), ('C#6', 4), ('A5', 2), ('REST', 4),
-
-    # Section C: accordion solo and breakdown
-    ('F#5', 16), ('G#5', 16), ('A5', 8), ('A5', 8), ('G#5', 8), ('F#5', 8), ('E5', 8),
-    ('C#5', 8), ('D5', 8), ('E5', 8), ('E5', 8), ('D5', 8), ('C#5', 8), ('B4', 8),
-    ('D5', 8), ('D5', 8), ('C#5', 8), ('B4', 8), ('A4', 8), ('B4', 8),
-    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8), ('G#5', 8), ('A5', 4),
-    ('F#5', 16), ('G#5', 16), ('A5', 8), ('A5', 8), ('G#5', 8), ('F#5', 8), ('E5', 8),
-    ('C#5', 8), ('D5', 8), ('E5', 8), ('E5', 8), ('D5', 8), ('C#5', 8), ('B4', 8),
-    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8), ('G#5', 8), ('A5', 8),
-    ('B5', 8), ('C#6', 8), ('D6', 4), ('C#6', 4), ('A5', 2), ('REST', 4),
-
-    # Section D: high flute climax run
-    ('C#6', 8), ('D6', 8), ('E6', 4), ('E6', 8), ('D6', 8), ('C#6', 8), ('B5', 4),
-    ('G#5', 8), ('A5', 8), ('B5', 4), ('B5', 8), ('A5', 8), ('G#5', 8), ('F#5', 4),
-    ('E5', 8), ('F#5', 8), ('G#5', 8), ('A5', 8), ('B5', 8), ('C#6', 8), ('D6', 8), ('E6', 8),
-    ('F#6', 4), ('E6', 4), ('C#6', 4), ('B5', 4), ('A5', 2), ('REST', 2),
+IMPERIAL_MARCH_BPM = 60
+IMPERIAL_MARCH_NOTE_MELODY: List[Tuple[str, int]] = [
+    ('A3', 4), ('A3', 4), ('A3', 4), ('F3', 8), ('C4', 32),
+    ('A3', 4), ('F3', 8), ('C4', 32), ('A3', 2),
+    ('E4', 4), ('E4', 4), ('E4', 4), ('F4', 8), ('C4', 32),
+    ('G#3', 4), ('F3', 8), ('C4', 32), ('A3', 2),
 ]
 
 
-def _duration_ms(duration_value: int) -> int:
-    """Convert the supplied Arduino duration denominator to milliseconds."""
-    denominator = abs(int(duration_value))
-    duration = SEA_SHANTY_2_WHOLE_NOTE_MS // denominator
-    return (duration * 3) // 2 if duration_value < 0 else duration
+def _parallel_melody_arrays(
+    note_melody: List[Tuple[str, int]],
+) -> Tuple[List[int], List[int]]:
+    """Return the parallel frequency and duration arrays used by the player."""
+    return (
+        [NOTE_FREQ.get(note, 0) for note, _ in note_melody],
+        [int(duration) for _, duration in note_melody],
+    )
+
+
+HAPPY_BIRTHDAY_FREQUENCIES, HAPPY_BIRTHDAY_DURATIONS = _parallel_melody_arrays(
+    HAPPY_BIRTHDAY_NOTE_MELODY
+)
+IMPERIAL_MARCH_FREQUENCIES, IMPERIAL_MARCH_DURATIONS = _parallel_melody_arrays(
+    IMPERIAL_MARCH_NOTE_MELODY
+)
+HAPPY_BIRTHDAY_MELODY: List[Tuple[int, int]] = list(
+    zip(HAPPY_BIRTHDAY_FREQUENCIES, HAPPY_BIRTHDAY_DURATIONS)
+)
+IMPERIAL_MARCH_MELODY: List[Tuple[int, int]] = list(
+    zip(IMPERIAL_MARCH_FREQUENCIES, IMPERIAL_MARCH_DURATIONS)
+)
+
+# OSRS Sea Shanty 2 (Port Sarim theme), using the operator-supplied Arduino
+# transcription. Every duration is a count of 16th-note grid cells. Keeping
+# this representation explicit prevents denominator conversions and timing
+# drift between the host player and the STM32 player.
+SEA_SHANTY_2_BPM = 105
+SEA_SHANTY_2_SIXTEENTH_NOTE_MS = (60000 // SEA_SHANTY_2_BPM) // 4
+SEA_SHANTY_2_ARTICULATION_PERCENT = 90
+SEA_SHANTY_2_LOOP_DELAY_MS = 2000
+# Compatibility value for callers that need the 10% gap of one grid cell.
+# Actual playback derives the gap from each note's complete duration.
+SEA_SHANTY_2_ARTICULATION_MS = (
+    SEA_SHANTY_2_SIXTEENTH_NOTE_MS
+    * (100 - SEA_SHANTY_2_ARTICULATION_PERCENT)
+    // 100
+)
+SEA_SHANTY_2_NOTE_MELODY: List[Tuple[str, int]] = [
+    # Pickup and measures 1-8
+    ('A5', 2), ('E5', 2), ('D5', 2), ('C#5', 6),
+    ('C#5', 2), ('D5', 2), ('E5', 2), ('F#5', 2), ('G#5', 2), ('E5', 6),
+    ('REST', 4),
+    ('F#5', 2), ('E5', 2), ('D5', 2), ('C#5', 6),
+    ('C#5', 2), ('B4', 2), ('C#5', 2), ('D5', 8),
+    ('REST', 4),
+    ('A5', 2), ('E5', 2), ('D5', 2), ('C#5', 6),
+    ('C#5', 2), ('D5', 2), ('E5', 2), ('F#5', 4), ('D5', 4),
+    ('REST', 4),
+    ('F#5', 2), ('E5', 2), ('D5', 2), ('C#5', 4), ('B4', 2),
+    ('C#5', 2), ('D5', 4), ('F#5', 2), ('E5', 2), ('C#5', 2), ('B4', 2),
+    ('A4', 8), ('REST', 8),
+
+    # Measures 9-12: high section
+    ('A5', 2), ('B5', 2), ('C#6', 4), ('C#6', 2), ('B5', 2),
+    ('A5', 2), ('G#5', 4),
+    ('E5', 2), ('F#5', 2), ('G#5', 4), ('G#5', 2), ('F#5', 2),
+    ('E5', 2), ('D5', 4),
+    ('C#5', 2), ('D5', 2), ('E5', 4), ('C#5', 2), ('D5', 2),
+    ('E5', 2), ('F#5', 2),
+    ('E5', 2), ('D5', 2), ('C#5', 2), ('B4', 4), ('A4', 8),
+]
 
 
 SEA_SHANTY_2_MELODY: List[Tuple[int, int]] = [
     (NOTE_FREQ[note], duration) for note, duration in SEA_SHANTY_2_NOTE_MELODY
 ]
 SEA_SHANTY_2_DURATIONS_MS: List[int] = [
-    _duration_ms(duration) for _, duration in SEA_SHANTY_2_NOTE_MELODY
+    duration * SEA_SHANTY_2_SIXTEENTH_NOTE_MS
+    for _, duration in SEA_SHANTY_2_NOTE_MELODY
 ]
 
 # Compatibility form for the existing ROS Int32MultiArray topic. Playback uses
-# the timed melody above so rests and legato timing are retained locally.
+# the timed melody above so rests and grid timing are retained locally.
 SEA_SHANTY_2_SEQ: List[int] = [frequency for frequency, _ in SEA_SHANTY_2_MELODY]
 SEA_SHANTY_2_FULL_MELODY: List[int] = list(SEA_SHANTY_2_SEQ)
+
+# The value is ``(timed melody, BPM)``. Sea Shanty 2 is represented in 16th
+# note grid cells and is handled separately by the player for compatibility.
+PRESET_MELODIES = {
+    'happy_birthday': (HAPPY_BIRTHDAY_MELODY, HAPPY_BIRTHDAY_BPM),
+    'imperial_march': (IMPERIAL_MARCH_MELODY, IMPERIAL_MARCH_BPM),
+    'sea_shanty_2': (SEA_SHANTY_2_MELODY, SEA_SHANTY_2_BPM),
+}
+PRESET_MELODY_NAMES = tuple(PRESET_MELODIES)
 
 
 def notes_to_frequencies(notes: List[str]) -> List[int]:
