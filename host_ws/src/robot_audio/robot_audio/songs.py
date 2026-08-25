@@ -1,6 +1,6 @@
 """songs.py — Musical note frequencies and preset song sequences for buzzer audio."""
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 # Musical note frequencies in Hertz (standard tuning A4 = 440Hz)
 NOTE_FREQ: Dict[str, int] = {
@@ -33,32 +33,30 @@ NOTE_FREQ: Dict[str, int] = {
     'F6': 1397, 'F#6': 1480, 'G6': 1568, 'A6': 1760, 'B6': 1976,
 }
 
-# Sea Shanty 2 (Old School RuneScape - Port Sarim Theme)
-# Composed by Ian Taylor, A Major melody
-SEA_SHANTY_2_SEQ: List[int] = [
-    # Phrase 1: A, C#, E, F#, E, C#, A, C#
-    440, 554, 659, 740, 659, 554, 440, 554,
-    # Phrase 2: E, F#, A, B, A, F#, E, F#
-    659, 740, 440, 494, 440, 740, 659, 740,
-    # Phrase 3: A, B, C#, D, C#, B, A, F#
-    440, 494, 554, 587, 554, 494, 440, 740,
-    # Phrase 4: E, C#, B, A, F#, E, C#, A
-    659, 554, 494, 440, 740, 659, 554, 440,
+# OSRS Sea Shanty 2 (Port Sarim theme), in the note/duration arrangement used
+# by the original transcription.  One duration slot is one eighth note at
+# 100 BPM (300 ms).  Keeping the rests and durations is important: a flat
+# frequency list turns this into a different tune.
+SEA_SHANTY_2_SLOT_MS = 300
+SEA_SHANTY_2_MELODY: List[Tuple[int, int]] = [
+    # Phrase 1 (measures 1-2)
+    (880, 1), (659, 1), (587, 1), (554, 2), (554, 1), (587, 1),
+    (659, 1), (740, 1), (831, 1), (659, 2), (0, 4),
+    # Phrase 2 (measures 3-4)
+    (740, 1), (659, 1), (587, 1), (554, 2), (554, 1), (494, 1),
+    (554, 1), (587, 4), (0, 4),
+    # Phrase 3 (measures 5-6)
+    (880, 1), (659, 1), (587, 1), (554, 2), (554, 1), (587, 1),
+    (659, 1), (740, 2), (587, 2), (0, 4),
+    # Phrase 4 (measures 7-8)
+    (740, 1), (659, 1), (587, 1), (554, 2), (494, 1), (554, 1),
+    (587, 2), (740, 1), (659, 1), (554, 1), (494, 1), (440, 3),
 ]
 
-# Extended full melody of Sea Shanty 2 with staccato rests for realistic buzzer playback
-SEA_SHANTY_2_FULL_MELODY: List[int] = [
-    # Main Hook Part 1
-    440, 554, 659, 740, 659, 554, 440, 554,
-    659, 740, 440, 494, 440, 740, 659, 740,
-    440, 494, 554, 587, 554, 494, 440, 740,
-    659, 554, 494, 440, 740, 659, 554, 440,
-    # Main Hook Part 2 (Higher Register & Variations)
-    440, 554, 659, 740, 659, 554, 440, 554,
-    659, 740, 880, 988, 880, 740, 659, 740,
-    880, 988, 1109, 1175, 1109, 988, 880, 740,
-    659, 554, 494, 440, 740, 659, 554, 440,
-]
+# Compatibility form for the existing ROS Int32MultiArray topic.  Playback
+# uses SEA_SHANTY_2_MELODY so the timing is retained locally.
+SEA_SHANTY_2_SEQ: List[int] = [frequency for frequency, _ in SEA_SHANTY_2_MELODY]
+SEA_SHANTY_2_FULL_MELODY: List[int] = list(SEA_SHANTY_2_SEQ)
 
 
 def notes_to_frequencies(notes: List[str]) -> List[int]:

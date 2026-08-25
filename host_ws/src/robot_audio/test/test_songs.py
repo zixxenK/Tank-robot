@@ -1,7 +1,14 @@
 """Unit tests for songs module and musical frequency mappings."""
 
 import pytest
-from robot_audio.songs import NOTE_FREQ, SEA_SHANTY_2_SEQ, SEA_SHANTY_2_FULL_MELODY, notes_to_frequencies
+from robot_audio.songs import (
+    NOTE_FREQ,
+    SEA_SHANTY_2_FULL_MELODY,
+    SEA_SHANTY_2_MELODY,
+    SEA_SHANTY_2_SEQ,
+    SEA_SHANTY_2_SLOT_MS,
+    notes_to_frequencies,
+)
 
 
 def test_note_frequencies_octaves():
@@ -24,11 +31,14 @@ def test_note_frequencies_octaves():
 
 
 def test_sea_shanty_2_sequence():
-    """Verify Sea Shanty 2 sequence contains correct note frequencies for A Major melody."""
-    assert len(SEA_SHANTY_2_SEQ) >= 16
-    # First phrase: A4 (440), C#5 (554), E5 (659), F#5 (740), E5 (659), C#5 (554), A4 (440), C#5 (554)
-    expected_intro = [440, 554, 659, 740, 659, 554, 440, 554]
-    assert SEA_SHANTY_2_SEQ[:8] == expected_intro
+    """Verify the supplied Sea Shanty transcription, including rests."""
+    assert SEA_SHANTY_2_SLOT_MS == 300
+    assert SEA_SHANTY_2_SEQ == [frequency for frequency, _ in SEA_SHANTY_2_MELODY]
+    assert SEA_SHANTY_2_MELODY[:5] == [
+        (880, 1), (659, 1), (587, 1), (554, 2), (554, 1)
+    ]
+    assert (0, 4) in SEA_SHANTY_2_MELODY
+    assert SEA_SHANTY_2_FULL_MELODY == SEA_SHANTY_2_SEQ
 
 
 def test_notes_to_frequencies_conversion():

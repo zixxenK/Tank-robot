@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """buzzer_song_creator.py — Modular ROS 2 Buzzer Song Creator and Step Sequencer.
 
-Maps PS5 DualSense controller's D-Pad and bumper modifiers (L1/R1) into
-a real-time note player, step sequencer, and easter-egg song trigger.
+Maps PS5 DualSense controller input into a real-time note player, step
+sequencer, octave-selectable synth, and Sea Shanty 2 loop trigger.
 """
 
 import os
@@ -96,7 +96,12 @@ except ImportError:
             pass
 
 
-from robot_audio.songs import NOTE_FREQ, SEA_SHANTY_2_SEQ
+from robot_audio.songs import (
+    NOTE_FREQ,
+    SEA_SHANTY_2_MELODY,
+    SEA_SHANTY_2_SEQ,
+    SEA_SHANTY_2_SLOT_MS,
+)
 from robot_control.control_map import (
     ControlMap,
     default_control_map,
@@ -124,6 +129,12 @@ class BuzzerSongCreator(Node):
         self.declare_parameter('hat_x_index', -1)
         self.declare_parameter('hat_y_index', -1)
         self.declare_parameter('triangle_index', -1)
+        self.declare_parameter('touchpad_click_index', -1)
+        self.declare_parameter('touchpad_x_axis', -1)
+        self.declare_parameter('touchpad_y_axis', -1)
+        self.declare_parameter('touchpad_hold_s', 0.35)
+        self.declare_parameter('octave_min', 3)
+        self.declare_parameter('octave_max', 6)
         self.declare_parameter('step_duration_s', 0.25)
         self.declare_parameter('gap_duration_s', 0.05)
         self.declare_parameter('async_playback', True)
@@ -148,6 +159,22 @@ class BuzzerSongCreator(Node):
             'hat_y_index', profile, 'dpad_y_axis', 7
         )
         self.TRIANGLE_INDEX = self._map_index('triangle_index', 'triangle', 2)
+        self.TOUCHPAD_CLICK_INDEX = self._map_index(
+            'touchpad_click_index', 'touchpad_click', 13
+        )
+        self.TOUCHPAD_X_AXIS = int(
+            self._get_param_val('touchpad_x_axis', -1)
+        )
+        self.TOUCHPAD_Y_AXIS = int(
+            self._get_param_val('touchpad_y_axis', -1)
+        )
+        self.touchpad_hold_s = max(
+            0.1, float(self._get_param_val('touchpad_hold_s', 0.35))
+        )
+        self.octave_min = int(self._get_param_val('octave_min', 3))
+        self.octave_max = int(self._get_param_val('octave_max', 6))
+        if self.octave_max < self.octave_min:
+            self.octave_min, self.octave_max = self.octave_max, self.octave_min
         self.step_duration_s = float(self._get_param_val('step_duration_s', 0.25))
         self.gap_duration_s = float(self._get_param_val('gap_duration_s', 0.05))
         self.async_playback = bool(self._get_param_val('async_playback', True))
@@ -163,9 +190,23 @@ class BuzzerSongCreator(Node):
         self.prev_axes: List[float] = []
         self.prev_buttons: List[int] = []
         self._playback_thread: Optional[threading.Thread] = None
+        self._playback_stop = threading.Event()
+        self.current_octave = min(self.octave_max, max(self.octave_min, 4))
+        self._touchpad_pressed_at: Optional[float] = None
+        self._touchpad_loop_active = False
+        self._last_touchpad_note: Optional[int] = None
 
         self.get_logger().info("Buzzer Modular Song Creator Initialized.")
-        self.get_logger().info("Use D-Pad to play notes. Hold L1 (Low), R1 (High), or L1+R1 (Commands/Easter Egg).")
+        self.get_logger().info(
+            "Synth: D-Pad plays notes in the selected octave; touchpad click "
+            "cycles octave; hold touchpad for Sea Shanty 2 loop."
+        )
+        if self.TOUCHPAD_X_AXIS < 0:
+            self.get_logger().warn(
+                "Connected Joy layout has no touchpad X axis; D-Pad is the "
+                "synth-note fallback. Configure touchpad_x_axis/y_axis when "
+                "using a driver that exposes touch coordinates."
+            )
 
     def _get_param_val(self, name: str, default):
         try:
@@ -237,7 +278,12 @@ class BuzzerSongCreator(Node):
             return
 
         # Bound check indices
-        max_btn_idx = max(self.L1_INDEX, self.R1_INDEX, self.TRIANGLE_INDEX)
+        max_btn_idx = max(
+            self.L1_INDEX,
+            self.R1_INDEX,
+            self.TRIANGLE_INDEX,
+            self.TOUCHPAD_CLICK_INDEX,
+        )
         max_axis_idx = max(self.HAT_X_INDEX, self.HAT_Y_INDEX)
         if len(msg.buttons) <= max_btn_idx or len(msg.axes) <= max_axis_idx:
             return
@@ -248,6 +294,10 @@ class BuzzerSongCreator(Node):
 
         # Button and D-Pad Edge Triggers (Rising Edges Only)
         triangle_pressed = (msg.buttons[self.TRIANGLE_INDEX] == 1) and (self.prev_buttons[self.TRIANGLE_INDEX] == 0)
+        touchpad_pressed = bool(msg.buttons[self.TOUCHPAD_CLICK_INDEX])
+        touchpad_was_pressed = bool(
+            self.prev_buttons[self.TOUCHPAD_CLICK_INDEX]
+        )
 
         # Linux hid-playstation follows the input-event hat convention:
         # up/left are negative and down/right are positive.  The old code
@@ -260,6 +310,13 @@ class BuzzerSongCreator(Node):
         # Update previous states
         self.prev_axes = list(msg.axes)
         self.prev_buttons = list(msg.buttons)
+
+        self._handle_touchpad(
+            touchpad_pressed,
+            touchpad_was_pressed,
+            time.monotonic(),
+            msg.axes,
+        )
 
         # Mode Selection Logic
         if l1_held and r1_held:
@@ -276,11 +333,11 @@ class BuzzerSongCreator(Node):
                 self.add_note('REST')
         else:
             # === NOTE PLAYING & RECORDING MODE ===
-            octave = "4"
+            octave = str(self.current_octave)
             if l1_held:
-                octave = "3"
+                octave = str(max(self.octave_min, self.current_octave - 1))
             elif r1_held:
-                octave = "5"
+                octave = str(min(self.octave_max, self.current_octave + 1))
 
             if dpad_up:
                 self.add_note(f'C{octave}')
@@ -342,8 +399,9 @@ class BuzzerSongCreator(Node):
         # Local audio playback
         self._execute_playback(list(self.song_sequence))
 
-    def play_sea_shanty(self):
-        """Easter Egg trigger: Play the Sea Shanty 2 theme from OSRS."""
+    def play_sea_shanty(self, loop: bool = False):
+        """Play the supplied Sea Shanty 2 transcription with exact timing."""
+        self._stop_playback()
         log_msg = "Easter Egg Triggered: Playing Sea Shanty 2!"
         self.get_logger().info(log_msg)
         self.publish_status(log_msg)
@@ -352,11 +410,73 @@ class BuzzerSongCreator(Node):
         seq_msg.data = list(SEA_SHANTY_2_SEQ)
         self.sequence_pub.publish(seq_msg)
 
-        # Local audio playback
-        self._execute_playback(list(SEA_SHANTY_2_SEQ))
+        self._execute_timed_playback(list(SEA_SHANTY_2_MELODY), loop=loop)
+
+    def _handle_touchpad(
+        self,
+        pressed: bool,
+        was_pressed: bool,
+        now: float,
+        axes: List[float],
+    ) -> None:
+        """Make a touchpad click an octave switch or a held song loop.
+
+        A short click changes octave on release. Holding past the threshold
+        starts a cancellable Sea Shanty loop, which stops as soon as the click
+        is released. The optional X axis maps a touch position to a chromatic
+        note when the controller driver exposes touch coordinates.
+        """
+        if pressed and not was_pressed:
+            self._touchpad_pressed_at = now
+            self._last_touchpad_note = None
+        if pressed:
+            if self._touchpad_pressed_at is None:
+                self._touchpad_pressed_at = now
+            if not self._touchpad_loop_active and (
+                now - self._touchpad_pressed_at >= self.touchpad_hold_s
+            ):
+                self._touchpad_loop_active = True
+                self.play_sea_shanty(loop=True)
+            self._play_touchpad_axis_note(axes)
+        elif was_pressed:
+            was_looping = self._touchpad_loop_active
+            self._touchpad_pressed_at = None
+            self._touchpad_loop_active = False
+            self._last_touchpad_note = None
+            if was_looping:
+                self._stop_playback()
+                self.publish_tone(0)
+            else:
+                self.current_octave += 1
+                if self.current_octave > self.octave_max:
+                    self.current_octave = self.octave_min
+                self.publish_status(f"Synth octave: {self.current_octave}")
+
+    def _play_touchpad_axis_note(self, axes: List[float]) -> None:
+        """Play the chromatic note under a touchpad X coordinate, if present."""
+        if self.TOUCHPAD_X_AXIS < 0 or self.TOUCHPAD_X_AXIS >= len(axes):
+            return
+        raw_x = max(-1.0, min(1.0, float(axes[self.TOUCHPAD_X_AXIS])))
+        semitone = min(11, max(0, int(((raw_x + 1.0) / 2.0) * 12.0)))
+        note_name = (
+            ('C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B')
+        )[semitone] + str(self.current_octave)
+        frequency = NOTE_FREQ.get(note_name, 0)
+        if frequency != self._last_touchpad_note:
+            self._last_touchpad_note = frequency
+            self.publish_tone(frequency)
+
+    def _stop_playback(self) -> None:
+        self._playback_stop.set()
+        thread = self._playback_thread
+        if thread and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=0.2)
+        self._playback_thread = None
+        self._playback_stop.clear()
 
     def _execute_playback(self, sequence: List[int]):
         """Execute playback either asynchronously or synchronously based on config."""
+        self._stop_playback()
         if self.async_playback:
             self._playback_thread = threading.Thread(
                 target=self._play_tones_worker,
@@ -370,10 +490,44 @@ class BuzzerSongCreator(Node):
     def _play_tones_worker(self, sequence: List[int], step_dur: float, gap_dur: float):
         """Iterate through frequencies and publish tone and silence intervals."""
         for freq in sequence:
+            if self._playback_stop.is_set():
+                return
             self.publish_tone(freq)
-            time.sleep(step_dur)
+            if self._playback_stop.wait(step_dur):
+                return
             self.publish_tone(0)
-            time.sleep(gap_dur)
+            if self._playback_stop.wait(gap_dur):
+                return
+
+    def _execute_timed_playback(self, melody, loop: bool = False):
+        """Play note/slot pairs, retaining rests and 300 ms eighth notes."""
+        # A loop must never run inside the ROS subscription callback, even in
+        # a synchronous test/lab configuration.
+        if self.async_playback or loop:
+            self._playback_thread = threading.Thread(
+                target=self._play_timed_worker,
+                args=(melody, loop),
+                daemon=True,
+            )
+            self._playback_thread.start()
+        else:
+            self._play_timed_worker(melody, loop)
+
+    def _play_timed_worker(self, melody, loop: bool):
+        while True:
+            for frequency, slots in melody:
+                if self._playback_stop.is_set():
+                    return
+                total_s = slots * SEA_SHANTY_2_SLOT_MS / 1000.0
+                play_s = total_s * 0.85
+                self.publish_tone(frequency)
+                if self._playback_stop.wait(play_s):
+                    return
+                self.publish_tone(0)
+                if self._playback_stop.wait(total_s - play_s):
+                    return
+            if not loop:
+                return
 
     def publish_tone(self, frequency: int):
         """Publish a single frequency tone (in Hz) to /buzzer/frequency."""

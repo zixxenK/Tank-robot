@@ -29,6 +29,10 @@ control_map:
     ps: 10
     l3: 11
     r3: 12
+    # Generic Linux joydev layouts that expose the DualSense touchpad click
+    # use this optional slot. Profiles without it leave touchpad_click_index
+    # disabled at runtime.
+    touchpad_click: 13
 
   shaping:
     # The live DualSense js0 reports stick center cleanly and trigger release

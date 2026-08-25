@@ -43,6 +43,7 @@ DEFAULT_BUTTON_INDICES = {
     "ps": 10,
     "l3": 11,
     "r3": 12,
+    "touchpad_click": 13,
 }
 
 REQUIRED_BUTTON_KEYS = frozenset(DEFAULT_BUTTON_INDICES)

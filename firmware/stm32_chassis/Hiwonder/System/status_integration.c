@@ -21,17 +21,31 @@ static LEDObjectTypeDef status_led;
 
 static bool status_initialized = false;
 
-/* Sea Shanty 2 (OSRS) startup hook. Keep this in the firmware image so the
- * melody plays even when the Rock64 host stack has not started yet. */
-static const uint16_t startup_song[] = {
-    440, 554, 659, 740, 659, 554, 440, 554,
-    659, 740, 440, 494, 440, 740, 659, 740,
-    440, 494, 554, 587, 554, 494, 440, 740,
-    659, 554, 494, 440, 740, 659, 554, 440,
+/* Sea Shanty 2 (OSRS) startup hook. Keep the note lengths and rests in the
+ * firmware image so boot playback is the same melody as the host synth. One
+ * slot is an eighth note at 100 BPM: 300 ms. */
+typedef struct {
+    uint16_t frequency;
+    uint8_t slots;
+} StartupSongNote;
+
+static const StartupSongNote startup_song[] = {
+    /* Phrase 1 */
+    {880, 1}, {659, 1}, {587, 1}, {554, 2}, {554, 1}, {587, 1},
+    {659, 1}, {740, 1}, {831, 1}, {659, 2}, {0, 4},
+    /* Phrase 2 */
+    {740, 1}, {659, 1}, {587, 1}, {554, 2}, {554, 1}, {494, 1},
+    {554, 1}, {587, 4}, {0, 4},
+    /* Phrase 3 */
+    {880, 1}, {659, 1}, {587, 1}, {554, 2}, {554, 1}, {587, 1},
+    {659, 1}, {740, 2}, {587, 2}, {0, 4},
+    /* Phrase 4 */
+    {740, 1}, {659, 1}, {587, 1}, {554, 2}, {494, 1}, {554, 1},
+    {587, 2}, {740, 1}, {659, 1}, {554, 1}, {494, 1}, {440, 3},
 };
 
-#define STARTUP_SONG_NOTE_ON_MS  180U
-#define STARTUP_SONG_NOTE_GAP_MS  40U
+#define STARTUP_SONG_SLOT_MS 300U
+#define STARTUP_SONG_ARTICULATION_PERCENT 85U
 
 static bool startup_song_active = false;
 static uint32_t startup_song_elapsed_ms = 0U;
@@ -43,9 +57,14 @@ static void startup_song_start_note(void) {
         return;
     }
 
-    /* Queue one note at a time; the buzzer queue has depth five. */
-    (void)buzzer_didi(buzzers[0], startup_song[startup_song_index],
-                      STARTUP_SONG_NOTE_ON_MS, STARTUP_SONG_NOTE_GAP_MS, 1U);
+    const StartupSongNote *note = &startup_song[startup_song_index];
+    uint32_t total_ms = (uint32_t)note->slots * STARTUP_SONG_SLOT_MS;
+    uint32_t on_ms =
+        (total_ms * STARTUP_SONG_ARTICULATION_PERCENT) / 100U;
+    uint32_t gap_ms = total_ms - on_ms;
+
+    /* Queue one note/rest at a time; the buzzer queue has depth five. */
+    (void)buzzer_didi(buzzers[0], note->frequency, on_ms, gap_ms, 1U);
 }
 
 // ============================================================================
@@ -104,10 +123,11 @@ void Status_Update(uint32_t period_ms) {
      * this control-cadence task out of it avoids concurrent queue/state access. */
     if (startup_song_active) {
         startup_song_elapsed_ms += period_ms;
-        if (startup_song_elapsed_ms >=
-                (STARTUP_SONG_NOTE_ON_MS + STARTUP_SONG_NOTE_GAP_MS)) {
-            startup_song_elapsed_ms -=
-                (STARTUP_SONG_NOTE_ON_MS + STARTUP_SONG_NOTE_GAP_MS);
+        uint32_t note_duration_ms =
+            (uint32_t)startup_song[startup_song_index].slots *
+            STARTUP_SONG_SLOT_MS;
+        if (startup_song_elapsed_ms >= note_duration_ms) {
+            startup_song_elapsed_ms -= note_duration_ms;
             startup_song_index++;
             if (startup_song_index >=
                     (sizeof(startup_song) / sizeof(startup_song[0]))) {

@@ -2,7 +2,7 @@
 
 import pytest
 from robot_audio.buzzer_song_creator import BuzzerSongCreator, Joy
-from robot_audio.songs import NOTE_FREQ, SEA_SHANTY_2_SEQ
+from robot_audio.songs import NOTE_FREQ, SEA_SHANTY_2_MELODY, SEA_SHANTY_2_SEQ
 
 
 @pytest.fixture
@@ -28,7 +28,8 @@ def song_creator():
         pass
 
 
-def make_joy_msg(l1=0, r1=0, triangle=0, hat_x=0.0, hat_y=0.0):
+def make_joy_msg(l1=0, r1=0, triangle=0, touchpad=0,
+                 hat_x=0.0, hat_y=0.0, touch_x=None):
     """Helper to construct Joy message with PS5 mapping."""
     buttons = [0] * 16
     axes = [0.0] * 8
@@ -36,9 +37,12 @@ def make_joy_msg(l1=0, r1=0, triangle=0, hat_x=0.0, hat_y=0.0):
     buttons[4] = int(l1)        # L1_INDEX = 4
     buttons[5] = int(r1)        # R1_INDEX = 5
     buttons[2] = int(triangle)  # TRIANGLE_INDEX = 2
+    buttons[13] = int(touchpad)  # TOUCHPAD_CLICK_INDEX = 13
 
     axes[6] = float(hat_x)      # Linux hat: Left -1.0, Right +1.0
     axes[7] = float(hat_y)      # Linux hat: Up -1.0, Down +1.0
+    if touch_x is not None:
+        axes.append(float(touch_x))
 
     return Joy(axes=axes, buttons=buttons)
 
@@ -163,3 +167,46 @@ def test_edge_triggering_no_duplicate_on_hold(song_creator: BuzzerSongCreator):
     # Frame 4: Pressed again
     song_creator.joy_callback(make_joy_msg(hat_y=1.0))
     assert len(song_creator.song_sequence) == 2
+
+
+def test_touchpad_click_cycles_octave(song_creator: BuzzerSongCreator):
+    """A short touchpad click advances the synth octave and wraps."""
+    song_creator.joy_callback(make_joy_msg())
+    assert song_creator.current_octave == 4
+
+    song_creator.joy_callback(make_joy_msg(touchpad=1))
+    song_creator.joy_callback(make_joy_msg())
+    assert song_creator.current_octave == 5
+
+    # Four more clicks: 6, then wrap to 3, 4, and 5.
+    for expected in (6, 3, 4, 5):
+        song_creator.joy_callback(make_joy_msg(touchpad=1))
+        song_creator.joy_callback(make_joy_msg())
+        assert song_creator.current_octave == expected
+
+
+def test_touchpad_hold_starts_and_release_stops_loop(song_creator: BuzzerSongCreator):
+    """Holding the touchpad starts a cancellable Sea Shanty loop."""
+    song_creator._handle_touchpad(True, False, 10.0, [0.0] * 8)
+    assert not song_creator._touchpad_loop_active
+
+    song_creator._handle_touchpad(True, True, 10.36, [0.0] * 8)
+    assert song_creator._touchpad_loop_active
+    assert song_creator._playback_thread is not None
+
+    song_creator._handle_touchpad(False, True, 10.40, [0.0] * 8)
+    assert not song_creator._touchpad_loop_active
+    assert song_creator._playback_thread is None
+
+
+def test_touchpad_x_maps_to_chromatic_note(song_creator: BuzzerSongCreator):
+    """A driver-provided touch X axis maps the pad to a chromatic octave."""
+    song_creator.TOUCHPAD_X_AXIS = 8
+    song_creator._handle_touchpad(True, False, 10.0,
+                                  [0.0] * 8 + [-1.0])
+    song_creator._handle_touchpad(True, True, 10.01,
+                                  [0.0] * 8 + [-1.0])
+    assert song_creator._last_touchpad_note == NOTE_FREQ['C4']
+    song_creator._handle_touchpad(True, True, 10.01,
+                                  [0.0] * 8 + [1.0])
+    assert song_creator._last_touchpad_note == NOTE_FREQ['B4']
