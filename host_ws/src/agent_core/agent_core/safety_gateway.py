@@ -324,7 +324,8 @@ class SafetyGatewayNode(Node):
         self._agent_timeout = safe_float("agent_command_timeout", 0.1)
         self._heartbeat_timeout = safe_float("agent_heartbeat_timeout", 0.1)
         self._output_rate_hz = safe_float("output_rate_hz", 50.0)
-        self._monitor_battery = bool(value("monitor_battery") if value("monitor_battery") is not None else True)
+        self._monitor_battery = bool(value("monitor_battery") if value(
+            "monitor_battery") is not None else True)
         self._battery_startup_grace = safe_float(
             "battery_startup_grace_period", 5.0
         )
@@ -339,7 +340,8 @@ class SafetyGatewayNode(Node):
         self._estop_topic = safe_str("estop_topic", "/safety/e_stop")
         self._agent_heartbeat_topic = safe_str("agent_heartbeat_topic", "/agent/heartbeat")
         self._battery_topic = safe_str("battery_topic", "/stm32/battery")
-        self._battery_reset_service = safe_str("battery_reset_service", "/safety/reset_battery_latch")
+        self._battery_reset_service = safe_str(
+            "battery_reset_service", "/safety/reset_battery_latch")
 
     @staticmethod
     def _control_limits(control_map: ControlMap) -> Tuple[float, float]:

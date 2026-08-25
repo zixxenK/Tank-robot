@@ -57,7 +57,7 @@ class _LMStudioNode(Node):
         self.declare_parameter("base_url", default_base_url)
         self.declare_parameter("model", default_model)
         self.declare_parameter("request_timeout", 60.0)
-        
+
         base_url = self.get_parameter("base_url").value
         model = str(self.get_parameter("model").value or "").strip()
         timeout = self.get_parameter("request_timeout").value
@@ -67,7 +67,7 @@ class _LMStudioNode(Node):
                 "LM Studio model is required; set the model parameter or "
                 "LM_STUDIO_MODEL to the exact loaded model identifier"
             )
-        
+
         self._client = LMStudioClient(
             str(base_url) if base_url is not None else "http://192.168.56.1:1234",
             model,

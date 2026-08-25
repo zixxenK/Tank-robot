@@ -1,4 +1,24 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tank Robot Team
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 """Comprehensive telemetry recorder for offline training data collection.
 
 Records all relevant robot telemetry including:
@@ -12,11 +32,10 @@ Records all relevant robot telemetry including:
 - Agent commands and proposals
 """
 
-import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional
 
 import rclpy
 from rclpy.node import Node
@@ -292,7 +311,8 @@ class TelemetryRecorder(Node):
 
         try:
             from rclpy.serialization import serialize_message
-            self._writer.write(topic_name, serialize_message(message), self.get_clock().now().nanoseconds)
+            self._writer.write(topic_name, serialize_message(
+                message), self.get_clock().now().nanoseconds)
             self._message_count += 1
         except Exception as e:
             self.get_logger().error(f"Failed to write message to {topic_name}: {e}")

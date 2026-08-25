@@ -25,8 +25,13 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
   find_package(ament_lint_common REQUIRED)
+  find_package(ament_cmake_pep257 REQUIRED)
 
+  # The package uses Google-style Args/Returns sections.  Keep the remaining
+  # pep257 checks active while excluding incompatible NumPy-section rules.
+  set(AMENT_LINT_AUTO_EXCLUDE ament_cmake_pep257)
   ament_lint_auto_find_test_dependencies()
+  ament_pep257(--add-ignore D204 D213 D406 D407 D413)
 endif()
 
 ament_package()

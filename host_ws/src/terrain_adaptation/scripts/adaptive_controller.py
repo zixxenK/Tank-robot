@@ -1,4 +1,24 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tank Robot Team
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 """ROS2 node for adaptive control based on terrain classification."""
 
 import rclpy
@@ -6,7 +26,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import Twist
 from std_msgs.msg import String
-from terrain_adaptation.terrain_classifier import TerrainClassifier, TerrainType
+from terrain_adaptation.terrain_classifier import TerrainClassifier
 from terrain_adaptation.adaptive_controller import AdaptiveController
 
 
@@ -71,7 +91,7 @@ class AdaptiveControllerNode(Node):
         # Publish terrain type
         terrain = self._adaptive_controller.get_current_terrain()
         confidence = self._terrain_classifier.get_confidence()
-        
+
         terrain_msg = String()
         terrain_msg.data = f"{terrain.value}:{confidence:.2f}"
         self._terrain_pub.publish(terrain_msg)

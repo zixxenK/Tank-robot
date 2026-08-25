@@ -1,4 +1,24 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tank Robot Team
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 """Obstacle detection using camera and depth estimation.
 
 Provides:
@@ -10,9 +30,8 @@ Provides:
 
 import cv2
 import numpy as np
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional
 from dataclasses import dataclass
-import time
 
 import rclpy
 from rclpy.node import Node
@@ -243,8 +262,14 @@ class ObstacleDetector(Node):
 
         for obstacle in obstacles[1:]:
             # Check if obstacles overlap
-            overlap_x = abs(current.center_x - obstacle.center_x) < (current.width + obstacle.width) / 2
-            overlap_y = abs(current.center_y - obstacle.center_y) < (current.height + obstacle.height) / 2
+            overlap_x = (
+                abs(current.center_x - obstacle.center_x)
+                < (current.width + obstacle.width) / 2
+            )
+            overlap_y = (
+                abs(current.center_y - obstacle.center_y)
+                < (current.height + obstacle.height) / 2
+            )
 
             if overlap_x and overlap_y:
                 # Merge obstacles
@@ -280,7 +305,9 @@ class ObstacleDetector(Node):
 
         self._obstacle_pub.publish(msg)
 
-    def _compute_avoidance(self, obstacles: List[Obstacle], image_shape: Tuple[int, int, int]) -> Twist:
+    def _compute_avoidance(
+        self, obstacles: List[Obstacle], image_shape: Tuple[int, int, int]
+    ) -> Twist:
         """Compute avoidance command based on detected obstacles."""
         cmd = Twist()
 

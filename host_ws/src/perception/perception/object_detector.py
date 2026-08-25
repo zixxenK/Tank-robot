@@ -1,4 +1,24 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tank Robot Team
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 """Object detection node using OpenCV for real-time recognition.
 
 Supports:
@@ -11,7 +31,7 @@ Supports:
 
 import cv2
 import numpy as np
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple
 from dataclasses import dataclass
 import time
 
@@ -25,7 +45,6 @@ from rclpy.qos import (
 from sensor_msgs.msg import Image
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 from geometry_msgs.msg import Pose2D
-from std_msgs.msg import String
 from cv_bridge import CvBridge
 
 
@@ -59,7 +78,7 @@ class ObjectDetector(Node):
         self._enable_debug = self.get_parameter("enable_debug").value
         self._min_confidence = self.get_parameter("min_confidence").value
         self._max_objects = self.get_parameter("max_objects").value
-        
+
         # Default color ranges (hardcoded for simplicity)
         self._color_ranges = [
             {"name": "red", "lower": [0, 100, 100], "upper": [10, 255, 255]},

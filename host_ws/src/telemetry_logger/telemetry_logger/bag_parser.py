@@ -1,11 +1,30 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tank Robot Team
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 """Rosbag2 parser for extracting training data from recorded telemetry."""
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
-from datetime import datetime
 
 try:
     from rosbag2_py import StorageOptions, SequentialReader
@@ -76,7 +95,7 @@ class BagParser:
             raise RuntimeError("Bag not open")
 
         samples: List[TelemetrySample] = []
-        
+
         # Temporary storage for latest values from each topic
         state: Dict[str, Any] = {
             "cmd_vel_linear": 0.0,
@@ -95,7 +114,7 @@ class BagParser:
 
         while self._reader.has_next():
             (topic, data, timestamp) = self._reader.read_next()
-            
+
             # Parse message based on topic
             if topic == "/cmd_vel":
                 from geometry_msgs.msg import Twist
@@ -116,12 +135,12 @@ class BagParser:
                 from sensor_msgs.msg import Imu
                 from rclpy.serialization import deserialize_message
                 msg = deserialize_message(data, Imu)
-                state["imu_accel"] = (msg.linear_acceleration.x, 
-                                     msg.linear_acceleration.y, 
-                                     msg.linear_acceleration.z)
+                state["imu_accel"] = (msg.linear_acceleration.x,
+                                      msg.linear_acceleration.y,
+                                      msg.linear_acceleration.z)
                 state["imu_gyro"] = (msg.angular_velocity.x,
-                                    msg.angular_velocity.y,
-                                    msg.angular_velocity.z)
+                                     msg.angular_velocity.y,
+                                     msg.angular_velocity.z)
 
             elif topic == "/stm32/battery":
                 from sensor_msgs.msg import BatteryState
@@ -135,10 +154,10 @@ class BagParser:
                 from rclpy.serialization import deserialize_message
                 msg = deserialize_message(data, Odometry)
                 state["odometry"] = (msg.pose.pose.position.x,
-                                   msg.pose.pose.position.y,
-                                   0.0)  # Simplified yaw
+                                     msg.pose.pose.position.y,
+                                     0.0)  # Simplified yaw
                 state["odometry_twist"] = (msg.twist.twist.linear.x,
-                                         msg.twist.twist.angular.z)
+                                           msg.twist.twist.angular.z)
 
             elif topic == "/safety/e_stop":
                 from std_msgs.msg import Bool

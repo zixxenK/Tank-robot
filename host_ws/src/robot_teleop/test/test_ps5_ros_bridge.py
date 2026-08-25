@@ -1,6 +1,7 @@
 """Unit tests for PS5RosBridge teleoperation mapping and controls."""
 
 import os
+import time
 import pytest
 from robot_teleop.ps5_ros_bridge import PS5RosBridge, detect_device_profile, find_joystick_device
 from robot_control.control_map import load_control_map
@@ -243,6 +244,7 @@ def test_disconnect_and_reconnect_zeroing(bridge: PS5RosBridge) -> None:
     bridge._axes[1] = -0.8
     bridge._axis_ever_moved[1] = True
     bridge._joy_fd = None  # Simulate disconnected state
+    bridge._last_reconnect_attempt = time.monotonic()
 
     bridge._publish_twist()
     assert bridge._joy_fd is None

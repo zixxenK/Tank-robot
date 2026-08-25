@@ -1,12 +1,31 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tank Robot Team
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 """IMU-based terrain classification using statistical features and machine learning."""
 
 import numpy as np
-from typing import List, Tuple, Optional, Dict
+from typing import Optional
 from dataclasses import dataclass
 from enum import Enum
 from collections import deque
-import time
 
 
 class TerrainType(Enum):
@@ -53,7 +72,7 @@ class TerrainClassifier:
         """
         self._window_size = window_size
         self._sample_rate = sample_rate
-        
+
         # Data buffers
         self._accel_x = deque(maxlen=window_size)
         self._accel_y = deque(maxlen=window_size)
@@ -61,7 +80,7 @@ class TerrainClassifier:
         self._gyro_x = deque(maxlen=window_size)
         self._gyro_y = deque(maxlen=window_size)
         self._gyro_z = deque(maxlen=window_size)
-        
+
         # Classification thresholds (tuned for typical tank robot)
         self._thresholds = {
             "flat_accel_std": 0.2,
@@ -72,7 +91,7 @@ class TerrainClassifier:
         }
 
     def add_imu_data(self, accel_x: float, accel_y: float, accel_z: float,
-                    gyro_x: float, gyro_y: float, gyro_z: float) -> None:
+                     gyro_x: float, gyro_y: float, gyro_z: float) -> None:
         """Add IMU sample to buffer."""
         self._accel_x.append(accel_x)
         self._accel_y.append(accel_y)
@@ -162,7 +181,7 @@ class TerrainClassifier:
 
         # Confidence based on how far from decision boundaries
         terrain = self.classify()
-        
+
         if terrain == TerrainType.OBSTACLE:
             # High confidence for obstacles
             return min(1.0, features.accel_magnitude_std / self._thresholds["obstacle_accel_std"])

@@ -1,11 +1,30 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tank Robot Team
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 """Base path planner interface and utilities."""
 
 import numpy as np
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
-import heapq
 import math
 
 
@@ -150,7 +169,7 @@ class GridMap:
             # Mark circular obstacle
             grid_x, grid_y = self.world_to_grid(point)
             grid_radius = int(radius / self._resolution)
-            
+
             for dy in range(-grid_radius, grid_radius + 1):
                 for dx in range(-grid_radius, grid_radius + 1):
                     if dx*dx + dy*dy <= grid_radius*grid_radius:
@@ -174,17 +193,19 @@ class GridMap:
         self._grid.fill(0)
         self._obstacles.clear()
 
-    def get_neighbors(self, grid_x: int, grid_y: int, diagonal: bool = True) -> List[Tuple[int, int]]:
+    def get_neighbors(
+        self, grid_x: int, grid_y: int, diagonal: bool = True
+    ) -> List[Tuple[int, int]]:
         """Get valid neighboring cells."""
         neighbors = []
-        
+
         # 4-connected neighbors
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-        
+
         if diagonal:
             # Add 8-connected neighbors
             directions.extend([(1, 1), (1, -1), (-1, 1), (-1, -1)])
-        
+
         for dx, dy in directions:
             nx, ny = grid_x + dx, grid_y + dy
             if 0 <= nx < self._grid_width and 0 <= ny < self._grid_height:
@@ -199,7 +220,7 @@ class GridMap:
                 )
                 if not diagonal_blocked and not self.is_occupied(nx, ny):
                     neighbors.append((nx, ny))
-        
+
         return neighbors
 
 
@@ -248,12 +269,12 @@ class PathPlanner:
             return path
 
         interpolated = [path.waypoints[0]]
-        
+
         for i in range(1, len(path.waypoints)):
             prev = interpolated[-1]
             curr = path.waypoints[i]
             distance = prev.distance_to(curr)
-            
+
             if distance > max_distance:
                 num_points = int(distance / max_distance)
                 for j in range(1, num_points + 1):
@@ -263,7 +284,7 @@ class PathPlanner:
                         prev.y + t * (curr.y - prev.y),
                     )
                     interpolated.append(new_point)
-            
+
             interpolated.append(curr)
 
         return Path(waypoints=interpolated, cost=path.cost)

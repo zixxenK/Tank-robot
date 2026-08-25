@@ -1,10 +1,30 @@
 #!/usr/bin/env python3
+# Copyright 2026 Tank Robot Team
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 """Feature extraction from telemetry data for machine learning training."""
 
 import json
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 try:
@@ -28,13 +48,13 @@ class FeatureSet:
     std_linear_cmd: float
     mean_angular_cmd: float
     std_angular_cmd: float
-    
+
     # Encoder features
     mean_encoder_left: float
     mean_encoder_right: float
     encoder_diff_mean: float
     encoder_diff_std: float
-    
+
     # IMU features
     imu_accel_magnitude_mean: float
     imu_accel_magnitude_std: float
@@ -43,22 +63,22 @@ class FeatureSet:
     imu_accel_x_skew: float
     imu_accel_y_skew: float
     imu_accel_z_skew: float
-    
+
     # Battery features
     battery_voltage_mean: float
     battery_voltage_std: float
     battery_current_mean: float
-    
+
     # Odometry features
     velocity_mean: float
     angular_velocity_mean: float
     position_change: float
     heading_change: float
-    
+
     # Safety features
     estop_active_ratio: float
     bridge_alive_ratio: float
-    
+
     # Label (for supervised learning)
     label: Optional[int] = None  # 0=normal, 1=anomaly, 2=success, 3=failure
 
@@ -69,7 +89,7 @@ class FeatureExtractor:
     def __init__(self, window_size: int = 100, overlap: int = 50) -> None:
         """
         Initialize feature extractor.
-        
+
         Args:
             window_size: Number of samples per window
             overlap: Number of samples to overlap between windows
@@ -84,7 +104,7 @@ class FeatureExtractor:
             return []
 
         features: List[FeatureSet] = []
-        
+
         for i in range(0, len(samples) - self._window_size + 1, self._step):
             window = samples[i:i + self._window_size]
             feature_set = self._extract_window_features(window)
@@ -121,10 +141,10 @@ class FeatureExtractor:
 
         # Position and heading changes
         position_change = np.sqrt(
-            (odometry_x[-1] - odometry_x[0])**2 + 
+            (odometry_x[-1] - odometry_x[0])**2 +
             (odometry_y[-1] - odometry_y[0])**2
         )
-        
+
         # Approximate heading change from angular velocity integral
         heading_change = np.sum(angular_velocity) * (1.0 / 50.0)  # Assuming 50Hz
 
@@ -134,13 +154,13 @@ class FeatureExtractor:
             std_linear_cmd=float(np.std(linear_cmd)),
             mean_angular_cmd=float(np.mean(angular_cmd)),
             std_angular_cmd=float(np.std(angular_cmd)),
-            
+
             # Encoder features
             mean_encoder_left=float(np.mean(encoder_left)),
             mean_encoder_right=float(np.mean(encoder_right)),
             encoder_diff_mean=float(np.mean(encoder_diff)),
             encoder_diff_std=float(np.std(encoder_diff)),
-            
+
             # IMU features
             imu_accel_magnitude_mean=float(np.mean(imu_accel_mag)),
             imu_accel_magnitude_std=float(np.std(imu_accel_mag)),
@@ -149,18 +169,18 @@ class FeatureExtractor:
             imu_accel_x_skew=float(skew(imu_accel_x)),
             imu_accel_y_skew=float(skew(imu_accel_y)),
             imu_accel_z_skew=float(skew(imu_accel_z)),
-            
+
             # Battery features
             battery_voltage_mean=float(np.mean(battery_voltage)),
             battery_voltage_std=float(np.std(battery_voltage)),
             battery_current_mean=float(np.mean(battery_current)),
-            
+
             # Odometry features
             velocity_mean=float(np.mean(linear_velocity)),
             angular_velocity_mean=float(np.mean(angular_velocity)),
             position_change=float(position_change),
             heading_change=float(heading_change),
-            
+
             # Safety features
             estop_active_ratio=float(np.mean(estop_active)),
             bridge_alive_ratio=float(np.mean(bridge_alive)),
@@ -175,17 +195,17 @@ class FeatureExtractor:
         encoder_left = np.array([s['encoder_left'] for s in window])
         encoder_right = np.array([s['encoder_right'] for s in window])
         imu_accel_x = np.array([s['imu_accel_x'] for s in window])
-        
+
         # Compute FFT
         fft_encoder_left = np.fft.fft(encoder_left)
         fft_encoder_right = np.fft.fft(encoder_right)
         fft_accel_x = np.fft.fft(imu_accel_x)
-        
+
         # Power spectral density
         psd_encoder_left = np.abs(fft_encoder_left)**2
         psd_encoder_right = np.abs(fft_encoder_right)**2
         psd_accel_x = np.abs(fft_accel_x)**2
-        
+
         return {
             'psd_encoder_left': psd_encoder_left,
             'psd_encoder_right': psd_encoder_right,
@@ -207,7 +227,7 @@ class FeatureExtractor:
         # Convert to numpy array
         feature_arrays = []
         labels = []
-        
+
         for feature in features:
             feature_dict = {
                 'mean_linear_cmd': feature.mean_linear_cmd,
@@ -240,10 +260,10 @@ class FeatureExtractor:
 
         X = np.array(feature_arrays)
         y = np.array(labels)
-        
+
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         np.savez(output_file, X=X, y=y)
         print(f"Exported {len(features)} feature vectors to {output_path}")
         print(f"Feature shape: {X.shape}, Label shape: {y.shape}")
@@ -256,7 +276,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Extract features from telemetry data")
     parser.add_argument("input_file", help="Input JSON file with telemetry samples")
     parser.add_argument("--output", "-o", default="features.npz", help="Output numpy file")
-    parser.add_argument("--window-size", type=int, default=100, help="Window size for feature extraction")
+    parser.add_argument("--window-size", type=int, default=100,
+                        help="Window size for feature extraction")
     parser.add_argument("--overlap", type=int, default=50, help="Overlap between windows")
     parser.add_argument("--label", type=int, help="Label for supervised learning")
 

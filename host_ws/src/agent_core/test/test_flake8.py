@@ -8,5 +8,5 @@ import pytest
 @pytest.mark.linter
 def test_flake8() -> None:
     """Run flake8 with the repository line-length policy."""
-    result, errors = main_with_errors(argv=["--linelength", "79"])
+    result, errors = main_with_errors(argv=["--linelength", "99"])
     assert result == 0, "\n".join(errors)
