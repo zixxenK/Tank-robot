@@ -13,13 +13,13 @@
 #include "cmsis_os2.h"
 
 #include "global_conf.h"
-#include "lwmem_porting.h"
 
 #include "buzzer.h"
 
 
 /* 全系统全局变量 */
 BuzzerObjectTypeDef *buzzers[1];
+static BuzzerObjectTypeDef buzzer1_object;
 static osMessageQueueId_t buzzer1_ctrl_ququeHandle; /* 蜂鸣器控制队列Handle */
 
 static void buzzer1_set_pwm(BuzzerObjectTypeDef *self, uint32_t freq);         /* pwm设置接口 */
@@ -48,8 +48,9 @@ void buzzers_init(void)
 	const osMessageQueueAttr_t buzzer1_ctrl_quque_attributes = { .name = "buzzer1_ctrl_quque" };
 	buzzer1_ctrl_ququeHandle = osMessageQueueNew (5, sizeof(BuzzerCtrlTypeDef), &buzzer1_ctrl_quque_attributes);
 	
-	/* 建立蜂鸣器对象实例 */
-    buzzers[0] = LWMEM_CCM_MALLOC(sizeof(BuzzerObjectTypeDef)); 
+	/* Keep the live buzzer object in static storage.  The production motor
+	 * image does not initialize the legacy LwMEM heap before this path runs. */
+    buzzers[0] = &buzzer1_object;
 	buzzer_object_init(buzzers[0]);
 	buzzers[0]->id = 1;
     buzzers[0]->set_pwm = buzzer1_set_pwm;

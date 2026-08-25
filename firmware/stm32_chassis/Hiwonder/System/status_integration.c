@@ -100,11 +100,8 @@ void Status_Update(uint32_t period_ms) {
         return;
     }
     
-    // Update buzzer state machine
-    if (buzzers[0] != NULL) {
-        buzzer_task_handler(buzzers[0], period_ms);
-    }
-
+    /* The buzzer state machine is owned by buzzer_timer_callback().  Keeping
+     * this control-cadence task out of it avoids concurrent queue/state access. */
     if (startup_song_active) {
         startup_song_elapsed_ms += period_ms;
         if (startup_song_elapsed_ms >=

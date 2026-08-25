@@ -99,6 +99,18 @@ def test_startup_sea_shanty_is_started_after_buzzer_initialization():
     assert "buzzer_off(buzzers[0])" in status
 
 
+def test_buzzer_uses_static_storage_and_single_timer_owner():
+    buzzer = _read(
+        "firmware/stm32_chassis/Hiwonder/Portings/buzzer_porting.c"
+    )
+    status = _read(
+        "firmware/stm32_chassis/Hiwonder/System/status_integration.c"
+    )
+    assert "static BuzzerObjectTypeDef buzzer1_object;" in buzzer
+    assert "buzzers[0] = &buzzer1_object;" in buzzer
+    assert "buzzer_task_handler(buzzers[0], period_ms);" not in status
+
+
 def test_stm32_flash_helper_is_rock64_only_even_for_build_requests():
     flash = _read("scripts/flash_stm32.sh")
     assert 'if [[ "$(uname -m)" != "aarch64" ]]; then' in flash
