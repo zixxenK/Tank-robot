@@ -98,9 +98,10 @@ except ImportError:
 
 from robot_audio.songs import (
     NOTE_FREQ,
+    SEA_SHANTY_2_ARTICULATION_MS,
+    SEA_SHANTY_2_DURATIONS_MS,
     SEA_SHANTY_2_MELODY,
     SEA_SHANTY_2_SEQ,
-    SEA_SHANTY_2_SLOT_MS,
 )
 from robot_control.control_map import (
     ControlMap,
@@ -500,7 +501,7 @@ class BuzzerSongCreator(Node):
                 return
 
     def _execute_timed_playback(self, melody, loop: bool = False):
-        """Play note/slot pairs, retaining rests and 300 ms eighth notes."""
+        """Play note/duration pairs using the supplied 102 BPM timing."""
         # A loop must never run inside the ROS subscription callback, even in
         # a synchronous test/lab configuration.
         if self.async_playback or loop:
@@ -515,16 +516,25 @@ class BuzzerSongCreator(Node):
 
     def _play_timed_worker(self, melody, loop: bool):
         while True:
-            for frequency, slots in melody:
+            for index, (frequency, _duration_value) in enumerate(melody):
                 if self._playback_stop.is_set():
                     return
-                total_s = slots * SEA_SHANTY_2_SLOT_MS / 1000.0
-                play_s = total_s * 0.85
+                total_s = SEA_SHANTY_2_DURATIONS_MS[index] / 1000.0
+                next_frequency = (
+                    melody[index + 1][0] if index + 1 < len(melody) else 0
+                )
+                articulation_s = (
+                    SEA_SHANTY_2_ARTICULATION_MS / 1000.0
+                    if frequency == next_frequency and frequency != 0
+                    else 0.0
+                )
+                play_s = max(0.0, total_s - articulation_s)
                 self.publish_tone(frequency)
                 if self._playback_stop.wait(play_s):
                     return
-                self.publish_tone(0)
-                if self._playback_stop.wait(total_s - play_s):
+                if articulation_s:
+                    self.publish_tone(0)
+                if self._playback_stop.wait(articulation_s):
                     return
             if not loop:
                 return

@@ -33,28 +33,69 @@ NOTE_FREQ: Dict[str, int] = {
     'F6': 1397, 'F#6': 1480, 'G6': 1568, 'A6': 1760, 'B6': 1976,
 }
 
-# OSRS Sea Shanty 2 (Port Sarim theme), in the note/duration arrangement used
-# by the original transcription.  One duration slot is one eighth note at
-# 100 BPM (300 ms).  Keeping the rests and durations is important: a flat
-# frequency list turns this into a different tune.
-SEA_SHANTY_2_SLOT_MS = 300
-SEA_SHANTY_2_MELODY: List[Tuple[int, int]] = [
-    # Phrase 1 (measures 1-2)
-    (880, 1), (659, 1), (587, 1), (554, 2), (554, 1), (587, 1),
-    (659, 1), (740, 1), (831, 1), (659, 2), (0, 4),
-    # Phrase 2 (measures 3-4)
-    (740, 1), (659, 1), (587, 1), (554, 2), (554, 1), (494, 1),
-    (554, 1), (587, 4), (0, 4),
-    # Phrase 3 (measures 5-6)
-    (880, 1), (659, 1), (587, 1), (554, 2), (554, 1), (587, 1),
-    (659, 1), (740, 2), (587, 2), (0, 4),
-    # Phrase 4 (measures 7-8)
-    (740, 1), (659, 1), (587, 1), (554, 2), (494, 1), (554, 1),
-    (587, 2), (740, 1), (659, 1), (554, 1), (494, 1), (440, 3),
+# OSRS Sea Shanty 2 (Port Sarim theme), full A-D transcription supplied for
+# this robot. Duration values use the Arduino convention: 2=half, 4=quarter,
+# 8=eighth, 16=sixteenth, and a negative denominator is dotted.
+SEA_SHANTY_2_BPM = 102
+SEA_SHANTY_2_WHOLE_NOTE_MS = (60000 * 4) // SEA_SHANTY_2_BPM
+SEA_SHANTY_2_ARTICULATION_MS = 12
+SEA_SHANTY_2_NOTE_MELODY: List[Tuple[str, int]] = [
+    # Section A: main theme
+    ('A5', 8), ('E5', 8), ('D5', 8), ('C#5', -4),
+    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8), ('G#5', 8), ('E5', -4),
+    ('REST', 4),
+    ('F#5', 8), ('E5', 8), ('D5', 8), ('C#5', -4),
+    ('C#5', 8), ('B4', 8), ('C#5', 8), ('D5', 2), ('REST', 4),
+    ('A5', 8), ('E5', 8), ('D5', 8), ('C#5', -4),
+    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 4), ('D5', 4), ('REST', 4),
+    ('F#5', 8), ('E5', 8), ('D5', 8), ('C#5', 4), ('B4', 8),
+    ('C#5', 8), ('D5', 4), ('F#5', 8), ('E5', 8), ('C#5', 8), ('B4', 8),
+    ('A4', 2), ('REST', 4),
+
+    # Section B: high synth lead counter-melody
+    ('A5', 8), ('B5', 8), ('C#6', 4), ('C#6', 8), ('B5', 8), ('A5', 8), ('G#5', 4),
+    ('E5', 8), ('F#5', 8), ('G#5', 4), ('G#5', 8), ('F#5', 8), ('E5', 8), ('D5', 4),
+    ('C#5', 8), ('D5', 8), ('E5', 4), ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8),
+    ('E5', 8), ('D5', 8), ('C#5', 8), ('B4', 4), ('A4', 2), ('REST', 4),
+    ('A5', 8), ('B5', 8), ('C#6', 4), ('C#6', 8), ('B5', 8), ('A5', 8), ('G#5', 4),
+    ('E5', 8), ('F#5', 8), ('G#5', 4), ('G#5', 8), ('F#5', 8), ('E5', 8), ('D5', 4),
+    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8), ('G#5', 8), ('A5', 8), ('B5', 8), ('C#6', 8),
+    ('D6', 4), ('C#6', 4), ('A5', 2), ('REST', 4),
+
+    # Section C: accordion solo and breakdown
+    ('F#5', 16), ('G#5', 16), ('A5', 8), ('A5', 8), ('G#5', 8), ('F#5', 8), ('E5', 8),
+    ('C#5', 8), ('D5', 8), ('E5', 8), ('E5', 8), ('D5', 8), ('C#5', 8), ('B4', 8),
+    ('D5', 8), ('D5', 8), ('C#5', 8), ('B4', 8), ('A4', 8), ('B4', 8),
+    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8), ('G#5', 8), ('A5', 4),
+    ('F#5', 16), ('G#5', 16), ('A5', 8), ('A5', 8), ('G#5', 8), ('F#5', 8), ('E5', 8),
+    ('C#5', 8), ('D5', 8), ('E5', 8), ('E5', 8), ('D5', 8), ('C#5', 8), ('B4', 8),
+    ('C#5', 8), ('D5', 8), ('E5', 8), ('F#5', 8), ('G#5', 8), ('A5', 8),
+    ('B5', 8), ('C#6', 8), ('D6', 4), ('C#6', 4), ('A5', 2), ('REST', 4),
+
+    # Section D: high flute climax run
+    ('C#6', 8), ('D6', 8), ('E6', 4), ('E6', 8), ('D6', 8), ('C#6', 8), ('B5', 4),
+    ('G#5', 8), ('A5', 8), ('B5', 4), ('B5', 8), ('A5', 8), ('G#5', 8), ('F#5', 4),
+    ('E5', 8), ('F#5', 8), ('G#5', 8), ('A5', 8), ('B5', 8), ('C#6', 8), ('D6', 8), ('E6', 8),
+    ('F#6', 4), ('E6', 4), ('C#6', 4), ('B5', 4), ('A5', 2), ('REST', 2),
 ]
 
-# Compatibility form for the existing ROS Int32MultiArray topic.  Playback
-# uses SEA_SHANTY_2_MELODY so the timing is retained locally.
+
+def _duration_ms(duration_value: int) -> int:
+    """Convert the supplied Arduino duration denominator to milliseconds."""
+    denominator = abs(int(duration_value))
+    duration = SEA_SHANTY_2_WHOLE_NOTE_MS // denominator
+    return (duration * 3) // 2 if duration_value < 0 else duration
+
+
+SEA_SHANTY_2_MELODY: List[Tuple[int, int]] = [
+    (NOTE_FREQ[note], duration) for note, duration in SEA_SHANTY_2_NOTE_MELODY
+]
+SEA_SHANTY_2_DURATIONS_MS: List[int] = [
+    _duration_ms(duration) for _, duration in SEA_SHANTY_2_NOTE_MELODY
+]
+
+# Compatibility form for the existing ROS Int32MultiArray topic. Playback uses
+# the timed melody above so rests and legato timing are retained locally.
 SEA_SHANTY_2_SEQ: List[int] = [frequency for frequency, _ in SEA_SHANTY_2_MELODY]
 SEA_SHANTY_2_FULL_MELODY: List[int] = list(SEA_SHANTY_2_SEQ)
 

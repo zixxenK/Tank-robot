@@ -5,8 +5,10 @@ from robot_audio.songs import (
     NOTE_FREQ,
     SEA_SHANTY_2_FULL_MELODY,
     SEA_SHANTY_2_MELODY,
+    SEA_SHANTY_2_NOTE_MELODY,
     SEA_SHANTY_2_SEQ,
-    SEA_SHANTY_2_SLOT_MS,
+    SEA_SHANTY_2_BPM,
+    SEA_SHANTY_2_DURATIONS_MS,
     notes_to_frequencies,
 )
 
@@ -32,11 +34,15 @@ def test_note_frequencies_octaves():
 
 def test_sea_shanty_2_sequence():
     """Verify the supplied Sea Shanty transcription, including rests."""
-    assert SEA_SHANTY_2_SLOT_MS == 300
+    assert SEA_SHANTY_2_BPM == 102
     assert SEA_SHANTY_2_SEQ == [frequency for frequency, _ in SEA_SHANTY_2_MELODY]
-    assert SEA_SHANTY_2_MELODY[:5] == [
-        (880, 1), (659, 1), (587, 1), (554, 2), (554, 1)
+    assert SEA_SHANTY_2_NOTE_MELODY[:5] == [
+        ('A5', 8), ('E5', 8), ('D5', 8), ('C#5', -4), ('C#5', 8)
     ]
+    assert SEA_SHANTY_2_MELODY[:5] == [
+        (880, 8), (659, 8), (587, 8), (554, -4), (554, 8)
+    ]
+    assert SEA_SHANTY_2_DURATIONS_MS[:4] == [294, 294, 294, 882]
     assert (0, 4) in SEA_SHANTY_2_MELODY
     assert SEA_SHANTY_2_FULL_MELODY == SEA_SHANTY_2_SEQ
 
