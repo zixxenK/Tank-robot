@@ -1,8 +1,9 @@
-# Hiwonder Glowy ultrasonic sensor build path
+# Hiwonder Glowy ultrasonic compatibility path
 
-This is the production distance-sensor path for the Hiwonder Glowy RGB
-ultrasonic module. The module is an I2C peripheral and plugs into the
-Hiwonder controller's dedicated four-pin I2C connector.
+This is a reserved compatibility path for the Hiwonder Glowy RGB ultrasonic
+module. It is not the supported sensor path for this robot; the supported
+sensor is the direct HC-SR04 controller-header path in
+[ULTRASONIC_BUILD_PATH.md](ULTRASONIC_BUILD_PATH.md).
 
 ## Hardware
 
@@ -24,7 +25,7 @@ The official module specification is 5 V, 2–400 cm, 40 kHz, 15° field of
 view, and a four-pin interface. Use the matching Hiwonder four-wire lead and
 the controller's labeled connector; do not infer pin order from wire colors.
 
-## Firmware and ROS path
+## Reserved firmware and ROS path
 
 ```text
 Glowy module -> controller I2C2 PB10/PB11 -> STM32 -> USART1 -> Rock64

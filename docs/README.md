@@ -20,7 +20,7 @@ remaining documents are focused references:
 | ROS communication checks | [ROS2_COMMUNICATION_VERIFICATION.md](ROS2_COMMUNICATION_VERIFICATION.md) |
 | Execution and motor protocol references | [TANK_ROBOT_EXECUTION_DIRECTIVE.md](TANK_ROBOT_EXECUTION_DIRECTIVE.md), [UART_MOTOR_CONTROL.md](UART_MOTOR_CONTROL.md) |
 | Motors and chassis evidence | [motors/](motors/), [ROCK64_PI2_BUS_PINOUT.md](ROCK64_PI2_BUS_PINOUT.md) |
-| Optional LiDAR and Glowy range sensor | [lidar_scanner/](lidar_scanner/), [GLOWY_ULTRASONIC_BUILD_PATH.md](GLOWY_ULTRASONIC_BUILD_PATH.md) |
+| Optional LiDAR and HC-SR04 range sensor | [lidar_scanner/](lidar_scanner/), [ULTRASONIC_BUILD_PATH.md](ULTRASONIC_BUILD_PATH.md) |
 | Historical board evidence and PDFs | [boardphotos/](boardphotos/), `*.pdf` files in this directory |
 
 The index intentionally keeps historical evidence available while giving

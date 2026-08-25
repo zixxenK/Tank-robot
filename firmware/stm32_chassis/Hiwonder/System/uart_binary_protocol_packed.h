@@ -41,6 +41,8 @@ typedef enum {
     FUNC_GLOWY_ULTRASONIC      = 0x14,
     FUNC_GLOWY_ULTRASONIC_DIAG = 0x15,
     FUNC_IMU_DIAG          = 0x16,
+    FUNC_HC_SR04_ULTRASONIC = 0x17,
+    FUNC_HC_SR04_ULTRASONIC_DIAG = 0x18,
     FUNC_HEARTBEAT        = 0xF0,
     FUNC_ACK              = 0xF1,
     FUNC_ERROR            = 0xFF
@@ -150,18 +152,19 @@ typedef struct __attribute__((packed)) {
     int32_t last_error;
 } IMUDiagnosticsTelemetry;
 
-/** @brief Hiwonder Glowy I2C distance measurement in millimetres. */
+/** @brief HC-SR04 pulse-timed distance measurement. */
 typedef struct __attribute__((packed)) {
     uint16_t distance_mm;
+    uint16_t echo_us;
     uint8_t valid;
     uint8_t status;
-} GlowyUltrasonicTelemetry;
+} HcSr04UltrasonicTelemetry;
 
 typedef struct __attribute__((packed)) {
-    uint32_t read_count;
-    uint32_t valid_count;
-    uint32_t error_count;
-} GlowyUltrasonicDiagnosticsTelemetry;
+    uint32_t trigger_count;
+    uint32_t rising_edge_count;
+    uint32_t falling_edge_count;
+} HcSr04UltrasonicDiagnosticsTelemetry;
 
 /**
  * @brief Complete telemetry struct for burst transmission
@@ -171,7 +174,7 @@ typedef struct __attribute__((packed)) {
     EncoderTelemetry encoder;
     BatteryTelemetry battery;
     IMUTelemetry imu;
-    GlowyUltrasonicTelemetry ultrasonic;
+    HcSr04UltrasonicTelemetry ultrasonic;
     uint32_t timestamp_ms;    // System timestamp
 } CompleteTelemetry;
 
@@ -325,7 +328,7 @@ void binary_protocol_send_heartbeat(BinaryProtocolContext *ctx);
  * @param ctx Protocol context
  */
 void binary_protocol_send_telemetry_burst(BinaryProtocolContext *ctx);
-void binary_protocol_send_glowy_ultrasonic_diagnostics(BinaryProtocolContext *ctx);
+void binary_protocol_send_hc_sr04_diagnostics(BinaryProtocolContext *ctx);
 void binary_protocol_send_imu_diagnostics(BinaryProtocolContext *ctx);
 
 /**

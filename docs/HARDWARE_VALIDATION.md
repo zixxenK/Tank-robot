@@ -5,7 +5,7 @@ This appendix contains the deeper evidence and fault-injection checks. The
 active milestone is drive, camera, and the project's QMI8658 runtime path;
 Hiwonder's live product/hardware pages still label the IMU MPU6050, so the
 acceptance gate requires WHO_AM_I evidence. Servo, battery,
-Glowy ultrasonic, and LiDAR checks remain optional future-upgrade gates.
+HC-SR04 ultrasonic, and LiDAR checks remain optional future-upgrade gates.
 
 Do not place the robot on the floor until every raised-track check passes.
 The production wiring and transport assignments are defined by

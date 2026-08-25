@@ -11,6 +11,7 @@
  * - The product-labeled UART1 USB-C link is USART1 (PA9/PA10) at 1000000 8N1.
  * - USART3 (PD8/PD9) remains the separate factory MASTER pair.
  * - USART2 (PD5/PD6) is the auxiliary/Bluetooth port.
+ * - HC-SR04 uses PC8 as TRIG and PA12 as ECHO/EXTI12.
  * - ST-Link remains SWD-only.
  * - TIM2/TIM3/TIM4/TIM5: factory quadrature encoder inputs; never
  *   reconfigured here.
@@ -22,16 +23,12 @@
 #include "imu_integration.h"
 #include "battery_integration.h"
 #include "status_integration.h"
-#include "glowy_ultrasonic.h"
+#include "hc_sr04.h"
 #include "sg90_servo.h"
 #include "watchdog.h"
 #include "buzzer.h"
 #include "main.h"
 
-/* Basic release profile: only the onboard IMU, cameras, and drive path are
- * commissioned.  Glowy is an optional external device on the same I2C2 bus;
- * do not probe it while bringing up the onboard IMU. */
-#define ENABLE_GLOWY_BASIC_PROFILE 0
 #include "usart.h"
 #include "dma.h"
 #include "tim.h"
@@ -87,9 +84,7 @@ void binary_protocol_integration_init_packed(void) {
     MotorControl_Init();
 
     MotorControl_EmergencyStop();
-#if ENABLE_GLOWY_BASIC_PROFILE
-    glowy_ultrasonic_init();
-#endif
+    hc_sr04_init();
     SG90Servo_Init();
 
     /* Sensor bring-up is non-fatal: the protocol remains available when an
@@ -232,25 +227,34 @@ void binary_protocol_telemetry_task(void) {
                                      accel_x, accel_y, accel_z,
                                      gyro_x, gyro_y, gyro_z);
 
-#if ENABLE_GLOWY_BASIC_PROFILE
-    GlowyUltrasonicMeasurement ultrasonic;
-    bool ultrasonic_ready = glowy_ultrasonic_read(&ultrasonic);
+    HcSr04Measurement ultrasonic;
+    /* Consume a completed echo before starting the next trigger. */
+    uint8_t previous_ultrasonic_status = hc_sr04_get_status();
+    bool ultrasonic_ready = hc_sr04_get_measurement(&ultrasonic);
+    /* Preserve the completed measurement's status before get_measurement()
+     * clears it and service() starts the next 60-ms cycle. */
+    uint8_t ultrasonic_status = ultrasonic_ready
+        ? previous_ultrasonic_status
+        : hc_sr04_get_status();
+    hc_sr04_service();
+    if (!ultrasonic_ready) {
+        ultrasonic_status = hc_sr04_get_status();
+    }
     if (ultrasonic_ready) {
         protocol_ctx.telemetry.ultrasonic.distance_mm = ultrasonic.distance_mm;
+        protocol_ctx.telemetry.ultrasonic.echo_us = ultrasonic.echo_us;
         protocol_ctx.telemetry.ultrasonic.valid = ultrasonic.valid ? 1U : 0U;
-        protocol_ctx.telemetry.ultrasonic.status = ultrasonic.status;
+        protocol_ctx.telemetry.ultrasonic.status = ultrasonic_status;
     } else {
         protocol_ctx.telemetry.ultrasonic.distance_mm = 0U;
+        protocol_ctx.telemetry.ultrasonic.echo_us = 0U;
         protocol_ctx.telemetry.ultrasonic.valid = 0U;
-        protocol_ctx.telemetry.ultrasonic.status = ultrasonic.status;
+        protocol_ctx.telemetry.ultrasonic.status = ultrasonic_status;
     }
-#endif
     
     // Send telemetry burst
     binary_protocol_send_telemetry_burst(&protocol_ctx);
-#if ENABLE_GLOWY_BASIC_PROFILE
-    binary_protocol_send_glowy_ultrasonic_diagnostics(&protocol_ctx);
-#endif
+    binary_protocol_send_hc_sr04_diagnostics(&protocol_ctx);
     binary_protocol_send_imu_diagnostics(&protocol_ctx);
 }
 

@@ -92,6 +92,10 @@ void Error_Handler(void);
 #define SERIAL_SERVO_TX_GPIO_Port GPIOC
 #define SERIAL_SERVO_RX_Pin GPIO_PIN_7
 #define SERIAL_SERVO_RX_GPIO_Port GPIOC
+#define HC_SR04_TRIG_Pin GPIO_PIN_8
+#define HC_SR04_TRIG_GPIO_Port GPIOC
+#define HC_SR04_ECHO_Pin GPIO_PIN_12
+#define HC_SR04_ECHO_GPIO_Port GPIOA
 #define BUZZER_Pin GPIO_PIN_8
 #define BUZZER_GPIO_Port GPIOA
 #define PWM_SERVO_1_Pin GPIO_PIN_11

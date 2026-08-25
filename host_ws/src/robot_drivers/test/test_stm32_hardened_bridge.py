@@ -17,6 +17,7 @@ from robot_drivers.stm32_hardened_bridge import (
     FUNC_SERVO,
     FUNC_HEARTBEAT,
     FUNC_GLOWY_ULTRASONIC,
+    FUNC_HC_SR04_ULTRASONIC,
     FUNC_IMU_DIAG,
     MOTOR_SUBCMD_SET_SPEED,
     SERVO_CHANNEL_J1,
@@ -311,6 +312,31 @@ class TestFrameParser(unittest.TestCase):
         self.assertEqual(function_code, FUNC_GLOWY_ULTRASONIC)
         self.assertEqual(struct.unpack("<HBB", parsed_payload),
                          (1234, 1, 1))
+
+    def test_hc_sr04_ultrasonic_telemetry_frame(self):
+        """Parse the HC-SR04 distance and echo-time payload."""
+        parser = FrameParser()
+        payload = struct.pack("<HHBB", 1234, 7195, 1, 4)
+        body = bytes([FUNC_HC_SR04_ULTRASONIC, len(payload)]) + payload
+        frame = bytes([SYNC_1, SYNC_2]) + body + bytes([
+            crc8_ccitt(body)
+        ])
+
+        result = None
+        for byte in frame:
+            result = parser.process_byte(byte)
+
+        self.assertEqual(result, (FUNC_HC_SR04_ULTRASONIC, payload))
+        self.assertEqual(struct.unpack("<HHBB", payload),
+                         (1234, 7195, 1, 4))
+
+        bridge = STM32HardenedBridge.__new__(STM32HardenedBridge)
+        bridge._telemetry_lock = threading.Lock()
+        bridge._telemetry = TelemetryData()
+        bridge._parse_ultrasonic_diagnostics(struct.pack("<III", 8, 7, 6))
+        self.assertEqual(bridge._telemetry.ultrasonic_trigger_count, 8)
+        self.assertEqual(bridge._telemetry.ultrasonic_rising_edge_count, 7)
+        self.assertEqual(bridge._telemetry.ultrasonic_falling_edge_count, 6)
 
     def test_invalid_crc(self):
         """Test rejection of invalid CRC."""

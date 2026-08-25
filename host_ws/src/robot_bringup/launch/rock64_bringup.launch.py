@@ -74,7 +74,7 @@ def generate_launch_description() -> LaunchDescription:
             "USE_ULTRASONIC",
             default_value="false",
         ),
-        description="Publish the optional Glowy ultrasonic frame",
+        description="Publish the optional HC-SR04 ultrasonic frame",
     )
     use_usb_camera_arg = DeclareLaunchArgument(
         "use_usb_camera",

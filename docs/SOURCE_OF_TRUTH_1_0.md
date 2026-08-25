@@ -20,10 +20,10 @@ hardware fact.
 | Motor protocol TX | USART1 bounded blocking writes |
 | Serial-servo bus | `USART6` |
 | Programming/debug | ST-Link `0483:3748` over SWD only |
-| Onboard IMU | Project QMI8658 runtime assumption on I2C2 PB10/PB11, 400 kHz; 7-bit address `0x6A` or `0x6B`; `WHO_AM_I` register `0x00` = `0x05`; board interrupt input PB12. Physical identity is accepted only by this runtime proof. |
+| Onboard IMU | Project QMI8658 runtime assumption on I2C2 PB10/PB11, 400 kHz; 7-bit address `0x6A` or `0x6B`; `WHO_AM_I` register `0x00` = `0x05`; PB12 remains a normal input because PA12 owns shared EXTI12 for HC-SR04. Physical identity is accepted only by this runtime proof. |
 | Motors | Hiwonder JGB3865-520R45-12, 12V, 45:1, 1980 ticks/output rev |
 | Host motor output cap | Full signed normalized range; STM32 PID, watchdog, and current protection remain authoritative |
-| Distance sensor | Optional Hiwonder Glowy 4-pin module -> controller `5V/GND/SDA/SCL` I2C connector, address `0x77` |
+| Ultrasonic sensor | HC-SR04 -> controller-labeled `5V/GND/PC8/PA12`; PC8 is trigger and PA12 is echo; no external level shifter |
 
 `USART3` on `PD8/PD9` is the stock Hiwonder 7in1/factory reference endpoint.
 It is not the Rock64 host link for this robot and must not be selected for a
@@ -53,8 +53,9 @@ are for direct Rock64 sensors; they do not replace the production WCH
 USB-UART motor link.
 
 The optional distance-sensor build, transport, and bench procedure is the
-[Hiwonder Glowy future-upgrade path](GLOWY_ULTRASONIC_BUILD_PATH.md). It is not
-part of the current drive/camera/IMU acceptance gate.
+HC-SR04 controller-header path. The Glowy I2C module remains a reserved
+future-compatibility path and is not part of the current drive/camera/IMU
+acceptance gate.
 
 For a raised-track bench test, the bounded direct test is:
 

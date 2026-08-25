@@ -56,7 +56,7 @@ bash scripts/hardware_acceptance.sh --tracks-raised
 ```
 
 The runner always starts with the ROS e-stop asserted and stops both motors on
-exit. Servo, Glowy ultrasonic, LiDAR, and battery are outside this basic
+exit. Servo, HC-SR04 ultrasonic, LiDAR, and battery are outside this basic
 acceptance workflow and are neither launched nor reported by it. The IMU is
 always required; there is no basic-profile bypass for it.
 

@@ -65,12 +65,12 @@ reference are:
 |---|---|
 | Rock64 host | Product-labeled UART1 WCH USB-UART -> USART1 PA9/PA10, 1,000,000 8N1 |
 | Factory host reference | USART3 PD8/PD9 remains initialized but is not the production transport |
-| IMU | QMI8658 assumption on I2C2 PB10/PB11 at 400 kHz, interrupt input PB12; both `0x6A` and `0x6B` are probed |
+| IMU | QMI8658 assumption on I2C2 PB10/PB11 at 400 kHz; PB12 is retained as a normal data-ready input because PA12 owns shared EXTI12; both `0x6A` and `0x6B` are probed |
 | IMU proof | Host acceptance requires ready diagnostics, a finite sample, valid address, and `WHO_AM_I=0x05` |
 | Motors | Physical tank uses two motors; protocol commissions motor IDs 0 and 1. Four board channels remain represented in the firmware API |
 | Encoders | M1 PA0/PA1 (TIM5), M2 PA15/PB3 (TIM2), M3 PB6/PB7 (TIM4), M4 PB4/PB5 (TIM3), 1,980 ticks/output revolution for the tank motors |
 | Motor PWM | Factory topology is M1 PE13/PE14, M2 PE9/PE11, M3 PE5/PE6, M4 PB8/PB9; the project has only M1/M2 physically commissioned, and its checked-in HAL maps only M4 PB8 while PB9/TIM11 remains non-commissioned |
-| PWM servo | Only SG90 J1 PA11 drives a physical output; PA12, PC8, and PC9 are inert analog pads |
+| PWM servo | Only SG90 J1 PA11 drives a physical output; PA12 and PC8 are assigned to the HC-SR04 path, while PC9 remains unused |
 | Bus servo | USART6 PC6/PC7 with PE7/PE8 direction enables |
 | Display | SPI2 PB13/PC3 plus PD11/PD12/PD13/PD14 for the LCD |
 | Auxiliary UART | USART2 PD5/PD6 |
@@ -78,7 +78,8 @@ reference are:
 | Battery | ADC1 channel 8 on PB0 |
 | Buzzer/buttons/LED | PA8 / PE1+PE0 / PE10, matching the active IOC and program example rather than the conflicting schematic buzzer sentence |
 | USB host/debug | PB14/PB15 and PA13/PA14 |
-| Optional I2C sensor | Glowy module at `0x77` on the shared I2C2 bus; disabled in the basic profile while IMU bring-up is commissioned |
+| Ultrasonic | HC-SR04 direct pulse-timing path: board `5V/GND`, `PC8` trigger, `PA12` echo; no external level shifter |
+| Optional I2C sensor | Glowy module at `0x77` on the shared I2C2 bus; retained as a reserved compatibility path |
 
 The active IOC still contains a TIM11 timer object for historical/future use,
 but PB9 is configured as analog and `HAL_TIM_MspPostInit()` has no TIM11 pin

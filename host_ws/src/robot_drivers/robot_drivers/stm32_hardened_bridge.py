@@ -77,6 +77,8 @@ FUNC_SELF_TEST = 0x13
 FUNC_GLOWY_ULTRASONIC = 0x14
 FUNC_GLOWY_ULTRASONIC_DIAG = 0x15
 FUNC_IMU_DIAG = 0x16
+FUNC_HC_SR04_ULTRASONIC = 0x17
+FUNC_HC_SR04_ULTRASONIC_DIAG = 0x18
 FUNC_HEARTBEAT = 0xF0
 FUNC_ACK = 0xF1
 FUNC_ERROR = 0xFF
@@ -92,6 +94,8 @@ VALID_FUNCTION_CODES = {
     FUNC_GLOWY_ULTRASONIC,
     FUNC_GLOWY_ULTRASONIC_DIAG,
     FUNC_IMU_DIAG,
+    FUNC_HC_SR04_ULTRASONIC,
+    FUNC_HC_SR04_ULTRASONIC_DIAG,
     FUNC_HEARTBEAT,
     FUNC_ACK,
     FUNC_ERROR,
@@ -193,9 +197,9 @@ class TelemetryData:
     ultrasonic_distance_m: float = float("nan")
     ultrasonic_valid: bool = False
     ultrasonic_state: int = 0
-    ultrasonic_read_count: int = 0
-    ultrasonic_valid_count: int = 0
-    ultrasonic_error_count: int = 0
+    ultrasonic_trigger_count: int = 0
+    ultrasonic_rising_edge_count: int = 0
+    ultrasonic_falling_edge_count: int = 0
 
 
 class CircularBuffer:
@@ -1437,6 +1441,12 @@ class STM32HardenedBridge(Node):
             elif function_code == FUNC_GLOWY_ULTRASONIC_DIAG:
                 self._parse_ultrasonic_diagnostics(payload)
 
+            elif function_code == FUNC_HC_SR04_ULTRASONIC:
+                self._parse_ultrasonic_telemetry(payload)
+
+            elif function_code == FUNC_HC_SR04_ULTRASONIC_DIAG:
+                self._parse_ultrasonic_diagnostics(payload)
+
             elif function_code == FUNC_SERVO:
                 self._parse_servo_status(payload)
 
@@ -1562,14 +1572,19 @@ class STM32HardenedBridge(Node):
             )
 
     def _parse_ultrasonic_telemetry(self, payload: bytes):
-        """Parse and publish Hiwonder Glowy I2C range telemetry."""
-        if len(payload) != 4:
+        """Parse and publish supported ultrasonic range telemetry."""
+        if len(payload) not in (4, 6):
             self.get_logger().warn(
                 f"Invalid ultrasonic payload length: {len(payload)}"
             )
             return
 
-        distance_mm, valid, state = struct.unpack("<HBB", payload)
+        if len(payload) == 6:
+            distance_mm, _echo_us, valid, state = struct.unpack(
+                "<HHBB", payload
+            )
+        else:
+            distance_mm, valid, state = struct.unpack("<HBB", payload)
         distance_m = distance_mm / 1000.0
         valid_measurement = (
             bool(valid) and 0.02 <= distance_m <= 4.0
@@ -1595,19 +1610,19 @@ class STM32HardenedBridge(Node):
         self._ultrasonic_pub.publish(message)
 
     def _parse_ultrasonic_diagnostics(self, payload: bytes):
-        """Parse Glowy I2C read, valid, and error counters."""
+        """Parse ultrasonic diagnostic counters."""
         if len(payload) != 12:
             self.get_logger().warn(
                 f"Invalid ultrasonic diagnostics payload length: {len(payload)}"
             )
             return
-        read_count, valid_count, error_count = struct.unpack(
+        trigger_count, rising_edge_count, falling_edge_count = struct.unpack(
             "<III", payload
         )
         with self._telemetry_lock:
-            self._telemetry.ultrasonic_read_count = read_count
-            self._telemetry.ultrasonic_valid_count = valid_count
-            self._telemetry.ultrasonic_error_count = error_count
+            self._telemetry.ultrasonic_trigger_count = trigger_count
+            self._telemetry.ultrasonic_rising_edge_count = rising_edge_count
+            self._telemetry.ultrasonic_falling_edge_count = falling_edge_count
 
     def _parse_servo_status(self, payload: bytes) -> None:
         """Publish a state only after firmware accepts the J1 servo command."""
@@ -1958,20 +1973,20 @@ class STM32HardenedBridge(Node):
         )
         diag_array.status.append(imu_status)
 
-        # Keep the low-level Glowy I2C state visible. A NaN Range message alone
-        # cannot distinguish an out-of-range result from a disconnected bus.
+        # Keep low-level ultrasonic state visible. A NaN Range message alone
+        # cannot distinguish an out-of-range result from a disconnected sensor.
         with self._telemetry_lock:
             ultrasonic_status = DiagnosticStatus()
-            ultrasonic_status.name = "stm32_hardened_bridge: Hiwonder Glowy"
+            ultrasonic_status.name = "stm32_hardened_bridge: HC-SR04"
             ultrasonic_status.level = (
                 DiagnosticStatus.OK
                 if self._telemetry.ultrasonic_valid
                 else DiagnosticStatus.WARN
             )
             ultrasonic_status.message = (
-                "Valid I2C distance"
+                "Valid ultrasonic distance"
                 if self._telemetry.ultrasonic_valid
-                else "No valid I2C distance"
+                else "No valid ultrasonic distance"
             )
             ultrasonic_status.values.extend(
                 [
@@ -1990,23 +2005,24 @@ class STM32HardenedBridge(Node):
                     KeyValue(
                         key="state_name",
                         value={
-                            0: "unavailable",
-                            1: "valid",
-                            2: "out_of_range",
-                            3: "i2c_error",
+                            0: "idle",
+                            1: "waiting_for_rise",
+                            2: "waiting_for_fall",
+                            3: "timeout",
+                            4: "valid",
                         }.get(self._telemetry.ultrasonic_state, "unknown"),
                     ),
                     KeyValue(
-                        key="read_count",
-                        value=str(self._telemetry.ultrasonic_read_count),
+                        key="trigger_count",
+                        value=str(self._telemetry.ultrasonic_trigger_count),
                     ),
                     KeyValue(
-                        key="valid_count",
-                        value=str(self._telemetry.ultrasonic_valid_count),
+                        key="rising_edge_count",
+                        value=str(self._telemetry.ultrasonic_rising_edge_count),
                     ),
                     KeyValue(
-                        key="error_count",
-                        value=str(self._telemetry.ultrasonic_error_count),
+                        key="falling_edge_count",
+                        value=str(self._telemetry.ultrasonic_falling_edge_count),
                     ),
                 ]
             )

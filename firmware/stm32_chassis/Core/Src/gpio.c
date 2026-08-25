@@ -66,6 +66,11 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET);
 
+  /* Keep the HC-SR04 trigger low before enabling the output driver. */
+  HAL_GPIO_WritePin(HC_SR04_TRIG_GPIO_Port,
+                    HC_SR04_TRIG_Pin,
+                    GPIO_PIN_RESET);
+
   /*Configure GPIO pin Output Level */
 
   /*Configure GPIO pin Output Level */
@@ -116,15 +121,13 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(LED_SYS_GPIO_Port, &GPIO_InitStruct);
 
-  /* Match the V1.2 factory controller: PB12 is the MPU data-ready rising-edge
-   * interrupt. I2C2 itself remains the owner of PB10/PB11. */
+  /* PB12 shares EXTI12 with PA12. The IMU integration polls I2C2, so leave
+   * the data-ready pad as a normal input while PA12 owns the HC-SR04 echo
+   * interrupt line. */
   GPIO_InitStruct.Pin = IMU_ITR_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(IMU_ITR_GPIO_Port, &GPIO_InitStruct);
-
-  HAL_NVIC_SetPriority(IMU_ITR_EXTI_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(IMU_ITR_EXTI_IRQn);
 
   /*Configure GPIO pins : PD10 PD15 PD0 PD1
                            PD4 PD7 */
@@ -141,15 +144,23 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /* These legacy PWM pads are deliberately inert. The production
-   * distance sensor is the 4-pin I2C module on PB10/PB11. */
-  GPIO_InitStruct.Pin = GPIO_PIN_8;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  /* Board labels: PC8 is HC-SR04 TRIG and PA12 is HC-SR04 ECHO. */
+  GPIO_InitStruct.Pin = HC_SR04_TRIG_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(HC_SR04_TRIG_GPIO_Port, &GPIO_InitStruct);
 
-  GPIO_InitStruct.Pin = GPIO_PIN_12;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  GPIO_InitStruct.Pin = HC_SR04_ECHO_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  /* PA12 is an FT input; keep internal pulls disabled for 5-V operation. */
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(HC_SR04_ECHO_GPIO_Port, &GPIO_InitStruct);
+
+  /* PA12 is EXTI12 and is serviced by the shared 10..15 IRQ vector. */
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = BUZZER_Pin;

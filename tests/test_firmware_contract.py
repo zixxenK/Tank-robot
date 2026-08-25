@@ -118,12 +118,13 @@ def test_glowy_ultrasonic_uses_the_i2c_expansion_sensor_contract():
     assert "HAL_I2C_Mem_Read(&hi2c2" in sensor
 
 
-def test_imu_data_ready_matches_the_factory_exti_contract():
+def test_hc_sr04_owns_shared_exti12_while_imu_is_polled():
     gpio = _read("firmware/stm32_chassis/Core/Src/gpio.c")
     interrupt = _read("firmware/stm32_chassis/Core/Src/stm32f4xx_it.c")
-    assert "GPIO_MODE_IT_RISING_FALLING" not in gpio
-    assert "GPIO_MODE_IT_RISING" in gpio
-    assert "HAL_GPIO_EXTI_IRQHandler(IMU_ITR_Pin)" in interrupt
+    assert "HC_SR04_TRIG_Pin" in gpio
+    assert "GPIO_MODE_IT_RISING_FALLING" in gpio
+    assert "HAL_GPIO_EXTI_IRQHandler(HC_SR04_ECHO_Pin)" in interrupt
+    assert "GPIO_MODE_IT_RISING;" not in gpio
 
 
 def test_imu_rate_limited_cycles_reuse_the_last_valid_sample():
@@ -187,6 +188,28 @@ def test_imu_diagnostics_are_carried_over_the_packed_protocol():
     assert "IMU_GetDiagnostics(&diagnostics)" in protocol_c
     assert "binary_protocol_send_imu_diagnostics" in integration
     assert "IMU_STATUS_READY" in imu
+
+
+def test_hc_sr04_protocol_is_distinct_from_reserved_glowy_codes():
+    protocol_h = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_packed.h"
+    )
+    protocol_c = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_packed.c"
+    )
+    integration = _read(
+        "firmware/stm32_chassis/Hiwonder/System/"
+        "uart_binary_protocol_integration_packed.c"
+    )
+    assert "FUNC_GLOWY_ULTRASONIC      = 0x14" in protocol_h
+    assert "FUNC_GLOWY_ULTRASONIC_DIAG = 0x15" in protocol_h
+    assert "FUNC_IMU_DIAG          = 0x16" in protocol_h
+    assert "FUNC_HC_SR04_ULTRASONIC = 0x17" in protocol_h
+    assert "FUNC_HC_SR04_ULTRASONIC_DIAG = 0x18" in protocol_h
+    assert "sizeof(HcSr04UltrasonicTelemetry)" in protocol_c
+    assert "binary_protocol_send_hc_sr04_diagnostics" in integration
 
 
 def test_imu_uses_qmi8658_register_configuration_and_si_scaling():
@@ -273,7 +296,7 @@ def test_hiwonder_board_profile_matches_active_ioc_and_production_boundary():
     }
     assert "PB10.Signal=I2C2_SCL" in ioc
     assert "PB11.Signal=I2C2_SDA" in ioc
-    assert "PB12.Signal=GPXTI12" in ioc
+    assert "PB12.Signal=GPIO_Input" in ioc
     assert "I2C2.ClockSpeed=400000" in ioc
     assert "Hiwonder/Peripherals/imu_mpu6050.c" not in cmake
     assert "Hiwonder/System/imu_integration.c" in cmake
@@ -370,7 +393,7 @@ def test_hiwonder_board_profile_covers_the_complete_active_io_surface():
         "PB0": "ADCx_IN8",
         "PB10": "I2C2_SCL",
         "PB11": "I2C2_SDA",
-        "PB12": "GPXTI12",
+        "PB12": "GPIO_Input",
         "PB13": "SPI2_SCK",
         "PB14": "USB_OTG_HS_DM",
         "PB15": "USB_OTG_HS_DP",
@@ -491,28 +514,39 @@ def test_basic_hardware_profile_keeps_i2c2_for_the_onboard_imu_only():
     )
     assert "hi2c2.Init.ClockSpeed = 400000" in i2c
     assert "I2C2.I2C_Mode=I2C_Fast" in ioc
-    assert "#define ENABLE_GLOWY_BASIC_PROFILE 0" in integration
+    assert "hc_sr04_init();" in integration
+    assert "binary_protocol_send_hc_sr04_diagnostics" in integration
 
 
-def test_legacy_secondary_servo_pads_are_inert_for_i2c_sensor_use():
+def test_hc_sr04_uses_the_board_header_pin_contract():
     main_h = _read("firmware/stm32_chassis/Core/Inc/main.h")
     ioc = _read("firmware/stm32_chassis/RosRobotControllerM4.ioc")
     pins_csv = _read("firmware/stm32_chassis/stm32pinscustom.csv")
+    sensor = _read("firmware/stm32_chassis/Hiwonder/System/hc_sr04.c")
+    gpio = _read("firmware/stm32_chassis/Core/Src/gpio.c")
     servo_port = _read(
         "firmware/stm32_chassis/Hiwonder/Portings/pwm_servo_porting.c"
     )
-    assert "HC_" not in main_h
+    assert "#define HC_SR04_TRIG_Pin GPIO_PIN_8" in main_h
+    assert "#define HC_SR04_ECHO_Pin GPIO_PIN_12" in main_h
     assert "PC10/PC11" not in main_h
     assert "PC10" not in ioc
     assert "PC11" not in ioc
     assert "PWM_SERVO_2_Pin" not in main_h
     assert "PWM_SERVO_3_Pin" not in main_h
-    assert "PA12.GPIO_Label=UNUSED_PA12" in ioc
-    assert "PB12.Signal=GPXTI12" in ioc
-    assert "PC8.Signal=GPIO_Analog" in ioc
-    assert "PA12.Signal=GPIO_Analog" in ioc
-    assert '"65","PC8","Analog","GPIO_Analog","UNUSED_PC8"' in pins_csv
-    assert '"71","PA12","Analog","GPIO_Analog","UNUSED_PA12"' in pins_csv
+    assert "PA12.GPIO_Label=HC_SR04_ECHO" in ioc
+    assert "PB12.Signal=GPIO_Input" in ioc
+    assert "PC8.Signal=GPIO_Output" in ioc
+    assert "PA12.Signal=GPIO_EXTI12" in ioc
+    assert "PA12.GPIO_PuPd=GPIO_NOPULL" in ioc
+    assert '"65","PC8","Output","GPIO_Output","HC_SR04_TRIG"' in pins_csv
+    assert '"71","PA12","I/O","GPIO_EXTI12","HC_SR04_ECHO"' in pins_csv
+    assert "Hiwonder/System/hc_sr04.c" in _read(
+        "firmware/stm32_chassis/CMakeLists.txt"
+    )
+    assert "HC_SR04_MIN_ECHO_US 117U" in sensor
+    assert "HC_SR04_MAX_ECHO_US 23323U" in sensor
+    assert "GPIO_NOPULL" in gpio
     assert "HAL_GPIO_WritePin" in servo_port  # J1 remains the live output
     for channel in (2, 3, 4):
         body = re.search(

@@ -153,14 +153,15 @@ official reference for cross-checking pin assignments, protocol choices, and def
 | Software | ROS1 and ROS2 SDKs (Python 3), full source for motor control / attitude calc / PC comms |
 
 > **Production-image pin ownership (current):** J1/PA11 is the only enabled
-> SG90 output. The Hiwonder Glowy module uses the dedicated four-pin I2C
-> connector at address `0x77` and shares I2C2 with the onboard IMU.
+> SG90 output. The HC-SR04 uses the board-labeled `PC8` trigger and `PA12`
+> echo contacts with the controller's `5V` and `GND` rails. The Glowy I2C
+> module remains a reserved compatibility path at address `0x77`.
 
 ### Cross-reference to this project's `RosRobotControllerM4.ioc`
 | Reference board feature | Project's STM32 pin | Match |
 |---|---|---|
 | 4× encoder motor ports | TIM2/TIM3/TIM4/TIM5, CH1+CH2 encoder mode | Exact peripheral match; only 2 of 4 channels are wired to the physical chassis motors (left/right track) |
-| Reference PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | J1/PA11 remains SG90; secondary pads are inert in the production image |
+| Reference PWM servo ports | PA11/PA12/PC8/PC9, labeled PWM_SERVO_1..4 | J1/PA11 remains SG90; PA12 and PC8 are reassigned to HC-SR04 |
 | Serial bus servo port | USART6 (PC6 TX / PC7 RX) + PE7/PE8 as TX/RX bus-direction-enable | Matches Hiwonder's half-duplex bus-servo driver topology exactly |
 | SBUS input | UART5 RX (PD2), 100000 baud, 9-bit, even parity, 2 stop bits | Standard SBUS framing, matches |
 | Rock64 host link | USART1 (PA9 TX / PA10 RX), 1,000,000 baud | WCH USB-UART motor link on the product connector labeled UART1 |
@@ -353,12 +354,14 @@ drive or telemetry contract.
 | PA11 | `PWM_SERVO_1` GPIO output | SG90 J1 | Sole production PWM servo output |
 | PB10 | `I2C2_SCL` | Dedicated I2C connector SCL | Shared with the Glowy module and onboard IMU |
 | PB11 | `I2C2_SDA` | Dedicated I2C connector SDA | Shared with the Glowy module and onboard IMU |
-| PA12/PC8/PC9/PC10/PC11 | Inert or candidate GPIO | No production sensor ownership | Do not use as an unverified sensor interface |
+| PC8 | GPIO output | HC-SR04 trigger | Board-labeled HC-SR04 TRIG contact |
+| PA12 | GPIO EXTI12 input | HC-SR04 echo | Board-labeled HC-SR04 ECHO contact; 5-V-tolerant STM32 input |
+| PC9/PC10/PC11 | Inert or candidate GPIO | No production sensor ownership | Do not use as an unverified sensor interface |
 
 The legacy reference-board timer-remapping suggestions are historical and do
-not apply to the production image. The distance sensor is I2C-only; do not
-reassign the dedicated I2C bus or treat the legacy secondary pads as sensor
-inputs.
+not apply to the production image. The HC-SR04 is the active pulse-timed
+distance path on PC8/PA12. The Glowy I2C connector remains reserved and must
+not be treated as the active distance-sensor interface.
 
 #### Issue 2: WCH motor transport documentation
 **Resolution:** The approved custom image uses the physical UART1 connector
@@ -389,6 +392,6 @@ source-of-truth document.
 | PD3 | GPIO_Input (MOTOR_ENABLE) | Unconsumed motor-enable input | Current firmware does not read this pin or use it as a PWM safety interlock; do not treat it as the emergency cutoff |
 | PE0 | GPIO_Input (KEY2) | User button 2 | General-purpose user input |
 | PE1 | GPIO_Input (KEY1) | User button 1 | General-purpose user input |
-| PB12 | GPXTI12 (IMU_ITR) | QMI8658 interrupt | Board IMU data-ready input; production wrapper currently uses status polling |
+| PB12 | GPIO input (IMU_ITR) | QMI8658 data-ready pad | Shared EXTI12 is assigned to the HC-SR04 echo on PA12; production wrapper uses I2C polling |
 
 ---

@@ -17,7 +17,7 @@
 #include "battery_integration.h"
 #include "sg90_servo.h"
 #include "buzzer.h"
-#include "glowy_ultrasonic.h"
+#include "hc_sr04.h"
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -679,36 +679,36 @@ void binary_protocol_send_telemetry_burst(BinaryProtocolContext *ctx) {
                                     frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
     }
 
-    frame_len = build_frame(FUNC_GLOWY_ULTRASONIC,
+    frame_len = build_frame(FUNC_HC_SR04_ULTRASONIC,
                             (const uint8_t *)&ctx->telemetry.ultrasonic,
-                            sizeof(GlowyUltrasonicTelemetry),
+                            sizeof(HcSr04UltrasonicTelemetry),
                             frame_buffer,
                             MAX_FRAME_SIZE);
     if (frame_len > 0) {
-        binary_protocol_queue_frame(ctx, FUNC_GLOWY_ULTRASONIC,
+        binary_protocol_queue_frame(ctx, FUNC_HC_SR04_ULTRASONIC,
                                     frame_buffer + FRAME_HEADER_SIZE,
                                     frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
     }
 }
 
-void binary_protocol_send_glowy_ultrasonic_diagnostics(BinaryProtocolContext *ctx) {
+void binary_protocol_send_hc_sr04_diagnostics(BinaryProtocolContext *ctx) {
     if (!ctx->telemetry_enabled) {
         return;
     }
-    GlowyUltrasonicDiagnostics diagnostics;
-    glowy_ultrasonic_get_diagnostics(&diagnostics);
-    GlowyUltrasonicDiagnosticsTelemetry telemetry = {
-        diagnostics.read_count,
-        diagnostics.valid_count,
-        diagnostics.error_count,
+    HcSr04Diagnostics diagnostics;
+    hc_sr04_get_diagnostics(&diagnostics);
+    HcSr04UltrasonicDiagnosticsTelemetry telemetry = {
+        diagnostics.trigger_count,
+        diagnostics.rising_edge_count,
+        diagnostics.falling_edge_count,
     };
     uint8_t frame_buffer[MAX_FRAME_SIZE];
-    uint16_t frame_len = build_frame(FUNC_GLOWY_ULTRASONIC_DIAG,
+    uint16_t frame_len = build_frame(FUNC_HC_SR04_ULTRASONIC_DIAG,
                                      (const uint8_t *)&telemetry,
                                      sizeof(telemetry), frame_buffer,
                                      MAX_FRAME_SIZE);
     if (frame_len > 0) {
-        binary_protocol_queue_frame(ctx, FUNC_GLOWY_ULTRASONIC_DIAG,
+        binary_protocol_queue_frame(ctx, FUNC_HC_SR04_ULTRASONIC_DIAG,
                                     frame_buffer + FRAME_HEADER_SIZE,
                                     frame_len - FRAME_HEADER_SIZE - FRAME_FOOTER_SIZE);
     }

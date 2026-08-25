@@ -5,7 +5,7 @@ Run these commands on the Ubuntu Rock64 from the repository root.
 ## One-time firmware and ROS deployment
 
 The current release owns the drive, camera, and project QMI8658 runtime-path acceptance
-path. Servo, Glowy ultrasonic, LiDAR, and battery are accessory/future-upgrade
+path. Servo, HC-SR04 ultrasonic, LiDAR, and battery are accessory/future-upgrade
 hardware and are outside this basic acceptance workflow.
 
 ```bash
@@ -60,7 +60,7 @@ The runner performs and prints these basic stages one at a time:
    encoder movement and little right-encoder movement.
 9. M2/right track: performs the corresponding independent proof.
 
-The basic runner does not launch or report the SG90, Glowy ultrasonic,
+The basic runner does not launch or report the SG90, HC-SR04 ultrasonic,
 STL-50B2 LiDAR, or battery checks.
 
 Every exit path requests both motor stops and latches `/safety/e_stop=true`.

@@ -308,11 +308,11 @@ synchronization.
 
 ## Hardware Gate
 
-The optional distance sensor is the Hiwonder Glowy RGB ultrasonic module. It
-is documented in [docs/GLOWY_ULTRASONIC_BUILD_PATH.md](docs/GLOWY_ULTRASONIC_BUILD_PATH.md)
-and plugs into the controller's four-pin `5V/GND/SDA/SCL` I2C connector at
-address `0x77`. It is not part of the current drive/camera/IMU gate; no
-Arduino or pulse-timing adapter is required when it is later enabled.
+The optional distance sensor is an HC-SR04 connected directly to the
+controller's labeled `5V/GND/PC8/PA12` contacts (`PC8` trigger, `PA12` echo).
+The board's STM32 input is 5-V-tolerant, so no external level shifter is used.
+It is not part of the current drive/camera/IMU gate until hardware acceptance
+passes.
 
 Firmware builds and host/mock tests are pre-flash checks. Before operating the
 robot, follow the single current procedure in

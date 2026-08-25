@@ -42,8 +42,10 @@ the reflected CRC-8/MAXIM table (`table[1] == 0x5E`).
 | `0x11` | Battery | `<ff` voltage/current |
 | `0x12` | IMU | `<ffffff` acceleration/gyro |
 | `0x13` | Legacy self-test | Reserved; use the Rock64 hardware acceptance runner |
-| `0x14` | Hiwonder Glowy ultrasonic | `<HBB` distance mm, valid, status |
-| `0x15` | Glowy ultrasonic diagnostics | `<III` I2C read count, valid count, error count |
+| `0x14` | Hiwonder Glowy ultrasonic (reserved) | `<HBB` distance mm, valid, status |
+| `0x15` | Glowy ultrasonic diagnostics (reserved) | `<III` I2C read count, valid count, error count |
+| `0x17` | HC-SR04 ultrasonic | `<HHBB` distance mm, echo us, valid, status |
+| `0x18` | HC-SR04 diagnostics | `<III` trigger count, rising-edge count, falling-edge count |
 | `0xF0` | Heartbeat | Empty |
 | `0xF1` | Acknowledgement | Implementation-defined |
 | `0xFF` | Error | Error code |
@@ -93,8 +95,8 @@ physical sound.
 ## SG90 Servo Commands
 
 The production image controls one PWM servo only: channel `0`, board header
-J1, STM32 PA11. The distance sensor uses the dedicated four-pin I2C connector;
-the legacy secondary servo pads are not part of the production image.
+J1, STM32 PA11. The HC-SR04 uses the board-labeled PC8/PA12 contacts; the
+legacy secondary servo role for those pads is not active.
 
 ```text
 01 00 PULSE_US_UINT16_LE DURATION_MS_UINT16_LE

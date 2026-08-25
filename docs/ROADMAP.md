@@ -14,7 +14,8 @@ the drive safety boundary.
 | Perception | Future | Build read-only camera inference first; feed only reviewed, bounded proposals to the agent layer. |
 | Terrain adaptation | Future | Use validated IMU/encoder evidence to tune speed and pivot behavior; never bypass safety limits. |
 | LiDAR | Optional | Enable after serial/GPIO wiring and `/scan` acceptance are proven. |
-| Hiwonder Glowy ultrasonic | Optional | Keep as a future proximity input on shared I2C2; it is not in the active drive gate. |
+| HC-SR04 ultrasonic | Optional | Commission through the controller's 5V/GND/PC8/PA12 headers; keep it outside the active drive gate until accepted. |
+| Hiwonder Glowy ultrasonic | Reserved | Keep the shared-I2C compatibility driver disabled unless that module is acquired. |
 | Servo and accessory outputs | Optional | Re-enable acceptance only when a lab task needs the actuator. |
 | Battery telemetry | Optional | Calibrate the ADC divider and make it required before battery-aware autonomy. |
 

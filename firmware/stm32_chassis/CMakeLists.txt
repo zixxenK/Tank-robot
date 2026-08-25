@@ -34,6 +34,8 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 # The project IMU path is QMI8658, but Hiwonder's live product/hardware pages
 # still say MPU6050. Keep the identity gate in imu_integration.c and do not
 # re-add the retired imu_mpu6050.c/Fusion path or legacy DMA adapter here.
+# The active range sensor is the direct HC-SR04 PC8/PA12 path; the Glowy
+# implementation remains compiled only as reserved compatibility code.
 
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
@@ -65,6 +67,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Hiwonder/System/imu_integration.c
     Hiwonder/System/battery_integration.c
     Hiwonder/System/status_integration.c
+    Hiwonder/System/hc_sr04.c
     Hiwonder/System/glowy_ultrasonic.c
     Hiwonder/System/sg90_servo.c
     Third_Party/Lw/lwmem.c

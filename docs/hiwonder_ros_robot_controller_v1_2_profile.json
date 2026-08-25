@@ -165,6 +165,7 @@
       "driver_assumption": "QMI8658",
       "peripheral": "I2C2",
       "pins": {"scl": "PB10", "sda": "PB11", "interrupt_input": "PB12"},
+      "interrupt_note": "PB12 is configured as a normal input because PA12 owns shared EXTI12 for the HC-SR04 echo; the IMU integration polls I2C2.",
       "clock_hz": 400000,
       "candidate_addresses_7bit": ["0x6A", "0x6B"],
       "who_am_i_register": "0x00",
@@ -176,7 +177,8 @@
       "factory_reference_motor_pwm": {"motor_1": ["PE13", "PE14"], "motor_2": ["PE9", "PE11"], "motor_3": ["PE5", "PE6"], "motor_4": ["PB8", "PB9"]},
       "project_configured_motor_pwm": {"motor_1": ["PE13", "PE14"], "motor_2": ["PE9", "PE11"], "motor_3": ["PE5", "PE6"], "motor_4": ["PB8"], "motor_4_missing_channel": "PB9/TIM11 is not configured in the checked-in IOC/HAL post-init and is not commissioned"},
       "encoder_quadrature": {"motor_1": ["PA0", "PA1"], "motor_2": ["PA15", "PB3"], "motor_3": ["PB6", "PB7"], "motor_4": ["PB4", "PB5"]},
-      "pwm_servo": {"j1_active": "PA11", "unused": ["PA12", "PC8", "PC9"]},
+      "pwm_servo": {"j1_active": "PA11", "unused": ["PC9"]},
+      "hc_sr04": {"trigger": "PC8", "echo": "PA12", "power": "5V", "ground": "GND", "external_level_shifter": false},
       "bus_servo": {"tx": "PC6", "rx": "PC7", "tx_enable": "PE7", "rx_enable": "PE8"},
       "display": {"sck": "PB13", "mosi": "PC3", "blk": "PD11", "cs": "PD12", "dc": "PD13", "res": "PD14"},
       "battery_adc": "PB0",
@@ -193,7 +195,8 @@
       "physical_drive_motors": 2,
       "active_protocol_motors": [0, 1],
       "encoder_ticks_per_output_revolution": 1980,
-      "optional_glowy_i2c_sensor": {"address_7bit": "0x77", "enabled_in_basic_profile": false},
+      "hc_sr04": {"enabled_in_basic_profile": true, "telemetry_function": "0x17", "diagnostics_function": "0x18"},
+      "optional_glowy_i2c_sensor": {"address_7bit": "0x77", "enabled_in_basic_profile": false, "reserved_compatibility_path": true},
       "orientation_fusion": "not published; raw SI acceleration and angular velocity are published",
       "legacy_mpu_sources": "retained for reference only and excluded from the production CMake target"
     }

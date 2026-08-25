@@ -256,7 +256,7 @@ class STL50B2Lidar(Node):
 
         self._parser = STL50B2StreamParser()
         self._assembler = SynchronizedScanAssembler(
-            require_sync=False
+            require_sync=self._use_sync_gpio
         )
         self._serial_bytes = 0
         self._valid_packets = 0

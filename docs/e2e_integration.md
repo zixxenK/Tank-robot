@@ -23,7 +23,7 @@ The active acceptance gate covers the STM32 bridge, left/right encoder
 telemetry, derived odometry, the project's QMI8658 runtime path, PS5 input,
 and both cameras. The board's published IMU identity is contradictory; the
 runtime diagnostic is the acceptance authority.
-Servo, battery, Glowy ultrasonic, and LiDAR checks are optional until their
+Servo, battery, HC-SR04 ultrasonic, and LiDAR checks are optional until their
 hardware is commissioned.
 
 ## Future proposal path
