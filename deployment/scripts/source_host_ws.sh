@@ -68,6 +68,13 @@ HOST_WS="$(resolve_host_ws)"
 # nodes from the wrong workspace even when the current directory is correct.
 unset AMENT_PREFIX_PATH CMAKE_PREFIX_PATH COLCON_PREFIX_PATH PYTHONPATH ROS_PACKAGE_PATH
 
+# The Rock64 carries a distro pytest alongside user-local pytest plugins. A
+# user-local plugin can target a newer pytest than Ubuntu Humble provides and
+# break every ament_python package test during `colcon test`. The repository
+# tests do not require third-party pytest plugins, so keep plugin autoloading
+# disabled unless an operator explicitly overrides it.
+export PYTEST_DISABLE_PLUGIN_AUTOLOAD="${PYTEST_DISABLE_PLUGIN_AUTOLOAD:-1}"
+
 # ── Auto-detect ROS distro ────────────────────────────────────────────────
 resolve_ros_distro() {
   # Explicit override from environment
